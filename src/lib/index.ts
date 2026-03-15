@@ -1,7 +1,10 @@
 export type { AddonResult } from "./engine/addons-engine.js";
-export type { WordAnalysis, WordsEngineData } from "./engine/engine.js";
+export type { CompoundResult } from "./engine/compounds.js";
+export type { RomanNumeralResult, WordAnalysis, WordsEngineData } from "./engine/engine.js";
 export { WordsEngine } from "./engine/engine.js";
 export type { EnglishSearchResult } from "./engine/english-search.js";
+export type { SyncopeResult } from "./engine/syncope.js";
+export type { TwoWordResult } from "./engine/two-words.js";
 export type { ParseResult, StemEndingPair } from "./engine/word-analysis.js";
 export { dictionaryForm } from "./formatter/dictionary-form.js";
 export type { MergedGroup } from "./formatter/text-output.js";

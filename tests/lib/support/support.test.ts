@@ -4,7 +4,7 @@ import {
   isPunctuation,
   vToUAndJToI,
   vToUAndJToIString,
-} from "../../src/lib/support/char-utils.js";
+} from "../../../src/lib/support/char-utils.js";
 import {
   equChar,
   equStr,
@@ -14,7 +14,7 @@ import {
   lowerCase,
   ltuChar,
   ltuStr,
-} from "../../src/lib/support/latin-string.js";
+} from "../../../src/lib/support/latin-string.js";
 
 // ---------------------------------------------------------------------------
 // char-utils
@@ -187,5 +187,104 @@ describe("lowerCase", () => {
   it("lowercases latin text", () => {
     expect(lowerCase("AQUAM")).toBe("aquam");
     expect(lowerCase("ReGiNa")).toBe("regina");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// latin-string: equChar remaining branches (from branch-coverage)
+// ---------------------------------------------------------------------------
+describe("latin-string: equChar remaining branches", () => {
+  it("equChar u matches u and v", () => {
+    expect(equChar("u", "u")).toBe(true);
+    expect(equChar("v", "u")).toBe(true);
+    expect(equChar("a", "u")).toBe(false);
+  });
+
+  it("equChar with uppercase U/V", () => {
+    expect(equChar("U", "U")).toBe(true);
+    expect(equChar("V", "U")).toBe(true);
+    expect(equChar("U", "V")).toBe(true);
+    expect(equChar("V", "V")).toBe(true);
+    expect(equChar("A", "V")).toBe(false);
+  });
+
+  it("equChar with uppercase I/J", () => {
+    expect(equChar("I", "I")).toBe(true);
+    expect(equChar("J", "I")).toBe(true);
+    expect(equChar("I", "J")).toBe(true);
+    expect(equChar("J", "J")).toBe(true);
+    expect(equChar("A", "J")).toBe(false);
+  });
+
+  it("ltuStr/gtuStr with u/v equivalence in strings", () => {
+    expect(ltuStr("auc", "avc")).toBe(false);
+    expect(gtuStr("auc", "avc")).toBe(false);
+    expect(ltuStr("aua", "avb")).toBe(true);
+    expect(gtuStr("aub", "ava")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// latin-string: edge cases (from engine-coverage)
+// ---------------------------------------------------------------------------
+describe("latin-string: additional edge cases", () => {
+  it("ltuChar default case", () => {
+    expect(ltuChar("a", "b")).toBe(true);
+    expect(ltuChar("b", "a")).toBe(false);
+  });
+
+  it("gtuChar default case", () => {
+    expect(gtuChar("b", "a")).toBe(true);
+    expect(gtuChar("a", "b")).toBe(false);
+  });
+
+  it("ltuChar u/v equivalence", () => {
+    expect(ltuChar("a", "v")).toBe(true);
+    expect(ltuChar("z", "v")).toBe(false);
+  });
+
+  it("gtuChar u/v equivalence", () => {
+    expect(gtuChar("z", "u")).toBe(true);
+    expect(gtuChar("a", "u")).toBe(false);
+  });
+
+  it("ltuStr with gtuChar branch", () => {
+    expect(ltuStr("z", "a")).toBe(false);
+  });
+
+  it("gtuStr with ltuChar branch", () => {
+    expect(gtuStr("a", "z")).toBe(false);
+  });
+
+  it("ltuStr/gtuStr equal strings", () => {
+    expect(ltuStr("abc", "abc")).toBe(false);
+    expect(gtuStr("abc", "abc")).toBe(false);
+  });
+
+  it("head pads, truncates, and preserves", () => {
+    expect(head("abc", 5)).toBe("abc  ");
+    expect(head("abcdef", 3)).toBe("abc");
+    expect(head("abc", 3)).toBe("abc");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// latin-string: ltuStr/gtuStr character ordering branches (from remaining-branches)
+// ---------------------------------------------------------------------------
+describe("latin-string: ltuStr/gtuStr character ordering branches", () => {
+  it("ltuStr returns false when first diff char is greater (line 73)", () => {
+    expect(ltuStr("ba", "ab")).toBe(false);
+  });
+
+  it("gtuStr returns false when first diff char is less (line 86)", () => {
+    expect(gtuStr("ab", "ba")).toBe(false);
+  });
+
+  it("ltuStr with u/v equivalent chars followed by different chars", () => {
+    expect(ltuStr("ua", "vb")).toBe(true);
+  });
+
+  it("gtuStr with i/j equivalent chars followed by different chars", () => {
+    expect(gtuStr("jb", "ia")).toBe(true);
   });
 });

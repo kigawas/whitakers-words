@@ -33,7 +33,8 @@ import {
   TENSES,
   VERB_KINDS,
   VOICES,
-} from "../../src/lib/index.js";
+} from "../../../src/lib/index.js";
+import { extractQuality, qualityDedupeKey } from "../../../src/lib/types/quality-extract.js";
 
 // ---------------------------------------------------------------------------
 // Enum arrays
@@ -312,5 +313,39 @@ describe("numberOfStems", () => {
 describe("assertNever", () => {
   it("throws on any value", () => {
     expect(() => assertNever("oops" as never)).toThrow("Unexpected value");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractQuality: PACK and default (from engine-coverage)
+// ---------------------------------------------------------------------------
+describe("extractQuality: PACK and default", () => {
+  it("extracts PACK quality fields", () => {
+    const qual: QualityRecord = {
+      pofs: "PACK",
+      pack: { decl: { which: 3, var: 1 }, cs: "NOM", number: "S", gender: "M" },
+    };
+    const v = extractQuality(qual);
+    expect(v.pofs).toBe("PACK");
+    expect(v.cs).toBe("NOM");
+    expect(v.number).toBe("S");
+    expect(v.gender).toBe("M");
+    expect(v.decl).toEqual([3, 1]);
+  });
+
+  it("extracts X/unknown quality", () => {
+    const v = extractQuality({ pofs: "X" } as QualityRecord);
+    expect(v.pofs).toBe("X");
+  });
+
+  it("qualityDedupeKey includes all PACK fields", () => {
+    const qual: QualityRecord = {
+      pofs: "PACK",
+      pack: { decl: { which: 3, var: 1 }, cs: "NOM", number: "S", gender: "M" },
+    };
+    const key = qualityDedupeKey(42, extractQuality(qual));
+    expect(key).toContain("42");
+    expect(key).toContain("PACK");
+    expect(key).toContain("NOM");
   });
 });

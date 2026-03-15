@@ -27,10 +27,9 @@ import type {
   NumeralValue,
   PronounKind,
   StemKey,
-  Variant,
   VerbKind,
-  Which,
 } from "../types/enums.js";
+import { TokenReader } from "./parse-utils.js";
 import { parsePofs } from "./pofs-map.js";
 
 // ---------------------------------------------------------------------------
@@ -82,103 +81,56 @@ function tokenize(line: string): string[] {
 }
 
 /**
- * Parse a Target_Entry from tokens.
+ * Parse a Target_Entry from tokens using a TokenReader.
  * A Target_Entry is a POS-discriminated record, same as PartEntry.
- * Returns [TargetEntry, nextOffset].
  */
 function parseTargetEntry(tokens: string[], offset: number): TargetEntry {
-  const pofs = parsePofs(tokens[offset] ?? "X");
+  const r = new TokenReader(tokens, offset);
+  const pofs = parsePofs(r.str());
 
   switch (pofs) {
     case "N": {
-      const which = Number.parseInt(tokens[offset + 1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[offset + 2] ?? "0", 10) as Variant;
-      const gender = (tokens[offset + 3] ?? "X") as Gender;
-      const kind = (tokens[offset + 4] ?? "X") as NounKind;
-      return {
-        pofs: "N",
-        n: {
-          decl: { which, var: v },
-          gender,
-          kind,
-        } satisfies NounEntry,
-      };
+      const decl = r.decn();
+      const gender = r.str() as Gender;
+      const kind = r.str() as NounKind;
+      return { pofs: "N", n: { decl, gender, kind } satisfies NounEntry };
     }
     case "PRON": {
-      const which = Number.parseInt(tokens[offset + 1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[offset + 2] ?? "0", 10) as Variant;
-      const kind = (tokens[offset + 3] ?? "X") as PronounKind;
-      return {
-        pofs: "PRON",
-        pron: {
-          decl: { which, var: v },
-          kind,
-        } satisfies PronounEntry,
-      };
+      const decl = r.decn();
+      const kind = r.str() as PronounKind;
+      return { pofs: "PRON", pron: { decl, kind } satisfies PronounEntry };
     }
     case "PACK": {
-      const which = Number.parseInt(tokens[offset + 1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[offset + 2] ?? "0", 10) as Variant;
-      const kind = (tokens[offset + 3] ?? "X") as PronounKind;
-      return {
-        pofs: "PACK",
-        pack: {
-          decl: { which, var: v },
-          kind,
-        } satisfies PropackEntry,
-      };
+      const decl = r.decn();
+      const kind = r.str() as PronounKind;
+      return { pofs: "PACK", pack: { decl, kind } satisfies PropackEntry };
     }
     case "ADJ": {
-      const which = Number.parseInt(tokens[offset + 1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[offset + 2] ?? "0", 10) as Variant;
-      const co = (tokens[offset + 3] ?? "X") as Comparison;
-      return {
-        pofs: "ADJ",
-        adj: {
-          decl: { which, var: v },
-          co,
-        } satisfies AdjectiveEntry,
-      };
+      const decl = r.decn();
+      const co = r.str() as Comparison;
+      return { pofs: "ADJ", adj: { decl, co } satisfies AdjectiveEntry };
     }
     case "NUM": {
-      const which = Number.parseInt(tokens[offset + 1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[offset + 2] ?? "0", 10) as Variant;
-      const sort = (tokens[offset + 3] ?? "X") as NumeralSort;
-      const value = Number.parseInt(tokens[offset + 4] ?? "0", 10) as NumeralValue;
+      const decl = r.decn();
+      const sort = r.str() as NumeralSort;
+      const value = r.int() as NumeralValue;
       return {
         pofs: "NUM",
-        num: {
-          decl: { which, var: v },
-          sort,
-          value: Number.isNaN(value) ? 0 : value,
-        } satisfies NumeralEntry,
+        num: { decl, sort, value: Number.isNaN(value) ? 0 : value } satisfies NumeralEntry,
       };
     }
     case "ADV": {
-      const co = (tokens[offset + 1] ?? "X") as Comparison;
-      return {
-        pofs: "ADV",
-        adv: { co } satisfies AdverbEntry,
-      };
+      const co = r.str() as Comparison;
+      return { pofs: "ADV", adv: { co } satisfies AdverbEntry };
     }
     case "V": {
-      const which = Number.parseInt(tokens[offset + 1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[offset + 2] ?? "0", 10) as Variant;
-      const kind = (tokens[offset + 3] ?? "X") as VerbKind;
-      return {
-        pofs: "V",
-        v: {
-          con: { which, var: v },
-          kind,
-        } satisfies VerbEntry,
-      };
+      const con = r.decn();
+      const kind = r.str() as VerbKind;
+      return { pofs: "V", v: { con, kind } satisfies VerbEntry };
     }
     case "PREP": {
-      const obj = (tokens[offset + 1] ?? "X") as Case;
-      return {
-        pofs: "PREP",
-        prep: { obj } satisfies PrepositionEntry,
-      };
+      const obj = r.str() as Case;
+      return { pofs: "PREP", prep: { obj } satisfies PrepositionEntry };
     }
     default:
       return { pofs: "X" } satisfies PartEntry;
@@ -192,27 +144,19 @@ function parseTargetEntry(tokens: string[], offset: number): TargetEntry {
  */
 function parseSuffixEntry(line: string): SuffixEntry {
   const tokens = tokenize(line);
-  const root = parsePofs(tokens[0] ?? "X");
-  const rootKey = Number.parseInt(tokens[1] ?? "0", 10) as StemKey;
-
-  // Target entry starts at offset 2
-  const target = parseTargetEntry(tokens, 2);
-
-  // Target key is the last token
+  const r = new TokenReader(tokens);
+  const root = parsePofs(r.str());
+  const rootKey = r.int() as StemKey;
+  const target = parseTargetEntry(tokens, r.offset);
   const targetKey = Number.parseInt(tokens[tokens.length - 1] ?? "0", 10) as StemKey;
-
   return { root, rootKey, target, targetKey };
 }
 
-/**
- * Parse a Prefix_Entry from a line.
- * Format: ROOT_POS TARGET_POS
- * e.g.: "V V", "X X", "PACK PACK"
- */
 function parsePrefixEntry(line: string): PrefixEntry {
   const tokens = tokenize(line);
-  const root = parsePofs(tokens[0] ?? "X");
-  const target = parsePofs(tokens[1] ?? "X");
+  const r = new TokenReader(tokens);
+  const root = parsePofs(r.str());
+  const target = parsePofs(r.str());
   return { root, target };
 }
 

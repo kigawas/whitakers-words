@@ -135,39 +135,25 @@ export const NULL_DICTIONARY_ENTRY: DictionaryEntry = {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const STEM_COUNTS: Record<PartOfSpeech, StemKey> = {
+  X: 0,
+  N: 2,
+  PRON: 2,
+  PACK: 2,
+  ADJ: 4,
+  NUM: 4,
+  ADV: 3,
+  V: 4,
+  VPAR: 0,
+  SUPINE: 0,
+  PREP: 1,
+  CONJ: 1,
+  INTERJ: 1,
+  TACKON: 0,
+  PREFIX: 1,
+  SUFFIX: 1,
+};
+
 export function numberOfStems(pofs: PartOfSpeech): StemKey {
-  switch (pofs) {
-    case "N":
-      return 2;
-    case "PRON":
-      return 2;
-    case "PACK":
-      return 2;
-    case "ADJ":
-      return 4;
-    case "NUM":
-      return 4;
-    case "ADV":
-      return 3;
-    case "V":
-      return 4;
-    case "VPAR":
-      return 0;
-    case "SUPINE":
-      return 0;
-    case "PREP":
-      return 1;
-    case "CONJ":
-      return 1;
-    case "INTERJ":
-      return 1;
-    case "TACKON":
-      return 0;
-    case "PREFIX":
-      return 1;
-    case "SUFFIX":
-      return 1;
-    case "X":
-      return 0;
-  }
+  return STEM_COUNTS[pofs];
 }

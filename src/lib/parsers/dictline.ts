@@ -29,7 +29,7 @@ import type {
   VerbKind,
   Which,
 } from "../types/enums.js";
-import type { DecnRecord } from "../types/inflections.js";
+import { FixedReader } from "./parse-utils.js";
 import { parsePofs } from "./pofs-map.js";
 
 // ---------------------------------------------------------------------------
@@ -45,70 +45,109 @@ import { parsePofs } from "./pofs-map.js";
 // Meaning: up to 80 chars              (cols 110..189)
 // ---------------------------------------------------------------------------
 
-const STEM_SIZE = 18;
-const STEMS_TOTAL = 4 * (STEM_SIZE + 1); // 76
+const STEM_WIDTH = 18;
+const STEMS_TOTAL = 4 * (STEM_WIDTH + 1); // 76
 const POS_WIDTH = 6;
-const PART_ENTRY_WIDTH = 23; // POS(6) + 1 + largest variant (Numeral=16)
-const TRAN_WIDTH = 9;
-
-function trimStem(s: string): string {
-  return s.trimEnd();
-}
-
-function parseDecn(s: string): DecnRecord {
-  // "N V" where N=which, V=variant, separated by space, total 3 chars
-  const which = Number.parseInt(s.charAt(0), 10) as Which;
-  const v = Number.parseInt(s.charAt(2), 10) as Variant;
-  return { which, var: v };
-}
+const PART_ENTRY_WIDTH = 23;
 
 function parsePartEntry(s: string): PartEntry {
-  // s is 23 chars: POS(6) + space + variant-specific(16)
   const pofs = parsePofs(s.slice(0, POS_WIDTH));
-  const rest = s.slice(POS_WIDTH + 1); // 16 chars
+  const r = new FixedReader(s.slice(POS_WIDTH + 1));
 
   switch (pofs) {
     case "N": {
-      const decl = parseDecn(rest);
-      const gender = rest.charAt(4).trimEnd() as Gender;
-      const kind = rest.charAt(6).trimEnd() as NounKind;
-      return { pofs: "N", n: { decl, gender, kind } satisfies NounEntry };
+      const which = r.field(1);
+      r.skip();
+      const variant = r.field(1);
+      r.skip();
+      const gender = r.field(1) as Gender;
+      r.skip();
+      const kind = r.field(1) as NounKind;
+      return {
+        pofs: "N",
+        n: {
+          decl: { which: +which as Which, var: +variant as Variant },
+          gender,
+          kind,
+        } satisfies NounEntry,
+      };
     }
     case "PRON": {
-      const decl = parseDecn(rest);
-      const kind = rest.slice(4).trimEnd() as PronounKind;
-      return { pofs: "PRON", pron: { decl, kind } satisfies PronounEntry };
+      const which = r.field(1);
+      r.skip();
+      const variant = r.field(1);
+      r.skip();
+      const kind = r.rest() as PronounKind;
+      return {
+        pofs: "PRON",
+        pron: {
+          decl: { which: +which as Which, var: +variant as Variant },
+          kind,
+        } satisfies PronounEntry,
+      };
     }
     case "PACK": {
-      const decl = parseDecn(rest);
-      const kind = rest.slice(4).trimEnd() as PronounKind;
-      return { pofs: "PACK", pack: { decl, kind } satisfies PropackEntry };
+      const which = r.field(1);
+      r.skip();
+      const variant = r.field(1);
+      r.skip();
+      const kind = r.rest() as PronounKind;
+      return {
+        pofs: "PACK",
+        pack: {
+          decl: { which: +which as Which, var: +variant as Variant },
+          kind,
+        } satisfies PropackEntry,
+      };
     }
     case "ADJ": {
-      const decl = parseDecn(rest);
-      const co = rest.slice(4).trimEnd() as Comparison;
-      return { pofs: "ADJ", adj: { decl, co } satisfies AdjectiveEntry };
+      const which = r.field(1);
+      r.skip();
+      const variant = r.field(1);
+      r.skip();
+      const co = r.rest() as Comparison;
+      return {
+        pofs: "ADJ",
+        adj: {
+          decl: { which: +which as Which, var: +variant as Variant },
+          co,
+        } satisfies AdjectiveEntry,
+      };
     }
     case "ADV": {
-      const co = rest.trimEnd() as Comparison;
+      const co = r.rest() as Comparison;
       return { pofs: "ADV", adv: { co } satisfies AdverbEntry };
     }
     case "V": {
-      const decl = parseDecn(rest);
-      const kind = rest.slice(4).trimEnd() as VerbKind;
-      return { pofs: "V", v: { con: decl, kind } satisfies VerbEntry };
+      const which = r.field(1);
+      r.skip();
+      const variant = r.field(1);
+      r.skip();
+      const kind = r.rest() as VerbKind;
+      return {
+        pofs: "V",
+        v: { con: { which: +which as Which, var: +variant as Variant }, kind } satisfies VerbEntry,
+      };
     }
     case "NUM": {
-      const decl = parseDecn(rest);
-      const sort = rest.slice(4, 10).trimEnd() as NumeralSort;
-      const value = Number.parseInt(rest.slice(11).trimEnd(), 10) as NumeralValue;
+      const which = r.field(1);
+      r.skip();
+      const variant = r.field(1);
+      r.skip();
+      const sort = r.field(6) as NumeralSort;
+      r.skip();
+      const value = Number.parseInt(r.rest(), 10) as NumeralValue;
       return {
         pofs: "NUM",
-        num: { decl, sort, value: Number.isNaN(value) ? 0 : value } satisfies NumeralEntry,
+        num: {
+          decl: { which: +which as Which, var: +variant as Variant },
+          sort,
+          value: Number.isNaN(value) ? 0 : value,
+        } satisfies NumeralEntry,
       };
     }
     case "PREP": {
-      const obj = rest.trimEnd() as Case;
+      const obj = r.rest() as Case;
       return { pofs: "PREP", prep: { obj } satisfies PrepositionEntry };
     }
     case "CONJ":
@@ -130,34 +169,41 @@ function parsePartEntry(s: string): PartEntry {
   }
 }
 
-function parseTranslation(s: string): TranslationRecord {
+function parseTranslation(r: FixedReader): TranslationRecord {
   // "A A A A A" — 5 single-char fields separated by spaces = 9 chars
-  return {
-    age: s.charAt(0) as Age,
-    area: s.charAt(2) as Area,
-    geo: s.charAt(4) as Geo,
-    freq: s.charAt(6) as Frequency,
-    source: s.charAt(8) as Source,
-  };
+  const age = r.field(1) as Age;
+  r.skip();
+  const area = r.field(1) as Area;
+  r.skip();
+  const geo = r.field(1) as Geo;
+  r.skip();
+  const freq = r.field(1) as Frequency;
+  r.skip();
+  const source = r.field(1) as Source;
+  return { age, area, geo, freq, source };
 }
 
 export function parseDictLine(line: string): DictionaryEntry {
-  // Parse 4 stems
-  const stems: [string, string, string, string] = [
-    trimStem(line.slice(0, STEM_SIZE)),
-    trimStem(line.slice(19, 19 + STEM_SIZE)),
-    trimStem(line.slice(38, 38 + STEM_SIZE)),
-    trimStem(line.slice(57, 57 + STEM_SIZE)),
-  ];
+  const r = new FixedReader(line);
 
-  const partStart = STEMS_TOTAL; // 76
-  const part = parsePartEntry(line.slice(partStart, partStart + PART_ENTRY_WIDTH));
+  // 4 stems × (18 chars + 1 space separator)
+  const s0 = r.field(STEM_WIDTH);
+  r.skip();
+  const s1 = r.field(STEM_WIDTH);
+  r.skip();
+  const s2 = r.field(STEM_WIDTH);
+  r.skip();
+  const s3 = r.field(STEM_WIDTH);
+  r.skip();
+  const stems: [string, string, string, string] = [s0, s1, s2, s3];
 
-  const tranStart = partStart + PART_ENTRY_WIDTH + 1; // 100
-  const tran = parseTranslation(line.slice(tranStart, tranStart + TRAN_WIDTH));
+  const part = parsePartEntry(line.slice(r.offset, r.offset + PART_ENTRY_WIDTH));
+  r.skip(PART_ENTRY_WIDTH + 1); // part + space
 
-  const meanStart = tranStart + TRAN_WIDTH + 1; // 110
-  const mean = line.slice(meanStart).trimEnd();
+  const tran = parseTranslation(r);
+  r.skip(); // space
+
+  const mean = r.rest();
 
   return { stems: stems as Stems, part, tran, mean };
 }
@@ -166,7 +212,7 @@ export function parseDictFile(content: string): DictionaryEntry[] {
   const lines = content.split("\n");
   const entries: DictionaryEntry[] = [];
   for (const line of lines) {
-    if (line.length < STEMS_TOTAL + POS_WIDTH) continue; // skip empty/short lines
+    if (line.length < STEMS_TOTAL + POS_WIDTH) continue;
     entries.push(parseDictLine(line));
   }
   return entries;

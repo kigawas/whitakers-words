@@ -16,12 +16,11 @@ import type {
   PronounKind,
   Source,
   Tense,
-  Variant,
   VerbKind,
   Voice,
-  Which,
 } from "../types/enums.js";
 import type { QualityRecord } from "../types/inflections.js";
+import { TokenReader } from "./parse-utils.js";
 import { parsePofs } from "./pofs-map.js";
 
 // ---------------------------------------------------------------------------
@@ -63,8 +62,9 @@ function parseQualityLine(line: string): {
 } {
   const tokens = tokenize(line);
   const pofs = parsePofs(tokens[0] ?? "X");
+  const r = new TokenReader(tokens, 1);
 
-  // Default translation values — they're always the last 5 tokens
+  // Translation values are always the last 5 tokens
   const len = tokens.length;
   const age = (tokens[len - 5] ?? "X") as Age;
   const area = (tokens[len - 4] ?? "X") as Area;
@@ -74,19 +74,14 @@ function parseQualityLine(line: string): {
 
   switch (pofs) {
     case "N": {
-      // N which var CASE NUMBER GENDER kind  age area geo freq source
-      const which = Number.parseInt(tokens[1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[2] ?? "0", 10) as Variant;
-      const cs = (tokens[3] ?? "X") as Case;
-      const number = (tokens[4] ?? "X") as GrammaticalNumber;
-      const gender = (tokens[5] ?? "X") as Gender;
-      const kind = (tokens[6] ?? "X") as NounKind;
+      const decl = r.decn();
+      const cs = r.str() as Case;
+      const number = r.str() as GrammaticalNumber;
+      const gender = r.str() as Gender;
+      const kind = r.str() as NounKind;
       return {
-        qual: {
-          pofs: "N",
-          noun: { decl: { which, var: v }, cs, number, gender },
-        },
-        part: { pofs: "N", n: { decl: { which, var: v }, gender, kind } },
+        qual: { pofs: "N", noun: { decl, cs, number, gender } },
+        part: { pofs: "N", n: { decl, gender, kind } },
         age,
         area,
         geo,
@@ -95,19 +90,14 @@ function parseQualityLine(line: string): {
       };
     }
     case "PRON": {
-      // PRON which var CASE NUMBER GENDER kind  age area geo freq source
-      const which = Number.parseInt(tokens[1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[2] ?? "0", 10) as Variant;
-      const cs = (tokens[3] ?? "X") as Case;
-      const number = (tokens[4] ?? "X") as GrammaticalNumber;
-      const gender = (tokens[5] ?? "X") as Gender;
-      const kind = (tokens[6] ?? "X") as PronounKind;
+      const decl = r.decn();
+      const cs = r.str() as Case;
+      const number = r.str() as GrammaticalNumber;
+      const gender = r.str() as Gender;
+      const kind = r.str() as PronounKind;
       return {
-        qual: {
-          pofs: "PRON",
-          pron: { decl: { which, var: v }, cs, number, gender },
-        },
-        part: { pofs: "PRON", pron: { decl: { which, var: v }, kind } },
+        qual: { pofs: "PRON", pron: { decl, cs, number, gender } },
+        part: { pofs: "PRON", pron: { decl, kind } },
         age,
         area,
         geo,
@@ -116,18 +106,14 @@ function parseQualityLine(line: string): {
       };
     }
     case "PACK": {
-      const which = Number.parseInt(tokens[1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[2] ?? "0", 10) as Variant;
-      const cs = (tokens[3] ?? "X") as Case;
-      const number = (tokens[4] ?? "X") as GrammaticalNumber;
-      const gender = (tokens[5] ?? "X") as Gender;
-      const kind = (tokens[6] ?? "X") as PronounKind;
+      const decl = r.decn();
+      const cs = r.str() as Case;
+      const number = r.str() as GrammaticalNumber;
+      const gender = r.str() as Gender;
+      const kind = r.str() as PronounKind;
       return {
-        qual: {
-          pofs: "PACK",
-          pack: { decl: { which, var: v }, cs, number, gender },
-        },
-        part: { pofs: "PACK", pack: { decl: { which, var: v }, kind } },
+        qual: { pofs: "PACK", pack: { decl, cs, number, gender } },
+        part: { pofs: "PACK", pack: { decl, kind } },
         age,
         area,
         geo,
@@ -136,19 +122,14 @@ function parseQualityLine(line: string): {
       };
     }
     case "ADJ": {
-      // ADJ which var CASE NUMBER GENDER COMPARISON  age area geo freq source
-      const which = Number.parseInt(tokens[1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[2] ?? "0", 10) as Variant;
-      const cs = (tokens[3] ?? "X") as Case;
-      const number = (tokens[4] ?? "X") as GrammaticalNumber;
-      const gender = (tokens[5] ?? "X") as Gender;
-      const comparison = (tokens[6] ?? "X") as Comparison;
+      const decl = r.decn();
+      const cs = r.str() as Case;
+      const number = r.str() as GrammaticalNumber;
+      const gender = r.str() as Gender;
+      const comparison = r.str() as Comparison;
       return {
-        qual: {
-          pofs: "ADJ",
-          adj: { decl: { which, var: v }, cs, number, gender, comparison },
-        },
-        part: { pofs: "ADJ", adj: { decl: { which, var: v }, co: comparison } },
+        qual: { pofs: "ADJ", adj: { decl, cs, number, gender, comparison } },
+        part: { pofs: "ADJ", adj: { decl, co: comparison } },
         age,
         area,
         geo,
@@ -157,27 +138,15 @@ function parseQualityLine(line: string): {
       };
     }
     case "NUM": {
-      // NUM which var CASE NUMBER GENDER SORT value  age area geo freq source
-      const which = Number.parseInt(tokens[1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[2] ?? "0", 10) as Variant;
-      const cs = (tokens[3] ?? "X") as Case;
-      const number = (tokens[4] ?? "X") as GrammaticalNumber;
-      const gender = (tokens[5] ?? "X") as Gender;
-      const sort = (tokens[6] ?? "X") as NumeralSort;
-      const numValue = Number.parseInt(tokens[7] ?? "0", 10) as NumeralValue;
+      const decl = r.decn();
+      const cs = r.str() as Case;
+      const number = r.str() as GrammaticalNumber;
+      const gender = r.str() as Gender;
+      const sort = r.str() as NumeralSort;
+      const numValue = r.int() as NumeralValue;
       return {
-        qual: {
-          pofs: "NUM",
-          num: { decl: { which, var: v }, cs, number, gender, sort },
-        },
-        part: {
-          pofs: "NUM",
-          num: {
-            decl: { which, var: v },
-            sort,
-            value: Number.isNaN(numValue) ? 0 : numValue,
-          },
-        },
+        qual: { pofs: "NUM", num: { decl, cs, number, gender, sort } },
+        part: { pofs: "NUM", num: { decl, sort, value: Number.isNaN(numValue) ? 0 : numValue } },
         age,
         area,
         geo,
@@ -186,8 +155,7 @@ function parseQualityLine(line: string): {
       };
     }
     case "ADV": {
-      // ADV COMPARISON  age area geo freq source
-      const comparison = (tokens[1] ?? "X") as Comparison;
+      const comparison = r.str() as Comparison;
       return {
         qual: { pofs: "ADV", adv: { comparison } },
         part: { pofs: "ADV", adv: { co: comparison } },
@@ -199,26 +167,16 @@ function parseQualityLine(line: string): {
       };
     }
     case "V": {
-      // V which var TENSE VOICE MOOD PERSON NUMBER kind  age area geo freq source
-      const which = Number.parseInt(tokens[1] ?? "0", 10) as Which;
-      const v = Number.parseInt(tokens[2] ?? "0", 10) as Variant;
-      const tense = (tokens[3] ?? "X") as Tense;
-      const voice = (tokens[4] ?? "X") as Voice;
-      const mood = (tokens[5] ?? "X") as Mood;
-      const person = Number.parseInt(tokens[6] ?? "0", 10) as Person;
-      const number = (tokens[7] ?? "X") as GrammaticalNumber;
-      const kind = (tokens[8] ?? "X") as VerbKind;
+      const con = r.decn();
+      const tense = r.str() as Tense;
+      const voice = r.str() as Voice;
+      const mood = r.str() as Mood;
+      const person = r.int() as Person;
+      const number = r.str() as GrammaticalNumber;
+      const kind = r.str() as VerbKind;
       return {
-        qual: {
-          pofs: "V",
-          verb: {
-            con: { which, var: v },
-            tenseVoiceMood: { tense, voice, mood },
-            person,
-            number,
-          },
-        },
-        part: { pofs: "V", v: { con: { which, var: v }, kind } },
+        qual: { pofs: "V", verb: { con, tenseVoiceMood: { tense, voice, mood }, person, number } },
+        part: { pofs: "V", v: { con, kind } },
         age,
         area,
         geo,

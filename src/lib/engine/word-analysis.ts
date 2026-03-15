@@ -1,6 +1,7 @@
 import type { DictionaryEntry } from "../types/dictionary.js";
-import type { InflectionRecord } from "../types/inflections.js";
-import type { DictionaryIndex } from "./dictionary-index.js";
+import type { Comparison, StemKey } from "../types/enums.js";
+import type { InflectionRecord, QualityRecord } from "../types/inflections.js";
+import type { DictionaryIndex, DictionaryStem } from "./dictionary-index.js";
 import { lookupStems } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
 import { lookupInflections } from "./inflection-index.js";
@@ -32,8 +33,9 @@ export function runInflections(word: string, inflectionIndex: InflectionIndex): 
     }
   }
 
-  // 2. Try endings of size 1 to min(MAX_ENDING_SIZE, wordLen-1)
-  const maxEnding = Math.min(7, wordLen - 1); // MAX_ENDING_SIZE = 7
+  // 2. Try endings of size 1 to min(MAX_ENDING_SIZE, wordLen)
+  // endingSize can equal wordLen (stem = "") for blank-stem entries like sum/esse
+  const maxEnding = Math.min(7, wordLen); // MAX_ENDING_SIZE = 7
   for (let endingSize = maxEnding; endingSize >= 1; endingSize--) {
     const stemLen = wordLen - endingSize;
     if (stemLen > 18) continue; // MAX_STEM_SIZE = 18
@@ -80,25 +82,28 @@ export function searchDictionaries(
   const results: ParseResult[] = [];
 
   for (const pair of pairs) {
-    const dictStems = lookupStems(dictIndex, pair.stem);
+    let dictStems: readonly DictionaryStem[];
+
+    if (pair.stem.length === 0) {
+      // Empty stem (ending = entire word) — search the blank-stem dictionary (Ada's Bdl).
+      // BDL is pre-filtered at build time to only contain blank stems.
+      dictStems = dictIndex.bdl;
+    } else {
+      dictStems = lookupStems(dictIndex, pair.stem);
+    }
     if (dictStems.length === 0) continue;
 
     for (const ds of dictStems) {
       const entry = dictIndex.entries[ds.entryIndex];
       if (!entry) continue;
 
-      // Verify POS compatibility: inflection POS must match dictionary POS
-      if (!pofsCompatible(pair.ir.qual.pofs, entry.part.pofs)) continue;
-
-      // Verify stem key compatibility
-      if (pair.ir.key !== 0 && pair.ir.key !== ds.stemKey) continue;
-
-      // Verify declension/conjugation compatibility
-      if (!declCompatible(pair.ir, entry)) continue;
+      // Verify compatibility and resolve wildcards in one pass
+      const resolvedIr = matchAndResolve(pair.ir, entry, ds.stemKey);
+      if (!resolvedIr) continue;
 
       results.push({
         stem: pair.stem,
-        ir: pair.ir,
+        ir: resolvedIr,
         de: entry,
         entryIndex: ds.entryIndex,
       });
@@ -109,62 +114,177 @@ export function searchDictionaries(
 }
 
 /**
- * Check if inflection POS is compatible with dictionary POS.
- * PACK inflections can match PRON dictionary entries.
+ * Check compatibility AND resolve wildcards in one pass.
+ * Returns the resolved InflectionRecord if compatible, null if not.
+ * Combines Ada's POS check, declension check, and Reduce_Stem_List wildcard resolution.
  */
-function pofsCompatible(inflPofs: string, dictPofs: string): boolean {
-  if (inflPofs === dictPofs) return true;
-  if (inflPofs === "PACK" && dictPofs === "PRON") return true;
-  if (inflPofs === "X" || dictPofs === "X") return true;
-  return false;
-}
-
-/**
- * Check if the declension/conjugation of the inflection is compatible
- * with the dictionary entry.
- */
-function declCompatible(ir: InflectionRecord, de: DictionaryEntry): boolean {
+function matchAndResolve(
+  ir: InflectionRecord,
+  de: DictionaryEntry,
+  stemKey: StemKey,
+): InflectionRecord | null {
   const qual = ir.qual;
   const part = de.part;
+  const inflPofs = qual.pofs;
+  const dictPofs = part.pofs;
 
+  // POS compatibility
+  if (inflPofs !== dictPofs) {
+    if (inflPofs === "PACK" && dictPofs === "PRON") {
+      /* ok */
+    } else if ((inflPofs === "VPAR" || inflPofs === "SUPINE") && dictPofs === "V") {
+      /* ok */
+    } else if (inflPofs !== "X" && dictPofs !== "X") {
+      return null;
+    }
+  }
+
+  // Stem key compatibility: key 0 is wildcard, otherwise must match exactly.
+  // Exception: ADJ/ADV/NUM entries can have comparison/sort forms that use a
+  // different stem key than the one stored (e.g., imus ADJ SUPER has only
+  // stem1 but matches key=4 inflections).
+  if (ir.key !== 0 && stemKey !== 0 && ir.key !== stemKey) {
+    if (dictPofs !== "ADJ" && dictPofs !== "ADV" && dictPofs !== "NUM") {
+      return null;
+    }
+  }
+
+  // Declension/comparison compatibility + wildcard resolution
+  const resolved = matchAndResolveQuality(qual, part, stemKey);
+  if (!resolved) return null;
+
+  return resolved === qual ? ir : { ...ir, qual: resolved };
+}
+
+/** Match declension/comparison and resolve wildcards. Returns null if incompatible. */
+function matchAndResolveQuality(
+  qual: QualityRecord,
+  part: DictionaryEntry["part"],
+  stemKey: StemKey,
+): QualityRecord | null {
   switch (qual.pofs) {
     case "N":
-      if (part.pofs !== "N") return false;
-      return matchesDecn(qual.noun.decl, part.n.decl);
+      if (part.pofs !== "N") return null;
+      if (!matchesDecn(qual.noun.decl, part.n.decl)) return null;
+      return {
+        pofs: "N",
+        noun: {
+          decl: part.n.decl,
+          cs: qual.noun.cs,
+          number: qual.noun.number,
+          gender:
+            qual.noun.gender === "C" || qual.noun.gender === "X" ? part.n.gender : qual.noun.gender,
+        },
+      };
     case "PRON":
-      if (part.pofs !== "PRON") return false;
-      return matchesDecn(qual.pron.decl, part.pron.decl);
+      if (part.pofs !== "PRON") return null;
+      if (!matchesDecn(qual.pron.decl, part.pron.decl)) return null;
+      return {
+        pofs: "PRON",
+        pron: {
+          decl: part.pron.decl,
+          cs: qual.pron.cs,
+          number: qual.pron.number,
+          gender: qual.pron.gender,
+        },
+      };
     case "PACK":
-      if (part.pofs === "PRON") return true; // PACK matches any PRON
-      if (part.pofs === "PACK") {
-        return matchesDecn(qual.pack.decl, part.pack.decl);
-      }
-      return false;
-    case "ADJ":
-      if (part.pofs !== "ADJ") return false;
-      return matchesDecn(qual.adj.decl, part.adj.decl);
+      if (part.pofs !== "PRON") return null;
+      return {
+        pofs: "PACK",
+        pack: {
+          decl: part.pron.decl,
+          cs: qual.pack.cs,
+          number: qual.pack.number,
+          gender: qual.pack.gender,
+        },
+      };
+    case "ADJ": {
+      if (part.pofs !== "ADJ") return null;
+      if (!matchesDecn(qual.adj.decl, part.adj.decl)) return null;
+      const ic = qual.adj.comparison;
+      const dc = part.adj.co;
+      if (ic !== dc && ic !== "X" && dc !== "X") return null;
+      return {
+        pofs: "ADJ",
+        adj: {
+          decl: part.adj.decl,
+          cs: qual.adj.cs,
+          number: qual.adj.number,
+          gender: qual.adj.gender,
+          comparison: ic === "X" ? adjCompFromKey(stemKey) : ic,
+        },
+      };
+    }
     case "NUM":
-      if (part.pofs !== "NUM") return false;
-      return matchesDecn(qual.num.decl, part.num.decl);
+      if (part.pofs !== "NUM") return null;
+      if (!matchesDecn(qual.num.decl, part.num.decl)) return null;
+      return {
+        pofs: "NUM",
+        num: {
+          decl: part.num.decl,
+          cs: qual.num.cs,
+          number: qual.num.number,
+          gender: qual.num.gender,
+          sort: qual.num.sort,
+        },
+      };
     case "ADV":
-      return part.pofs === "ADV";
+      if (part.pofs !== "ADV") return null;
+      if (part.adv.co !== qual.adv.comparison && part.adv.co !== "X" && qual.adv.comparison !== "X")
+        return null;
+      return {
+        pofs: "ADV",
+        adv: {
+          comparison: qual.adv.comparison === "X" ? advCompFromKey(stemKey) : qual.adv.comparison,
+        },
+      };
     case "V":
-      if (part.pofs !== "V") return false;
-      return matchesDecn(qual.verb.con, part.v.con);
+      if (part.pofs !== "V") return null;
+      if (!matchesDecn(qual.verb.con, part.v.con)) return null;
+      return {
+        pofs: "V",
+        verb: {
+          con: part.v.con,
+          tenseVoiceMood: qual.verb.tenseVoiceMood,
+          person: qual.verb.person,
+          number: qual.verb.number,
+        },
+      };
     case "VPAR":
-      if (part.pofs !== "V") return false;
-      return matchesDecn(qual.vpar.con, part.v.con);
+      if (part.pofs !== "V") return null;
+      if (!matchesDecn(qual.vpar.con, part.v.con)) return null;
+      return {
+        pofs: "VPAR",
+        vpar: {
+          con: part.v.con,
+          cs: qual.vpar.cs,
+          number: qual.vpar.number,
+          gender: qual.vpar.gender,
+          tenseVoiceMood: qual.vpar.tenseVoiceMood,
+        },
+      };
     case "SUPINE":
-      if (part.pofs !== "V") return false;
-      return matchesDecn(qual.supine.con, part.v.con);
+      if (part.pofs !== "V") return null;
+      if (!matchesDecn(qual.supine.con, part.v.con)) return null;
+      return {
+        pofs: "SUPINE",
+        supine: {
+          con: part.v.con,
+          cs: qual.supine.cs,
+          number: qual.supine.number,
+          gender: qual.supine.gender,
+        },
+      };
     case "PREP":
-      return part.pofs === "PREP";
+      return part.pofs === "PREP" ? qual : null;
     case "CONJ":
-      return part.pofs === "CONJ";
+      return part.pofs === "CONJ" ? qual : null;
     case "INTERJ":
-      return part.pofs === "INTERJ";
+      return part.pofs === "INTERJ" ? qual : null;
     default:
-      return true;
+      /* v8 ignore next */
+      return qual;
   }
 }
 
@@ -198,6 +318,32 @@ function matchesDecn(
     return true;
   }
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// Wildcard resolution — Ada's Reduce_Stem_List
+//
+// When an inflection record has wildcard values (gender C/X, declension 0),
+// resolve them from the dictionary entry. This produces output like
+// "N 1 1 NOM S F" (with dictionary gender F) instead of "N 1 1 NOM S C".
+// ---------------------------------------------------------------------------
+
+/** Ada's Adj_Comp_From_Key: stem key → adjective comparison level. */
+const ADJ_COMP_FROM_KEY: Record<number, Comparison> = {
+  0: "POS",
+  1: "POS",
+  2: "POS",
+  3: "COMP",
+  4: "SUPER",
+};
+function adjCompFromKey(key: StemKey): Comparison {
+  return ADJ_COMP_FROM_KEY[key] ?? "X";
+}
+
+/** Ada's Adv_Comp_From_Key: stem key → adverb comparison level. */
+const ADV_COMP_FROM_KEY: Record<number, Comparison> = { 1: "POS", 2: "COMP", 3: "SUPER" };
+function advCompFromKey(key: StemKey): Comparison {
+  return ADV_COMP_FROM_KEY[key] ?? "X";
 }
 
 // ---------------------------------------------------------------------------
