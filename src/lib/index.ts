@@ -1,0 +1,10 @@
+export type { AddonResult } from "./engine/addons-engine.js";
+export type { WordAnalysis, WordsEngineData } from "./engine/engine.js";
+export { WordsEngine } from "./engine/engine.js";
+export type { EnglishSearchResult } from "./engine/english-search.js";
+export type { ParseResult, StemEndingPair } from "./engine/word-analysis.js";
+export { dictionaryForm } from "./formatter/dictionary-form.js";
+export type { MergedGroup } from "./formatter/text-output.js";
+export { formatWordAnalysis, groupAndMerge } from "./formatter/text-output.js";
+export type { UniqueEntry } from "./parsers/uniques.js";
+export * from "./types/index.js";

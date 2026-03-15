@@ -1,0 +1,62 @@
+{
+  "name": "whitakers-words",
+  "version": "0.1.0",
+  "author": {
+    "name": "Weiliang Li",
+    "email": "to.be.impressive@gmail.com",
+    "url": "https://github.com/kigawas"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kigawas/whitakers-words.git"
+  },
+  "description": "Latin morphological analyzer and dictionary - TypeScript port of Whitaker's Words",
+  "type": "module",
+  "types": "./dist/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "default": "./dist/lib/index.js"
+    },
+    "./node": {
+      "types": "./dist/node/index.d.ts",
+      "default": "./dist/node/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "data/",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "whitakers": "./dist/cli/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "biome check",
+    "check:fix": "biome check --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "node ./scripts/gen-browser-tests.mjs && cd tests-browser && pnpm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.7",
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "esbuild"
+    ]
+  },
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+}

@@ -1,0 +1,24 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      whitakers-words:
+        specifier: file:../..
+        version: file:../..
+
+packages:
+
+  whitakers-words@file:../..:
+    resolution: {directory: ../.., type: directory}
+    engines: {node: '>=20'}
+    hasBin: true
+
+snapshots:
+
+  whitakers-words@file:../..: {}

@@ -1,0 +1,5 @@
+node_modules/
+dist/
+
+# generated browser test files
+tests-browser/**/*.test.ts
