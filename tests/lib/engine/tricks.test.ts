@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isRomanNumeral, parseRomanNumeral } from "../../src/lib/engine/roman-numerals.js";
+import { isRomanNumeral, parseRomanNumeral } from "../../../src/lib/engine/roman-numerals.js";
 import {
   applyTrick,
+  applyTricks,
   getMedievalTricks,
   getTricksForWord,
   type Trick,
-} from "../../src/lib/engine/tricks.js";
+} from "../../../src/lib/engine/tricks.js";
 
 // ---------------------------------------------------------------------------
 // Tricks
@@ -152,5 +153,43 @@ describe("parseRomanNumeral", () => {
   it("rejects invalid subtractive usage (e.g. VX)", () => {
     // V cannot be subtractive
     expect(parseRomanNumeral("VX")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tricks: edge cases (from branch-coverage)
+// ---------------------------------------------------------------------------
+describe("tricks: edge cases", () => {
+  it("getTricksForWord returns empty for empty string", () => {
+    expect(getTricksForWord("")).toHaveLength(0);
+  });
+
+  it("applyTricks returns empty when no transformations apply", () => {
+    const results = applyTricks("aqua");
+    expect(Array.isArray(results)).toBe(true);
+  });
+
+  it("applyTricks applies word-initial tricks", () => {
+    const results = applyTricks("aequus");
+    expect(Array.isArray(results)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyTricks: identity transformation filter (from remaining-branches)
+// ---------------------------------------------------------------------------
+describe("applyTricks: identity transformation filter", () => {
+  it("does not include identity transformations in results", () => {
+    const results = applyTricks("aqua");
+    for (const r of results) {
+      expect(r).not.toBe("aqua");
+    }
+  });
+
+  it("handles word with no applicable tricks", () => {
+    const results = applyTricks("z");
+    for (const r of results) {
+      expect(r).not.toBe("z");
+    }
   });
 });

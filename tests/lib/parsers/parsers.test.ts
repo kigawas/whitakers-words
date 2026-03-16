@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseDictFile, parseDictLine } from "../../src/lib/parsers/dictline.js";
-import { parseInflectsFile } from "../../src/lib/parsers/inflects.js";
-import { parseUniquesFile } from "../../src/lib/parsers/uniques.js";
+import { parseDictFile, parseDictLine } from "../../../src/lib/parsers/dictline.js";
+import { parseInflectsFile } from "../../../src/lib/parsers/inflects.js";
+import { parseUniquesFile } from "../../../src/lib/parsers/uniques.js";
 
-const DATA_DIR = resolve(import.meta.dirname, "../../data");
+const DATA_DIR = resolve(import.meta.dirname, "../../../data");
 
 // ---------------------------------------------------------------------------
 // DICTLINE parser

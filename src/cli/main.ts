@@ -6,16 +6,15 @@ import { createEngine } from "../node/index.js";
 
 const engine = createEngine();
 
-function processLatinLine(line: string): void {
-  const cleaned = line.replace(/[^a-zA-Z]/g, " ");
-  const words = cleaned.split(/\s+/).filter((w) => w.length > 0);
+/** Write a line to stdout. Uses console.log for reliable flushing on Windows. */
+function writeln(s: string): void {
+  console.log(s);
+}
 
-  for (const word of words) {
-    const output = engine.formatWord(word);
-    if (output.length > 0) {
-      process.stdout.write(output);
-      process.stdout.write("\n");
-    }
+function processLatinLine(line: string): void {
+  const output = engine.formatLine(line);
+  if (output.length > 0) {
+    writeln(output);
   }
 }
 
@@ -23,20 +22,20 @@ function processEnglishLine(word: string): void {
   const trimmed = word.trim();
   if (trimmed.length === 0) return;
 
-  process.stdout.write("=>\n");
+  writeln("=>");
   const results = engine.searchEnglish(trimmed, 6);
   if (results.length === 0) {
-    process.stdout.write(`No matches found for "${trimmed}"\n`);
+    writeln(`No matches found for "${trimmed}"`);
   } else {
     for (const r of results) {
       const form = dictionaryForm(r.de);
       const flags = `[${r.de.tran.age}${r.de.tran.area}${r.de.tran.geo}${r.de.tran.freq}${r.de.tran.source}]`;
-      process.stdout.write(`${form}   ${flags}  \n`);
-      process.stdout.write(`${r.de.mean}\n`);
-      process.stdout.write("\n");
+      writeln(`${form}   ${flags}  `);
+      writeln(r.de.mean);
+      writeln("");
     }
   }
-  process.stdout.write("*\n");
+  writeln("*");
 }
 
 async function main(): Promise<void> {

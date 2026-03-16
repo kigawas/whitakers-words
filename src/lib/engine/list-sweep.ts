@@ -1,44 +1,33 @@
 import type { Frequency } from "../types/enums.js";
+import { extractQuality, qualityDedupeKey } from "../types/quality-extract.js";
 import type { ParseResult } from "./word-analysis.js";
 
+// ---------------------------------------------------------------------------
+// List sweep pipeline — deduplicate, filter, normalize, rank.
+//
+// Each step is independently exported for testing and composability.
+// The main `listSweep` function composes them in the correct order.
+// ---------------------------------------------------------------------------
+
 /**
- * Deduplicate and rank parse results.
- * - Remove exact duplicates (same entryIndex + same inflection details)
- * - Sort by: dictionary frequency (A>B>C>D>E>F), then by POS priority
- * - Filter out disallowed stems (e.g., impersonal verbs only in 3rd person)
+ * Full list sweep pipeline: deduplicate → filter → normalize → rank.
+ * Order matters: filter uses pre-normalization values (e.g., V 3,4 not 4,1).
  */
 export function listSweep(results: ParseResult[]): ParseResult[] {
-  // 1. Remove exact duplicates
-  const deduped = removeDuplicates(results);
-
-  // 2. Filter impersonal verbs — only 3rd person allowed
-  const filtered = deduped.filter((r) => {
-    if (r.ir.qual.pofs === "V" && r.de.part.pofs === "V" && r.de.part.v.kind === "IMPERS") {
-      return r.ir.qual.verb.person === 3 || r.ir.qual.verb.person === 0;
-    }
-    return true;
-  });
-
-  // 3. Sort by frequency then POS priority
-  filtered.sort((a, b) => {
-    const freqDiff = freqRank(a.de.tran.freq) - freqRank(b.de.tran.freq);
-    if (freqDiff !== 0) return freqDiff;
-    return pofsRank(a.ir.qual.pofs) - pofsRank(b.ir.qual.pofs);
-  });
-
-  return filtered;
+  return rank(normalizeDisplay(filterByPOS(deduplicate(results))));
 }
 
-/**
- * Two results are duplicates if they have the same entryIndex AND
- * the same inflection key fields.
- */
-function removeDuplicates(results: ParseResult[]): ParseResult[] {
+// ---------------------------------------------------------------------------
+// Step 1: Deduplication
+// ---------------------------------------------------------------------------
+
+/** Remove exact duplicates (same entryIndex + same inflection quality). */
+export function deduplicate(results: ParseResult[]): ParseResult[] {
   const seen = new Set<string>();
   const out: ParseResult[] = [];
 
   for (const r of results) {
-    const key = dedupeKey(r);
+    const key = qualityDedupeKey(r.entryIndex, extractQuality(r.ir.qual));
     if (!seen.has(key)) {
       seen.add(key);
       out.push(r);
@@ -48,96 +37,196 @@ function removeDuplicates(results: ParseResult[]): ParseResult[] {
   return out;
 }
 
-function dedupeKey(r: ParseResult): string {
-  const q = r.ir.qual;
-  const idx = r.entryIndex;
+// ---------------------------------------------------------------------------
+// Step 2: POS-specific filtering
+// ---------------------------------------------------------------------------
 
-  switch (q.pofs) {
-    case "N":
-      return `${idx}:N:${q.noun.cs}:${q.noun.number}:${q.noun.gender}`;
-    case "PRON":
-      return `${idx}:PRON:${q.pron.cs}:${q.pron.number}:${q.pron.gender}`;
-    case "PACK":
-      return `${idx}:PACK:${q.pack.cs}:${q.pack.number}:${q.pack.gender}`;
-    case "ADJ":
-      return `${idx}:ADJ:${q.adj.cs}:${q.adj.number}:${q.adj.gender}:${q.adj.comparison}`;
-    case "NUM":
-      return `${idx}:NUM:${q.num.cs}:${q.num.number}:${q.num.gender}:${q.num.sort}`;
-    case "ADV":
-      return `${idx}:ADV:${q.adv.comparison}`;
-    case "V":
-      return `${idx}:V:${q.verb.tenseVoiceMood.tense}:${q.verb.tenseVoiceMood.voice}:${q.verb.tenseVoiceMood.mood}:${q.verb.person}:${q.verb.number}`;
-    case "VPAR":
-      return `${idx}:VPAR:${q.vpar.cs}:${q.vpar.number}:${q.vpar.gender}:${q.vpar.tenseVoiceMood.tense}:${q.vpar.tenseVoiceMood.voice}:${q.vpar.tenseVoiceMood.mood}`;
-    case "SUPINE":
-      return `${idx}:SUPINE:${q.supine.cs}:${q.supine.number}:${q.supine.gender}`;
-    case "PREP":
-      return `${idx}:PREP:${q.prep.cs}`;
-    case "CONJ":
-      return `${idx}:CONJ`;
-    case "INTERJ":
-      return `${idx}:INTERJ`;
-    default:
-      return `${idx}:${q.pofs}:${r.stem}`;
-  }
+/** Filter out grammatically invalid forms based on POS-specific rules. */
+export function filterByPOS(results: ParseResult[]): ParseResult[] {
+  return results.filter((r) => {
+    // PREP: only keep the inflection matching the dictionary entry's obj case
+    if (r.ir.qual.pofs === "PREP" && r.de.part.pofs === "PREP") {
+      return r.ir.qual.prep.cs === r.de.part.prep.obj;
+    }
+
+    if (r.ir.qual.pofs !== "V" || r.de.part.pofs !== "V") return true;
+    const kind = r.de.part.v.kind;
+    const tvm = r.ir.qual.verb.tenseVoiceMood;
+
+    // Imperative: only PRES 2nd person or FUT 2nd/3rd person
+    if (tvm.mood === "IMP") {
+      const validImp =
+        (tvm.tense === "PRES" && r.ir.qual.verb.person === 2) ||
+        (tvm.tense === "FUT" && (r.ir.qual.verb.person === 2 || r.ir.qual.verb.person === 3));
+      if (!validImp) return false;
+
+      // V 3,1 PRES ACTIVE IMP 2 S with blank ending is only for stems ending in -c
+      // (dic, duc, fac). Filter spurious matches like "illud" → "illudo".
+      if (
+        r.ir.ending.size === 0 &&
+        tvm.tense === "PRES" &&
+        tvm.voice === "ACTIVE" &&
+        r.ir.qual.verb.con.which === 3 &&
+        r.ir.qual.verb.con.var === 1 &&
+        r.stem.length > 0 &&
+        r.stem[r.stem.length - 1] !== "c"
+      ) {
+        return false;
+      }
+    }
+
+    // IMPERS: only 3rd person allowed
+    if (kind === "IMPERS") {
+      return r.ir.qual.verb.person === 3 || r.ir.qual.verb.person === 0;
+    }
+
+    // DEP: only passive voice allowed (except FUT ACTIVE INF)
+    if (kind === "DEP") {
+      if (tvm.voice === "ACTIVE" && tvm.tense === "FUT" && tvm.mood === "INF") return true;
+      if (
+        tvm.voice === "ACTIVE" &&
+        (tvm.mood === "IND" || tvm.mood === "SUB" || tvm.mood === "IMP" || tvm.mood === "INF")
+      )
+        return false;
+      return true;
+    }
+
+    // SEMIDEP: no passive in PRES/IMPF/FUT, no active in PERF/PLUP/FUTP
+    if (kind === "SEMIDEP") {
+      if (tvm.mood === "IND" || tvm.mood === "IMP") {
+        if (
+          tvm.voice === "PASSIVE" &&
+          (tvm.tense === "PRES" || tvm.tense === "IMPF" || tvm.tense === "FUT")
+        )
+          return false;
+        if (
+          tvm.voice === "ACTIVE" &&
+          (tvm.tense === "PERF" || tvm.tense === "PLUP" || tvm.tense === "FUTP")
+        )
+          return false;
+      }
+      return true;
+    }
+
+    return true;
+  });
 }
+
+// ---------------------------------------------------------------------------
+// Step 3: Display normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize internal encoding values for display:
+ * - V con (3,4) → (4,1): 4th conjugation stored as 3rd variant 4
+ * - PRON decl (1,X) → (1,0): destroy artificial variant for PRON 1
+ */
+export function normalizeDisplay(results: ParseResult[]): ParseResult[] {
+  return results.map(normalizeDisplayValues);
+}
+
+function normalizeDisplayValues(r: ParseResult): ParseResult {
+  const q = r.ir.qual;
+
+  // V (3,4) → (4,1) display normalization. Only applies to V and SUPINE.
+  // VPAR keeps (3,4) — Ada displays VPAR with the raw conjugation values.
+  if (q.pofs === "V" && q.verb.con.which === 3 && q.verb.con.var === 4) {
+    return {
+      ...r,
+      ir: {
+        ...r.ir,
+        qual: { ...q, verb: { ...q.verb, con: { which: 4, var: 1 } } },
+      },
+    };
+  }
+  if (q.pofs === "SUPINE" && q.supine.con.which === 3 && q.supine.con.var === 4) {
+    return {
+      ...r,
+      ir: {
+        ...r.ir,
+        qual: { ...q, supine: { ...q.supine, con: { which: 4, var: 1 } } },
+      },
+    };
+  }
+
+  // PRON decl (1,X) → (1,0)
+  if (q.pofs === "PRON" && q.pron.decl.which === 1) {
+    return {
+      ...r,
+      ir: {
+        ...r.ir,
+        qual: { ...q, pron: { ...q.pron, decl: { which: 1, var: 0 } } },
+      },
+    };
+  }
+
+  return r;
+}
+
+// ---------------------------------------------------------------------------
+// Step 4: Ranking
+// ---------------------------------------------------------------------------
+
+/** Sort results by dictionary frequency (most common first) then POS priority,
+ *  then within the same entry by number (S < P) and case (Ada order). */
+export function rank(results: ParseResult[]): ParseResult[] {
+  const sorted = [...results];
+  sorted.sort((a, b) => {
+    const freqDiff = (FREQ_RANK[a.de.tran.freq] ?? 10) - (FREQ_RANK[b.de.tran.freq] ?? 10);
+    if (freqDiff !== 0) return freqDiff;
+    const pofsDiff = (POFS_RANK[a.ir.qual.pofs] ?? 12) - (POFS_RANK[b.ir.qual.pofs] ?? 12);
+    if (pofsDiff !== 0) return pofsDiff;
+    // Within same POS, sort by entry index to keep groups together
+    if (a.entryIndex !== b.entryIndex) return a.entryIndex - b.entryIndex;
+    // Within same entry, sort by number then case (Ada ordering)
+    const av = extractQuality(a.ir.qual);
+    const bv = extractQuality(b.ir.qual);
+    const numDiff = (NUM_RANK[av.number ?? ""] ?? 2) - (NUM_RANK[bv.number ?? ""] ?? 2);
+    if (numDiff !== 0) return numDiff;
+    return (CASE_RANK[av.cs ?? ""] ?? 9) - (CASE_RANK[bv.cs ?? ""] ?? 9);
+  });
+  return sorted;
+}
+
+/** Ada case ordering: NOM, VOC, GEN, DAT, ABL, ACC. */
+const CASE_RANK: Record<string, number> = {
+  NOM: 0,
+  VOC: 1,
+  GEN: 2,
+  DAT: 3,
+  ABL: 4,
+  ACC: 5,
+  X: 6,
+};
+
+const NUM_RANK: Record<string, number> = { S: 0, P: 1, X: 2 };
 
 /** Lower rank = more common. Frequency A is most common. */
-function freqRank(freq: Frequency): number {
-  switch (freq) {
-    case "A":
-      return 0;
-    case "B":
-      return 1;
-    case "C":
-      return 2;
-    case "D":
-      return 3;
-    case "E":
-      return 4;
-    case "F":
-      return 5;
-    case "I":
-      return 6;
-    case "M":
-      return 7;
-    case "N":
-      return 8;
-    case "X":
-      return 9;
-    default:
-      return 10;
-  }
-}
+const FREQ_RANK: Record<Frequency | string, number> = {
+  A: 0,
+  B: 1,
+  C: 2,
+  D: 3,
+  E: 4,
+  F: 5,
+  I: 6,
+  M: 7,
+  N: 8,
+  X: 9,
+};
 
 /** Lower rank = higher priority. Nouns first, then verbs, adj, etc. */
-function pofsRank(pofs: string): number {
-  switch (pofs) {
-    case "N":
-      return 0;
-    case "PRON":
-      return 1;
-    case "PACK":
-      return 2;
-    case "V":
-      return 3;
-    case "VPAR":
-      return 4;
-    case "SUPINE":
-      return 5;
-    case "ADJ":
-      return 6;
-    case "NUM":
-      return 7;
-    case "ADV":
-      return 8;
-    case "PREP":
-      return 9;
-    case "CONJ":
-      return 10;
-    case "INTERJ":
-      return 11;
-    default:
-      return 12;
-  }
-}
+const POFS_RANK: Record<string, number> = {
+  N: 0,
+  PRON: 1,
+  PACK: 2,
+  V: 3,
+  VPAR: 4,
+  SUPINE: 5,
+  ADJ: 6,
+  NUM: 7,
+  ADV: 8,
+  PREP: 9,
+  CONJ: 10,
+  INTERJ: 11,
+};

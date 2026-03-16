@@ -1,15 +1,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { tryAddons, tryPrefixes, trySuffixes } from "../../src/lib/engine/addons-engine.js";
-import { buildDictionaryIndex } from "../../src/lib/engine/dictionary-index.js";
-import { buildInflectionIndex } from "../../src/lib/engine/inflection-index.js";
-import { parseAddonsFile } from "../../src/lib/parsers/addons.js";
-import { parseDictFile } from "../../src/lib/parsers/dictline.js";
-import { parseInflectsFile } from "../../src/lib/parsers/inflects.js";
-import { parseUniquesFile } from "../../src/lib/parsers/uniques.js";
+import { tryAddons, tryPrefixes, trySuffixes } from "../../../src/lib/engine/addons-engine.js";
+import { buildDictionaryIndex } from "../../../src/lib/engine/dictionary-index.js";
+import { buildInflectionIndex } from "../../../src/lib/engine/inflection-index.js";
+import { buildSuffixTrie } from "../../../src/lib/engine/suffix-trie.js";
+import { parseAddonsFile } from "../../../src/lib/parsers/addons.js";
+import { parseDictFile } from "../../../src/lib/parsers/dictline.js";
+import { parseInflectsFile } from "../../../src/lib/parsers/inflects.js";
+import { parseUniquesFile } from "../../../src/lib/parsers/uniques.js";
 
-const DATA_DIR = resolve(import.meta.dirname, "../../data");
+const DATA_DIR = resolve(import.meta.dirname, "../../../data");
 
 // Shared indexes for addon engine tests
 const dictEntries = parseDictFile(readFileSync(resolve(DATA_DIR, "DICTLINE.GEN"), "utf-8"));
@@ -250,27 +251,29 @@ describe("tryPrefixes", () => {
   });
 });
 
+const suffixTrie = buildSuffixTrie(addonsData.suffixes);
+
 describe("trySuffixes", () => {
   it("strips suffix and filters by root POS", () => {
-    const results = trySuffixes("regalis", addonsData.suffixes, inflIndex, dictIndex);
+    const results = trySuffixes("regalis", suffixTrie, inflIndex, dictIndex);
     expect(results).toBeInstanceOf(Array);
   });
 
   it("returns empty for nonsense word", () => {
-    const results = trySuffixes("xz", addonsData.suffixes, inflIndex, dictIndex);
+    const results = trySuffixes("xz", suffixTrie, inflIndex, dictIndex);
     expect(results).toHaveLength(0);
   });
 });
 
 describe("tryAddons", () => {
   it("tries all addon types on unknown word", () => {
-    const results = tryAddons("aquamque", addonsData, inflIndex, dictIndex);
+    const results = tryAddons("aquamque", addonsData, suffixTrie, inflIndex, dictIndex);
     expect(results.length).toBeGreaterThan(0);
     expect(results.some((r) => r.type === "tackon")).toBe(true);
   });
 
   it("returns empty for a word with no addon matches", () => {
-    const results = tryAddons("xyzzy", addonsData, inflIndex, dictIndex);
+    const results = tryAddons("xyzzy", addonsData, suffixTrie, inflIndex, dictIndex);
     expect(results).toHaveLength(0);
   });
 });

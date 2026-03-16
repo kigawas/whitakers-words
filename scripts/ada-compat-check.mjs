@@ -151,9 +151,10 @@ const sortedMiss = Object.entries(missCats).sort((a, b) => b[1].length - a[1].le
 for (const [cat, lines] of sortedMiss) {
   const tag = NEW_FEATURES.has(cat) ? "NEW FEATURE" : "FORMAT/CONTENT";
   console.log(`\n  ${cat}: ${lines.length} lines [${tag}]`);
+  const head = 10;
   if (verbose) {
-    for (const l of lines.sort().slice(0, 5)) console.log(`    ${l.slice(0, 75)}`);
-    if (lines.length > 5) console.log(`    ... +${lines.length - 5} more`);
+    for (const l of lines.sort().slice(0, head)) console.log(`    ${l.slice(0, 75)}`);
+    if (lines.length > head) console.log(`    ... +${lines.length - head} more`);
   }
 }
 
@@ -166,9 +167,10 @@ console.log(HR);
 const sortedExtra = Object.entries(extraCats).sort((a, b) => b[1].length - a[1].length);
 for (const [cat, lines] of sortedExtra) {
   console.log(`\n  ${cat}: ${lines.length} lines`);
+  const head = 3;
   if (verbose) {
-    for (const l of lines.sort().slice(0, 3)) console.log(`    ${l.slice(0, 75)}`);
-    if (lines.length > 3) console.log(`    ... +${lines.length - 3} more`);
+    for (const l of lines.sort().slice(0, head)) console.log(`    ${l.slice(0, 75)}`);
+    if (lines.length > head) console.log(`    ... +${lines.length - head} more`);
   }
 }
 
