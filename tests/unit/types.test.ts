@@ -278,7 +278,6 @@ describe("null constants", () => {
     expect(NULL_DICTIONARY_ENTRY.stems).toEqual(["", "", "", ""]);
     expect(NULL_DICTIONARY_ENTRY.part.pofs).toBe("X");
   });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -286,24 +285,23 @@ describe("null constants", () => {
 // ---------------------------------------------------------------------------
 
 describe("numberOfStems", () => {
-  it("nouns have 2 stems", () => {
+  it("returns correct stem count for all POS", () => {
     expect(numberOfStems("N")).toBe(2);
-  });
-
-  it("verbs have 4 stems", () => {
-    expect(numberOfStems("V")).toBe(4);
-  });
-
-  it("adjectives have 4 stems", () => {
+    expect(numberOfStems("PRON")).toBe(2);
+    expect(numberOfStems("PACK")).toBe(2);
     expect(numberOfStems("ADJ")).toBe(4);
-  });
-
-  it("prepositions have 1 stem", () => {
-    expect(numberOfStems("PREP")).toBe(1);
-  });
-
-  it("VPAR has 0 stems (no dictionary entries)", () => {
+    expect(numberOfStems("NUM")).toBe(4);
+    expect(numberOfStems("ADV")).toBe(3);
+    expect(numberOfStems("V")).toBe(4);
     expect(numberOfStems("VPAR")).toBe(0);
+    expect(numberOfStems("SUPINE")).toBe(0);
+    expect(numberOfStems("PREP")).toBe(1);
+    expect(numberOfStems("CONJ")).toBe(1);
+    expect(numberOfStems("INTERJ")).toBe(1);
+    expect(numberOfStems("TACKON")).toBe(0);
+    expect(numberOfStems("PREFIX")).toBe(1);
+    expect(numberOfStems("SUFFIX")).toBe(1);
+    expect(numberOfStems("X")).toBe(0);
   });
 });
 

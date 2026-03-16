@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { dictionaryForm, formatWordAnalysis, groupAndMerge } from "../../src/lib";
 import { createEngine } from "../../src/node";
-import { formatWordAnalysis, groupAndMerge, dictionaryForm } from "../../src/lib";
 
 describe("integration: smoke test (rem acu tetigisti)", () => {
   const engine = createEngine();

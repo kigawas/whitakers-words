@@ -22,7 +22,7 @@
   "files": {
     "includes": [
       "src/**",
-      "test/**"
+      "tests/**"
     ]
   },
   "overrides": [

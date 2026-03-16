@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseDictFile, parseDictLine } from "../../src/lib/parsers/dictline.js";
 import { parseInflectsFile } from "../../src/lib/parsers/inflects.js";
+import { parseUniquesFile } from "../../src/lib/parsers/uniques.js";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
 
@@ -229,5 +230,181 @@ describe("parseInflectsFile", () => {
       expect(r.qual.num.sort).toBe("CARD");
     }
     expect(r.ending.suf).toBe("us");
+  });
+
+  it("correctly parses a PRON inflection", () => {
+    const records = parseInflectsFile("PRON  1 0 GEN S X   2 3 jus                         X A\n");
+    expect(records).toHaveLength(1);
+    const r = records[0];
+    expect(r).toBeDefined();
+    if (!r) return;
+    expect(r.qual.pofs).toBe("PRON");
+    if (r.qual.pofs === "PRON") {
+      expect(r.qual.pron.cs).toBe("GEN");
+    }
+  });
+
+  it("correctly parses a PACK inflection", () => {
+    const records = parseInflectsFile("PACK  1 0 NOM S M   1 1 us                          X A\n");
+    expect(records).toHaveLength(1);
+    const r = records[0];
+    expect(r).toBeDefined();
+    if (!r) return;
+    expect(r.qual.pofs).toBe("PACK");
+  });
+
+  it("correctly parses a SUPINE inflection", () => {
+    const records = parseInflectsFile("SUPINE 0 0 ACC S N  4 2 um                          X A\n");
+    expect(records).toHaveLength(1);
+    const r = records[0];
+    expect(r).toBeDefined();
+    if (!r) return;
+    expect(r.qual.pofs).toBe("SUPINE");
+    if (r.qual.pofs === "SUPINE") {
+      expect(r.qual.supine.cs).toBe("ACC");
+    }
+  });
+
+  it("correctly parses a CONJ inflection", () => {
+    const records = parseInflectsFile("CONJ   1 0           X A\n");
+    expect(records).toHaveLength(1);
+    const r = records[0];
+    expect(r).toBeDefined();
+    if (!r) return;
+    expect(r.qual.pofs).toBe("CONJ");
+  });
+
+  it("correctly parses an INTERJ inflection", () => {
+    const records = parseInflectsFile("INTERJ 1 0           X A\n");
+    expect(records).toHaveLength(1);
+    const r = records[0];
+    expect(r).toBeDefined();
+    if (!r) return;
+    expect(r.qual.pofs).toBe("INTERJ");
+  });
+
+  it("returns null for unknown POS in inflection", () => {
+    const records = parseInflectsFile("TACKON 1 0           X A\n");
+    expect(records).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DICTLINE: additional POS coverage
+// ---------------------------------------------------------------------------
+
+describe("parseDictLine: extended POS", () => {
+  // Line format: 4 stems × 19 chars each = 76, then POS(6)+space+rest(16)=23, space, tran(9), space, meaning
+  // Stem slots: [0..17] [19..36] [38..55] [57..74]
+  // Part entry: [76..98], Translation: [100..108], Meaning: [110..]
+
+  it("parses a PRON entry", () => {
+    const line =
+      "h                  i                                                        PRON   1 0 DEMONS       X X X A O this; these (pl.);";
+    const entry = parseDictLine(line);
+    expect(entry.part.pofs).toBe("PRON");
+    if (entry.part.pofs === "PRON") {
+      expect(entry.part.pron.decl.which).toBe(1);
+    }
+  });
+
+  it("parses an ADV entry", () => {
+    const line =
+      "ben                bene               melius             optime             ADV    POS              X X X A O well, very, quite, rightly, agreeably;";
+    const entry = parseDictLine(line);
+    expect(entry.part.pofs).toBe("ADV");
+    if (entry.part.pofs === "ADV") {
+      expect(entry.part.adv.co).toBe("POS");
+    }
+  });
+
+  it("parses a NUM entry", () => {
+    const line =
+      "un                 un                 un                 un                 NUM    1 1 CARD     1   X X X A O one (unus -a -um);";
+    const entry = parseDictLine(line);
+    expect(entry.part.pofs).toBe("NUM");
+    if (entry.part.pofs === "NUM") {
+      expect(entry.part.num.sort).toBe("CARD");
+      expect(entry.part.num.decl.which).toBe(1);
+    }
+  });
+
+  it("parses a CONJ entry from real data", () => {
+    const content = readFileSync(resolve(DATA_DIR, "DICTLINE.GEN"), "utf-8");
+    const conjLine = content.split("\n").find((l) => {
+      const pos = l.slice(76, 82).trim();
+      return pos === "CONJ";
+    });
+    expect(conjLine).toBeDefined();
+    if (conjLine) {
+      const entry = parseDictLine(conjLine);
+      expect(entry.part.pofs).toBe("CONJ");
+    }
+  });
+
+  it("parses a V entry with known conjugation", () => {
+    const line =
+      "mon                mone               monu               monit              V      2 1 TRANS        X X X A O warn (of); advise; remind;";
+    const entry = parseDictLine(line);
+    expect(entry.part.pofs).toBe("V");
+    if (entry.part.pofs === "V") {
+      expect(entry.part.v.con.which).toBe(2);
+      expect(entry.part.v.kind).toBe("TRANS");
+    }
+  });
+
+  it("parses PACK, VPAR, SUPINE, TACKON, PREFIX, SUFFIX, X as correct POS", () => {
+    const content = readFileSync(resolve(DATA_DIR, "DICTLINE.GEN"), "utf-8");
+    const entries = parseDictFile(content);
+    const posSet = new Set(entries.map((e) => e.part.pofs));
+    // At minimum N, V, ADJ, ADV, PREP, CONJ, INTERJ, PRON, PACK, NUM should exist
+    expect(posSet.has("N")).toBe(true);
+    expect(posSet.has("V")).toBe(true);
+    expect(posSet.has("ADJ")).toBe(true);
+    expect(posSet.has("PRON")).toBe(true);
+    expect(posSet.has("PACK")).toBe(true);
+    expect(posSet.has("NUM")).toBe(true);
+    expect(posSet.has("ADV")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UNIQUES parser: synthetic entries for uncovered POS
+// ---------------------------------------------------------------------------
+
+describe("parseUniquesFile: POS branches", () => {
+  it("parses a PACK unique entry", () => {
+    const input = "testword\nPACK 1 1 NOM S M ADJECT X X X A A\ntest meaning\n";
+    const entries = parseUniquesFile(input);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.qual.pofs).toBe("PACK");
+  });
+
+  it("parses a NUM unique entry", () => {
+    const input = "testword\nNUM 1 1 NOM S M CARD 1 X X X A A\ntest meaning\n";
+    const entries = parseUniquesFile(input);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.qual.pofs).toBe("NUM");
+  });
+
+  it("parses an ADV unique entry", () => {
+    const input = "testword\nADV POS X X X A A\ntest meaning\n";
+    const entries = parseUniquesFile(input);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.qual.pofs).toBe("ADV");
+  });
+
+  it("parses a default/unknown POS unique entry", () => {
+    const input = "testword\nINTERJ X X X A A\ntest meaning\n";
+    const entries = parseUniquesFile(input);
+    expect(entries).toHaveLength(1);
+    // Falls through to default case
+    expect(entries[0]?.qual.pofs).toBe("X");
+  });
+
+  it("skips entries with empty stem lines", () => {
+    const input = "\nPACK 1 1 NOM S M ADJECT X X X A A\ntest meaning\n";
+    const entries = parseUniquesFile(input);
+    expect(entries).toHaveLength(0);
   });
 });

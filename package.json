@@ -11,7 +11,11 @@
     "type": "git",
     "url": "git+https://github.com/kigawas/whitakers-words.git"
   },
-  "description": "Latin morphological analyzer and dictionary - TypeScript port of Whitaker's Words",
+  "keywords": [
+    "latin",
+    "dictionary",
+    "classics"
+  ],
   "type": "module",
   "types": "./dist/lib/index.d.ts",
   "exports": {
@@ -38,9 +42,11 @@
     "check": "biome check",
     "check:fix": "biome check --fix",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:browser": "node ./scripts/gen-browser-tests.mjs && cd tests-browser && pnpm test"
+    "test:browser": "node ./scripts/gen-browser-tests.mjs && cd tests-browser && pnpm test",
+    "test:ada": "node ./scripts/ada-compat-check.mjs",
+    "test:ada:verbose": "node ./scripts/ada-compat-check.mjs --verbose"
   },
   "engines": {
     "node": ">=20"
@@ -48,6 +54,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.7",
     "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"

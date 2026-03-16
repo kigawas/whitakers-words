@@ -98,6 +98,12 @@ describe("ltuChar", () => {
     expect(ltuChar("h", "j")).toBe(true); // h < i
     expect(ltuChar("i", "j")).toBe(false); // i < i => false
   });
+  it("treats uppercase V as U and J as I", () => {
+    expect(ltuChar("T", "V")).toBe(true); // T < U
+    expect(ltuChar("U", "V")).toBe(false);
+    expect(ltuChar("H", "J")).toBe(true); // H < I
+    expect(ltuChar("I", "J")).toBe(false);
+  });
 });
 
 describe("gtuChar", () => {
@@ -109,6 +115,12 @@ describe("gtuChar", () => {
   it("treats i as j for comparison", () => {
     expect(gtuChar("k", "i")).toBe(true); // k > j
     expect(gtuChar("j", "i")).toBe(false); // j > j => false
+  });
+  it("treats uppercase U as V and I as J", () => {
+    expect(gtuChar("W", "U")).toBe(true); // W > V
+    expect(gtuChar("V", "U")).toBe(false);
+    expect(gtuChar("K", "I")).toBe(true); // K > J
+    expect(gtuChar("J", "I")).toBe(false);
   });
 });
 
