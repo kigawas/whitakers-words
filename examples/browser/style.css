@@ -3,29 +3,37 @@
    ================================================================ */
 
 :root {
-  --ivory: #faf6f0;
-  --parchment: #f0e8d8;
-  --parchment-dark: #e6dbc6;
-  --ink: #2c1810;
-  --ink-light: #5a4638;
-  --ink-faint: #8a7a6c;
-  --terracotta: #b45a3c;
-  --terracotta-hover: #9a4830;
-  --gold: #c9a95f;
-  --gold-faint: rgba(201, 169, 95, 0.3);
+  --ivory: oklch(0.97 0.01 75);
+  --parchment: oklch(0.93 0.025 75);
+  --parchment-dark: oklch(0.89 0.03 75);
+  --ink: oklch(0.2 0.03 45);
+  --ink-light: oklch(0.42 0.03 50);
+  --ink-faint: oklch(0.57 0.02 55);
+  --terracotta: oklch(0.55 0.14 35);
+  --terracotta-hover: oklch(0.48 0.13 35);
+  --gold: oklch(0.74 0.1 85);
+  --gold-faint: oklch(0.74 0.1 85 / 0.3);
 
-  --pos-n: #2b5ea7;
-  --pos-v: #a73b2b;
-  --pos-adj: #2b7a4b;
-  --pos-adv: #6b4ba7;
-  --pos-prep: #7a6b2b;
-  --pos-conj: #5a5a5a;
-  --pos-pron: #2b5ea7;
-  --pos-interj: #a7722b;
-  --pos-num: #7a6b2b;
-  --pos-vpar: #a73b2b;
-  --pos-supine: #a73b2b;
-  --pos-pack: #2b5ea7;
+  --pos-n: oklch(0.48 0.14 255);
+  --pos-v: oklch(0.48 0.14 25);
+  --pos-adj: oklch(0.52 0.12 155);
+  --pos-adv: oklch(0.48 0.14 295);
+  --pos-prep: oklch(0.52 0.1 95);
+  --pos-conj: oklch(0.45 0.005 55);
+  --pos-pron: oklch(0.48 0.14 255);
+  --pos-interj: oklch(0.55 0.12 65);
+  --pos-num: oklch(0.52 0.1 95);
+  --pos-vpar: oklch(0.48 0.14 25);
+  --pos-supine: oklch(0.48 0.14 25);
+  --pos-pack: oklch(0.48 0.14 255);
+
+  --input-bg: oklch(0.995 0.005 75);
+  --badge-text: oklch(0.98 0.005 75);
+  --shadow-color: oklch(0.15 0.01 55 / 0.2);
+
+  --tooltip-bg: var(--ink);
+  --tooltip-text: var(--ivory);
+  --tooltip-muted: oklch(0.85 0.01 75);
 
   --font-display: "Cormorant Garamond", "Georgia", serif;
   --font-body: "Source Serif 4", "Georgia", serif;
@@ -33,6 +41,41 @@
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+[data-theme="dark"] {
+  --ivory: oklch(0.18 0.015 60);
+  --parchment: oklch(0.23 0.02 60);
+  --parchment-dark: oklch(0.28 0.025 60);
+  --ink: oklch(0.92 0.01 70);
+  --ink-light: oklch(0.76 0.02 60);
+  --ink-faint: oklch(0.55 0.02 55);
+  --terracotta: oklch(0.62 0.14 35);
+  --terracotta-hover: oklch(0.68 0.13 35);
+  --gold: oklch(0.74 0.1 85);
+  --gold-faint: oklch(0.74 0.1 85 / 0.2);
+
+  --pos-n: oklch(0.65 0.12 255);
+  --pos-v: oklch(0.62 0.13 25);
+  --pos-adj: oklch(0.65 0.11 155);
+  --pos-adv: oklch(0.62 0.13 295);
+  --pos-prep: oklch(0.68 0.1 95);
+  --pos-conj: oklch(0.62 0.005 55);
+  --pos-pron: oklch(0.65 0.12 255);
+  --pos-interj: oklch(0.68 0.11 65);
+  --pos-num: oklch(0.68 0.1 95);
+  --pos-vpar: oklch(0.62 0.13 25);
+  --pos-supine: oklch(0.62 0.13 25);
+  --pos-pack: oklch(0.65 0.12 255);
+
+  --input-bg: oklch(0.16 0.015 55);
+  --shadow-color: oklch(0.05 0.01 55 / 0.45);
+
+  --tooltip-bg: oklch(0.28 0.025 60);
+  --tooltip-text: var(--ink);
+  --tooltip-muted: oklch(0.7 0.02 60);
+}
+
+/* ---- Reset ---- */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -50,11 +93,38 @@ body {
   background: var(--ivory);
   color: var(--ink);
   min-height: 100vh;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+body.theme-transitioning,
+body.theme-transitioning *,
+body.theme-transitioning *::before,
+body.theme-transitioning *::after {
+  transition: background-color 0.4s ease, color 0.4s ease,
+              border-color 0.4s ease, box-shadow 0.4s ease !important;
+}
+
+/* ---- Reduced motion ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Focus ring ---- */
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 /* ---- Page shell ---- */
 
 .page {
+  position: relative;
   max-width: 740px;
   margin: 0 auto;
   padding: 3rem 1.5rem 2rem;
@@ -86,6 +156,45 @@ h1 {
   font-size: 1.15rem;
   color: var(--ink-light);
   margin-top: 0.35rem;
+}
+
+/* ---- Theme toggle ---- */
+
+.theme-toggle {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: none;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink-light);
+  transition: color 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.theme-toggle:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.theme-toggle:active {
+  transform: scale(0.92);
+}
+
+/* Moon (light mode) / Sun (dark mode) via CSS */
+.theme-toggle::after {
+  content: "\263E"; /* crescent moon */
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+[data-theme="dark"] .theme-toggle::after {
+  content: "\2600"; /* sun */
 }
 
 /* ---- Decorative rule ---- */
@@ -136,7 +245,7 @@ h1 {
   padding: 0.7rem 1rem;
   border: 1.5px solid var(--parchment-dark);
   border-radius: 6px;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--ink);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -150,6 +259,10 @@ h1 {
 #word-input:focus {
   border-color: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-faint);
+}
+
+#word-input:focus-visible {
+  outline: none; /* box-shadow replaces outline */
 }
 
 #word-input:disabled {
@@ -166,7 +279,7 @@ h1 {
   border: none;
   border-radius: 6px;
   background: var(--terracotta);
-  color: #fff;
+  color: var(--badge-text);
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
 }
@@ -188,6 +301,7 @@ h1 {
   font-size: 0.82rem;
   color: var(--ink-faint);
   margin-top: 0.6rem;
+  min-height: 1.4em;
   font-style: italic;
 }
 
@@ -243,7 +357,8 @@ h1 {
   margin-bottom: 0.6rem;
 }
 
-.inflection-line {
+.inflection-line,
+.compound-line {
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
@@ -273,6 +388,8 @@ h1 {
   margin: 0 0.5px;
 }
 
+/* ---- POS badges ---- */
+
 .pos-badge {
   position: relative;
   display: inline-block;
@@ -284,10 +401,12 @@ h1 {
   text-transform: uppercase;
   padding: 0.12rem 0.45rem;
   border-radius: 3px;
-  color: #fff;
+  color: var(--badge-text);
   line-height: 1.3;
   flex-shrink: 0;
 }
+
+.pos-badge:focus-visible { outline-offset: 1px; }
 
 .pos-badge.pos-n      { background: var(--pos-n); }
 .pos-badge.pos-v      { background: var(--pos-v); }
@@ -302,37 +421,54 @@ h1 {
 .pos-badge.pos-supine { background: var(--pos-supine); }
 .pos-badge.pos-pack   { background: var(--pos-pack); }
 
-.pos-tooltip {
+/* ---- Shared tooltip base ---- */
+
+.pos-tooltip,
+.gram-tooltip,
+.flags-tooltip {
   display: none;
   position: absolute;
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: var(--ink);
-  color: var(--ivory);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
   border-radius: 5px;
   padding: 0.3rem 0.55rem;
   white-space: nowrap;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px var(--shadow-color);
   font-size: 0.72rem;
   line-height: 1.45;
+  pointer-events: none;
 }
 
-.pos-tooltip::after {
+.flags-tooltip {
+  padding: 0.5rem 0.65rem;
+}
+
+.pos-tooltip::after,
+.gram-tooltip::after,
+.flags-tooltip::after {
   content: "";
   position: absolute;
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: var(--ink);
+  border-top-color: var(--tooltip-bg);
 }
 
 .pos-badge:hover .pos-tooltip,
-.pos-badge:focus .pos-tooltip {
+.pos-badge:focus-visible .pos-tooltip,
+.gram-tip:hover .gram-tooltip,
+.gram-tip:focus-visible .gram-tooltip,
+.flags-wrap:hover .flags-tooltip,
+.flags-wrap:focus-visible .flags-tooltip {
   display: block;
 }
+
+/* ---- Grammar tips ---- */
 
 .grammar {
   font-family: var(--font-mono);
@@ -347,37 +483,7 @@ h1 {
   padding-bottom: 1px;
 }
 
-.gram-tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: var(--ivory);
-  border-radius: 5px;
-  padding: 0.3rem 0.55rem;
-  white-space: nowrap;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  font-size: 0.72rem;
-  line-height: 1.45;
-}
-
-.gram-tooltip::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--ink);
-}
-
-.gram-tip:hover .gram-tooltip,
-.gram-tip:focus .gram-tooltip {
-  display: block;
-}
+/* ---- Dict form & flags ---- */
 
 .dict-form {
   font-family: var(--font-body);
@@ -397,45 +503,11 @@ h1 {
   font-style: normal;
 }
 
-/* ---- Flags tooltip ---- */
-
 .flags-wrap {
   position: relative;
   cursor: help;
   border-bottom: 1px dotted var(--ink-faint);
   padding-bottom: 1px;
-}
-
-.flags-tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: var(--ivory);
-  border-radius: 5px;
-  padding: 0.5rem 0.65rem;
-  white-space: nowrap;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  font-size: 0.72rem;
-  line-height: 1.45;
-}
-
-.flags-tooltip::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--ink);
-}
-
-.flags-wrap:hover .flags-tooltip,
-.flags-wrap:focus .flags-tooltip {
-  display: block;
 }
 
 .flags-tooltip table {
@@ -454,14 +526,15 @@ h1 {
 }
 
 .flags-tooltip .ft-code {
-  color: var(--ivory);
-  opacity: 0.6;
+  color: var(--tooltip-muted);
   text-align: center;
 }
 
 .flags-tooltip .ft-meaning {
-  color: var(--ivory);
+  color: var(--tooltip-text);
 }
+
+/* ---- Meaning ---- */
 
 .meaning {
   font-family: var(--font-body);
@@ -471,14 +544,13 @@ h1 {
   line-height: 1.55;
 }
 
-/* Compound (PPL + sum) */
-.compound-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.15rem 0;
+.meaning + .meaning {
+  margin-top: 0.15rem;
+  padding-top: 0.15rem;
+  border-top: 1px dashed var(--parchment-dark);
 }
+
+/* ---- Compound (PPL + sum) ---- */
 
 .compound-gloss {
   font-family: var(--font-mono);
@@ -489,7 +561,8 @@ h1 {
   margin-bottom: 0.2rem;
 }
 
-/* Syncope note */
+/* ---- Syncope note ---- */
+
 .syncope-note {
   display: flex;
   flex-wrap: wrap;
@@ -497,7 +570,7 @@ h1 {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--ink-light);
-  background: rgba(201, 169, 95, 0.12);
+  background: oklch(0.74 0.1 85 / 0.12);
   border-radius: 4px;
   padding: 0.4rem 0.7rem;
   margin-bottom: 0.4rem;
@@ -512,28 +585,31 @@ h1 {
   font-style: italic;
 }
 
-/* Unique entry styling */
+/* ---- Unique entry ---- */
+
 .entry-group.unique {
   border-left-color: var(--terracotta);
 }
 
 .unique-tag {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--terracotta);
   margin-bottom: 0.2rem;
 }
 
-/* No results */
+/* ---- No results ---- */
+
 .no-results {
   font-style: italic;
   color: var(--ink-faint);
   padding: 1rem 0;
 }
 
-/* Query timing */
+/* ---- Query timing ---- */
+
 .query-time {
   text-align: right;
   font-family: var(--font-mono);
@@ -541,19 +617,20 @@ h1 {
   color: var(--ink-faint);
   padding-top: 0.75rem;
   margin-top: 0.5rem;
-  border-top: 1px solid rgba(201, 169, 95, 0.15);
+  border-top: 1px solid oklch(0.74 0.1 85 / 0.15);
 }
 
 /* ---- Stagger animation delay ---- */
+
 .word-card:nth-child(1) { animation-delay: 0s; }
 .word-card:nth-child(2) { animation-delay: 0.06s; }
-.word-card:nth-child(3) { animation-delay: 0.12s; }
-.word-card:nth-child(4) { animation-delay: 0.18s; }
-.word-card:nth-child(5) { animation-delay: 0.24s; }
-.word-card:nth-child(6) { animation-delay: 0.30s; }
-.word-card:nth-child(7) { animation-delay: 0.36s; }
-.word-card:nth-child(8) { animation-delay: 0.42s; }
-.word-card:nth-child(n+9) { animation-delay: 0.45s; }
+.word-card:nth-child(3) { animation-delay: 0.06s; }
+.word-card:nth-child(4) { animation-delay: 0.12s; }
+.word-card:nth-child(5) { animation-delay: 0.15s; }
+.word-card:nth-child(6) { animation-delay: 0.18s; }
+.word-card:nth-child(7) { animation-delay: 0.21s; }
+.word-card:nth-child(8) { animation-delay: 0.24s; }
+.word-card:nth-child(n+9) { animation-delay: 0.27s; }
 
 /* ---- Footer ---- */
 
@@ -601,6 +678,8 @@ footer {
   h1 { font-size: 2rem; }
   .input-wrap { flex-direction: column; }
   #parse-btn { width: 100%; }
-  .inflection-line { gap: 0.4rem; }
+  .inflection-line,
+  .compound-line { gap: 0.4rem; }
   .stem-ending { min-width: auto; }
+  .theme-toggle { top: 1rem; right: 1rem; }
 }
