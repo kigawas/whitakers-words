@@ -9,7 +9,6 @@ const handleFile = (srcPath, dstPath, ...pipelines) => {
   const dstDir = path.dirname(dstPath);
   fs.mkdirSync(dstDir, { recursive: true });
   fs.writeFileSync(dstPath, data);
-  console.log(`  ${srcPath} → ${dstPath}`);
 };
 
 const preamble = `\
@@ -48,5 +47,3 @@ handleFile(
   "./tests-browser/integration/smoke.test.ts",
   ...pipelines,
 );
-
-console.log("Done.");

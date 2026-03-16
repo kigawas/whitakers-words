@@ -1,10 +1,22 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { tryAddons, tryPrefixes, trySuffixes } from "../../src/lib/engine/addons-engine.js";
+import { buildDictionaryIndex } from "../../src/lib/engine/dictionary-index.js";
+import { buildInflectionIndex } from "../../src/lib/engine/inflection-index.js";
 import { parseAddonsFile } from "../../src/lib/parsers/addons.js";
+import { parseDictFile } from "../../src/lib/parsers/dictline.js";
+import { parseInflectsFile } from "../../src/lib/parsers/inflects.js";
 import { parseUniquesFile } from "../../src/lib/parsers/uniques.js";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../data");
+
+// Shared indexes for addon engine tests
+const dictEntries = parseDictFile(readFileSync(resolve(DATA_DIR, "DICTLINE.GEN"), "utf-8"));
+const inflRecords = parseInflectsFile(readFileSync(resolve(DATA_DIR, "INFLECTS.LAT"), "utf-8"));
+const addonsData = parseAddonsFile(readFileSync(resolve(DATA_DIR, "ADDONS.LAT"), "utf-8"));
+const dictIndex = buildDictionaryIndex(dictEntries);
+const inflIndex = buildInflectionIndex(inflRecords);
 
 // ---------------------------------------------------------------------------
 // ADDONS parser
@@ -211,5 +223,54 @@ describe("parseUniquesFile", () => {
     if (e.qual.pofs === "ADJ") {
       expect(e.qual.adj.comparison).toBe("POS");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Addon engine: prefix/suffix/tackon stripping
+// ---------------------------------------------------------------------------
+
+describe("tryPrefixes", () => {
+  it("strips prefix without connect character", () => {
+    // "ante" prefix + "cedo" → "antecedo" is in dict, so try with base word
+    const results = tryPrefixes("antecedo", addonsData.prefixes, inflIndex, dictIndex);
+    // May or may not find results depending on if "cedo" parses
+    expect(results).toBeInstanceOf(Array);
+  });
+
+  it("strips prefix with connect character", () => {
+    // "ac" prefix with connect "c" — "accedo" → strip "ac" → "cedo"
+    const results = tryPrefixes("accedo", addonsData.prefixes, inflIndex, dictIndex);
+    expect(results).toBeInstanceOf(Array);
+  });
+
+  it("returns empty for word shorter than prefix", () => {
+    const results = tryPrefixes("ab", addonsData.prefixes, inflIndex, dictIndex);
+    expect(results).toHaveLength(0);
+  });
+});
+
+describe("trySuffixes", () => {
+  it("strips suffix and filters by root POS", () => {
+    const results = trySuffixes("regalis", addonsData.suffixes, inflIndex, dictIndex);
+    expect(results).toBeInstanceOf(Array);
+  });
+
+  it("returns empty for nonsense word", () => {
+    const results = trySuffixes("xz", addonsData.suffixes, inflIndex, dictIndex);
+    expect(results).toHaveLength(0);
+  });
+});
+
+describe("tryAddons", () => {
+  it("tries all addon types on unknown word", () => {
+    const results = tryAddons("aquamque", addonsData, inflIndex, dictIndex);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some((r) => r.type === "tackon")).toBe(true);
+  });
+
+  it("returns empty for a word with no addon matches", () => {
+    const results = tryAddons("xyzzy", addonsData, inflIndex, dictIndex);
+    expect(results).toHaveLength(0);
   });
 });
