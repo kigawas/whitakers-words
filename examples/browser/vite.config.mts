@@ -7,7 +7,7 @@ const dataDir = resolve(import.meta.dirname, "../../data");
 const DATA_FILES = ["DICTLINE.GEN", "INFLECTS.LAT", "ADDONS.LAT", "UNIQUES.LAT"];
 
 export default defineConfig({
-  publicDir: false,
+  publicDir: "public",
   server: {
     fs: {
       allow: [resolve(import.meta.dirname, "../..")],

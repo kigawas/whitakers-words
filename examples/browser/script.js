@@ -15,9 +15,15 @@ const resultsEl = document.getElementById("results");
 
 let engine = null;
 
-async function loadFile(path) {
+const CACHE_NAME = "whitakers-words-data-v1";
+
+async function loadFile(path, cache) {
+  const cached = await cache?.match(path);
+  if (cached) return cached.text();
+
   const res = await fetch(path);
   if (!res.ok) throw new Error(`Failed to load ${path}: ${res.status}`);
+  await cache?.put(path, res.clone());
   return res.text();
 }
 
@@ -25,12 +31,20 @@ async function init() {
   statusEl.classList.add("loading");
   const t0 = performance.now();
 
-  const [dictline, inflects, addons, uniques] = await Promise.all([
-    loadFile("/data/DICTLINE.GEN"),
-    loadFile("/data/INFLECTS.LAT"),
-    loadFile("/data/ADDONS.LAT"),
-    loadFile("/data/UNIQUES.LAT"),
+  const cache = await caches.open(CACHE_NAME).catch(() => null);
+
+  // Load small files first, then the large dictionary
+  const [inflects, addons, uniques] = await Promise.all([
+    loadFile("/data/INFLECTS.LAT", cache),
+    loadFile("/data/ADDONS.LAT", cache),
+    loadFile("/data/UNIQUES.LAT", cache),
   ]);
+  statusEl.textContent = "Loading dictionary\u2026";
+  const dictline = await loadFile("/data/DICTLINE.GEN", cache);
+
+  statusEl.textContent = "Building index\u2026";
+  // Yield to paint the status update before the blocking create()
+  await new Promise((r) => requestAnimationFrame(r));
 
   engine = WordsEngine.create({ dictline, inflects, addons, uniques });
   const elapsed = (performance.now() - t0).toFixed(0);
@@ -106,7 +120,7 @@ function tip(abbr) {
   if (!s || s === "X" || s === "0") return "";
   const full = GRAM_TIPS[s];
   if (!full) return esc(s);
-  return `<span class="gram-tip" tabindex="0">${esc(s)}<span class="gram-tooltip">${esc(full)}</span></span>`;
+  return `<span class="gram-tip">${esc(s)}<span class="gram-tooltip">${esc(full)}</span></span>`;
 }
 
 /** Format grammatical details from a quality record as HTML with tooltips */
@@ -287,7 +301,7 @@ function renderUnique(u) {
         ${posBadge(pofs)}
         <span class="grammar">${grammarHTML(u.qual)}</span>
       </div>
-      <div class="dict-form">${esc(form)}<span class="dict-flags">${flags(u.de)}</span></div>
+      <div class="dict-form">${esc(form)} <span class="dict-flags">${flags(u.de)}</span></div>
       <div class="meaning">${esc(u.de.mean)}</div>
     </div>`;
 }
@@ -384,6 +398,33 @@ input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") parseInput();
 });
 btn.addEventListener("click", parseInput);
+
+// ---------------------------------------------------------------------------
+// Theme toggle
+// ---------------------------------------------------------------------------
+
+const themeToggle = document.getElementById("theme-toggle");
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("theme", theme);
+  themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+}
+
+// Init from saved preference or system preference
+const saved = localStorage.getItem("theme");
+if (saved) {
+  applyTheme(saved);
+} else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+  applyTheme("dark");
+}
+
+themeToggle.addEventListener("click", () => {
+  document.body.classList.add("theme-transitioning");
+  const current = document.documentElement.getAttribute("data-theme");
+  applyTheme(current === "dark" ? "light" : "dark");
+  setTimeout(() => document.body.classList.remove("theme-transitioning"), 450);
+});
 
 init().catch((err) => {
   statusEl.classList.remove("loading");
