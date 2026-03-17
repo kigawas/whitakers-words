@@ -140,6 +140,20 @@ export class WordsEngine {
     // 3. Deduplicate and rank
     results = listSweep(results);
 
+    // 3a. Filter PRON 4 2 DEMONS (idem) from standalone results.
+    // This entry shares stems with PRON 4 1 (is/ea/id) and should only appear
+    // via the -dem tackon, not as a standalone parse of "i", "is", "eius", etc.
+    results = results.filter(
+      (r) =>
+        !(
+          r.ir.qual.pofs === "PRON" &&
+          r.de.part.pofs === "PRON" &&
+          r.de.part.pron.decl.which === 4 &&
+          r.de.part.pron.decl.var === 2 &&
+          r.de.part.pron.kind === "DEMONS"
+        ),
+    );
+
     // 4. If no results, try tricks (spelling variations)
     let trickAnnotations: string[] = [];
     let trickResults: ParseResult[] = [];

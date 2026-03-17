@@ -85,10 +85,10 @@ export function searchDictionaries(
   for (const pair of pairs) {
     let dictStems: readonly DictionaryStem[];
 
-    // Empty stems (ending = entire word) never match — all formerly-blank stem
-    // slots in DICTLINE.GEN are now filled with "zzz", so there are no blank
-    // stems in the index. Short stems (1-2 chars) go through normal lookup.
-    dictStems = pair.stem.length === 0 ? [] : lookupStems(dictIndex, pair.stem);
+    // Empty stems (ending = entire word) use the blankStems index.
+    // This handles sum/esse where stem2="" and the entire word is the ending.
+    // Most entries use "zzz" for unused stems, so blankStems is very small.
+    dictStems = pair.stem.length === 0 ? dictIndex.blankStems : lookupStems(dictIndex, pair.stem);
     if (dictStems.length === 0) continue;
 
     for (const ds of dictStems) {
@@ -226,16 +226,14 @@ function matchAndResolveQuality(
           sort: qual.num.sort,
         },
       };
-    case "ADV":
+    case "ADV": {
       if (part.pofs !== "ADV") return null;
-      if (part.adv.co !== qual.adv.comparison && part.adv.co !== "X" && qual.adv.comparison !== "X")
-        return null;
-      return {
-        pofs: "ADV",
-        adv: {
-          comparison: qual.adv.comparison === "X" ? advCompFromKey(stemKey) : qual.adv.comparison,
-        },
-      };
+      // Ada derives comparison from stem key when dict entry has co=X.
+      // This ensures "amare" (stem1, key=1) only matches POS, not COMP/SUPER.
+      const co = part.adv.co !== "X" ? part.adv.co : advCompFromKey(stemKey);
+      if (co !== qual.adv.comparison && qual.adv.comparison !== "X") return null;
+      return { pofs: "ADV", adv: { comparison: co } };
+    }
     case "V":
       if (part.pofs !== "V") return null;
       if (!matchesDecn(qual.verb.con, part.v.con)) return null;
