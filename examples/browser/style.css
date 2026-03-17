@@ -563,6 +563,24 @@ h1 {
 
 /* ---- Syncope note ---- */
 
+.trick-note,
+.slury-note,
+.two-word-note,
+.addon-note {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  background: oklch(0.74 0.12 200 / 0.12);
+  border-radius: 4px;
+  padding: 0.4rem 0.7rem;
+  margin-bottom: 0.4rem;
+  font-style: italic;
+}
+
+.two-word-note { background: oklch(0.74 0.1 140 / 0.12); }
+.addon-note { background: oklch(0.74 0.1 300 / 0.12); font-style: normal; }
+.addon-type { font-weight: 600; }
+
 .syncope-note {
   display: flex;
   flex-wrap: wrap;

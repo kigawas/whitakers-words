@@ -330,6 +330,17 @@ function renderWord(word, analysis) {
     parts.push(renderEntryGroup(group, "", cr));
   }
 
+  // Slury (prefix assimilation) results
+  if (analysis.sluryResult) {
+    parts.push(`<div class="slury-note"><span class="slury-label">${esc(analysis.sluryResult.label)}</span> &mdash; <span class="slury-explanation">${esc(analysis.sluryResult.explanation)}</span></div>`);
+    if (analysis.sluryResult.results.length > 0) {
+      const sluryGroups = mergeByInflection(groupAndMerge(analysis.sluryResult.results));
+      for (const group of sluryGroups) {
+        parts.push(renderEntryGroup(group, "slury"));
+      }
+    }
+  }
+
   // Syncope results
   if (analysis.syncopeResult) {
     const sr = analysis.syncopeResult;
@@ -341,19 +352,40 @@ function renderWord(word, analysis) {
   }
 
   // Trick results
+  if (analysis.trickAnnotations?.length > 0) {
+    parts.push(`<div class="trick-note">${analysis.trickAnnotations.map(esc).join(" &mdash; ")}</div>`);
+  }
   if (analysis.trickResults?.length > 0) {
     const trickGroups = mergeByInflection(groupAndMerge(analysis.trickResults));
     for (const group of trickGroups) {
-      parts.push(renderEntryGroup(group));
+      parts.push(renderEntryGroup(group, "trick"));
+    }
+  }
+
+  // Two-word split results
+  if (analysis.twoWordResult) {
+    const tw = analysis.twoWordResult;
+    parts.push(`<div class="two-word-note"><span class="two-word-label">${esc(tw.label)}</span> &mdash; <span class="two-word-explanation">${esc(tw.explanation)}</span></div>`);
+    if (tw.leftResults?.length > 0) {
+      const leftGroups = mergeByInflection(groupAndMerge(tw.leftResults));
+      for (const group of leftGroups) {
+        parts.push(renderEntryGroup(group, "two-word"));
+      }
+    }
+    const rightGroups = mergeByInflection(groupAndMerge(tw.rightResults));
+    for (const group of rightGroups) {
+      parts.push(renderEntryGroup(group, "two-word"));
     }
   }
 
   // Addon results
   if (analysis.addonResults?.length > 0) {
     for (const ar of analysis.addonResults) {
+      const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
+      parts.push(`<div class="addon-note"><span class="addon-type">${esc(ar.type.toUpperCase())}</span> <span class="addon-name">${esc(addonName)}</span> &mdash; ${esc(ar.addon.mean)}</div>`);
       const baseGroups = mergeByInflection(groupAndMerge(ar.baseResults));
       for (const group of baseGroups) {
-        parts.push(renderEntryGroup(group));
+        parts.push(renderEntryGroup(group, "addon"));
       }
     }
   }

@@ -2,7 +2,7 @@
 // Tricks — spelling transformations for words that fail normal parsing
 // ---------------------------------------------------------------------------
 
-export type TrickOp = "flip" | "flip_flop" | "internal";
+export type TrickOp = "flip" | "flip_flop" | "internal" | "double_consonant";
 
 export interface Trick {
   old: string;
@@ -213,21 +213,91 @@ export function getMedievalTricks(): Trick[] {
   return [...MEDIEVAL_TRICKS];
 }
 
+export interface TrickResult {
+  readonly word: string;
+  readonly trick: Trick;
+}
+
+const VOWELS = new Set(["a", "e", "i", "o", "u"]);
+
 /**
- * Apply all applicable tricks to a word and return all unique transformed words.
- * This is the high-level entry point used by the engine.
+ * Medieval double-consonant trick: find a single consonant between two vowels
+ * and try doubling it. E.g., "iritata" → "irritata".
+ * Ada's Double_Consonants procedure in Try_Tricks.
  */
-export function applyTricks(word: string): string[] {
+function doubleConsonants(word: string): TrickResult[] {
+  const results: TrickResult[] = [];
+  for (let i = 1; i < word.length - 1; i++) {
+    const c = word[i];
+    const prev = word[i - 1];
+    const next = word[i + 1];
+    if (c && prev && next && !VOWELS.has(c) && VOWELS.has(prev) && VOWELS.has(next)) {
+      const doubled = word.slice(0, i + 1) + c + word.slice(i + 1);
+      results.push({
+        word: doubled,
+        trick: { old: c, new: c + c, op: "double_consonant" },
+      });
+    }
+  }
+  return results;
+}
+
+/**
+ * Apply all applicable tricks to a word and return transformed words with
+ * the trick that produced them. This is the high-level entry point used by the engine.
+ */
+export function applyTricks(word: string): TrickResult[] {
   const tricks = getTricksForWord(word);
-  const results = new Set<string>();
+  const seen = new Set<string>();
+  const results: TrickResult[] = [];
 
   for (const trick of tricks) {
     for (const transformed of applyTrick(word, trick)) {
-      if (transformed !== word) {
-        results.add(transformed);
+      if (transformed !== word && !seen.has(transformed)) {
+        seen.add(transformed);
+        results.push({ word: transformed, trick });
       }
     }
   }
 
-  return [...results];
+  // Medieval: try doubling single consonants between vowels
+  for (const tr of doubleConsonants(word)) {
+    if (!seen.has(tr.word)) {
+      seen.add(tr.word);
+      results.push(tr);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Generate Ada-style annotation lines for a trick that was applied.
+ * Returns two lines: a short "Word mod" / "Slur" line and a long explanation.
+ */
+export function trickAnnotation(trick: Trick): string[] {
+  if (trick.op === "double_consonant") {
+    return [
+      `Word mod ${trick.old} -> ${trick.new}`,
+      "A doubled consonant may be rendered by just the single  MEDIEVAL",
+    ];
+  }
+  if (trick.op === "internal") {
+    return [
+      `Word mod ${trick.old}/${trick.new}`,
+      `An internal '${trick.old}' might be rendered by '${trick.new}'`,
+    ];
+  }
+  // flip / flip_flop — initial letter tricks
+  if (trick.op === "flip_flop") {
+    return [
+      `Slur ${trick.old}/${trick.new}~`,
+      `An initial '${trick.old}' may be rendered by ${trick.new}~`,
+    ];
+  }
+  // flip
+  return [
+    `Word mod ${trick.old}/${trick.new}`,
+    `An initial '${trick.old}' may have replaced usual '${trick.new}'`,
+  ];
 }

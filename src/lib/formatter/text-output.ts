@@ -1,6 +1,7 @@
 import type { AddonResult } from "../engine/addons-engine.js";
 import type { CompoundResult } from "../engine/compounds.js";
 import type { RomanNumeralResult } from "../engine/engine.js";
+import type { SluryResult } from "../engine/slury.js";
 import type { SyncopeResult } from "../engine/syncope.js";
 import type { TwoWordResult } from "../engine/two-words.js";
 import type { ParseResult } from "../engine/word-analysis.js";
@@ -32,7 +33,9 @@ export interface WordAnalysisOutput {
   results: readonly ParseResult[];
   uniqueResults: readonly UniqueEntry[];
   addonResults?: readonly AddonResult[];
+  trickAnnotations?: readonly string[];
   trickResults?: readonly ParseResult[];
+  sluryResult?: SluryResult | null;
   syncopeResult?: SyncopeResult | null;
   twoWordResult?: TwoWordResult | null;
   romanNumeralResult?: RomanNumeralResult | null;
@@ -113,7 +116,23 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
     lines.push(`${analysis.romanNumeralResult.value}  as a ROMAN NUMERAL;`);
   }
 
-  // Trick results
+  // Slury (prefix assimilation) annotations and results
+  if (analysis.sluryResult) {
+    lines.push(padRight(analysis.sluryResult.label, STEM_DOT_WIDTH));
+    lines.push(analysis.sluryResult.explanation);
+    if (analysis.sluryResult.results.length > 0) {
+      for (const block of mergeByMeaning(groupAndMerge(analysis.sluryResult.results))) {
+        lines.push(...block);
+      }
+    }
+  }
+
+  // Trick results with annotations
+  if (analysis.trickAnnotations) {
+    for (const ann of analysis.trickAnnotations) {
+      lines.push(ann);
+    }
+  }
   if (analysis.trickResults && analysis.trickResults.length > 0) {
     for (const block of mergeByMeaning(groupAndMerge(analysis.trickResults))) {
       lines.push(...block);

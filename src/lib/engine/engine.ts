@@ -19,9 +19,10 @@ import {
 import { buildInflectionIndex, type InflectionIndex } from "./inflection-index.js";
 import { listSweep } from "./list-sweep.js";
 import { parseRomanNumeral } from "./roman-numerals.js";
+import { type SluryResult, trySlury } from "./slury.js";
 import { buildSuffixTrie, type SuffixTrieNode } from "./suffix-trie.js";
 import { type SyncopeResult, trySyncope } from "./syncope.js";
-import { applyTricks } from "./tricks.js";
+import { applyTricks, trickAnnotation } from "./tricks.js";
 import { type TwoWordResult, tryTwoWords } from "./two-words.js";
 import { analyzeWord, type ParseResult } from "./word-analysis.js";
 
@@ -45,7 +46,9 @@ export interface WordAnalysis {
   readonly results: readonly ParseResult[];
   readonly uniqueResults: readonly UniqueEntry[];
   readonly addonResults: readonly AddonResult[];
+  readonly trickAnnotations: readonly string[];
   readonly trickResults: readonly ParseResult[];
+  readonly sluryResult: SluryResult | null;
   readonly syncopeResult: SyncopeResult | null;
   readonly twoWordResult: TwoWordResult | null;
   readonly romanNumeralResult: RomanNumeralResult | null;
@@ -138,20 +141,23 @@ export class WordsEngine {
     results = listSweep(results);
 
     // 4. If no results, try tricks (spelling variations)
+    let trickAnnotations: string[] = [];
     let trickResults: ParseResult[] = [];
     if (results.length === 0 && uniqueResults.length === 0) {
       const trickWords = applyTricks(lowerWord);
       for (const tw of trickWords) {
-        const trickParses = analyzeWord(tw, this.#inflIndex, this.#dictIndex);
+        const trickParses = analyzeWord(tw.word, this.#inflIndex, this.#dictIndex);
         if (trickParses.length > 0) {
+          trickAnnotations = trickAnnotation(tw.trick);
           trickResults = listSweep(trickParses);
           break; // take first successful trick
         }
       }
     }
 
-    // 4b. Always try syncope — syncopated perfect forms. Ada applies syncope
-    // even when standard results exist (it's shown alongside normal results).
+    // 4b. Always try slury (prefix assimilation detection) and syncope.
+    // Ada runs these alongside standard results (shown as additional info).
+    const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex);
     const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex);
 
     // 5. Try tackons (enclitics like -que, -ne, -ve) when no direct results found.
@@ -174,24 +180,35 @@ export class WordsEngine {
       );
     }
 
-    // 6. Try suffixes — Ada tries suffix stripping before two-word splitting.
+    // 6. Try prefixes — Ada tries prefix stripping before suffixes.
+    if (noResults()) {
+      addonResults.push(
+        ...tryPrefixes(lowerWord, this.#allPrefixes, this.#inflIndex, this.#dictIndex),
+      );
+    }
+
+    // 7. Try suffixes.
     if (noResults()) {
       addonResults.push(
         ...trySuffixes(lowerWord, this.#suffixTrie, this.#inflIndex, this.#dictIndex),
       );
     }
 
-    // 7. Two-word splitting — fallback after tackons/suffixes but before prefixes.
+    // Sort addon results so more common words appear first.
+    // Each addon's baseResults are already sorted by listSweep; this sorts
+    // the addon blocks themselves by their best-frequency word.
+    if (addonResults.length > 1) {
+      const freqOf = (r: AddonResult) => {
+        const first = r.baseResults[0];
+        return first ? (FREQ_ORDER[first.de.tran.freq] ?? 10) : 99;
+      };
+      addonResults.sort((a, b) => freqOf(a) - freqOf(b));
+    }
+
+    // 8. Two-word splitting — last resort fallback.
     let twoWordResult: TwoWordResult | null = null;
     if (noResults() && !syncopeResult) {
       twoWordResult = tryTwoWords(lowerWord, this.#inflIndex, this.#dictIndex);
-    }
-
-    // 8. Try prefixes — last resort after two-word splitting.
-    if (noResults() && !twoWordResult) {
-      addonResults.push(
-        ...tryPrefixes(lowerWord, this.#allPrefixes, this.#inflIndex, this.#dictIndex),
-      );
     }
 
     // 9. Roman numeral detection — runs alongside other results (not fallback).
@@ -224,7 +241,9 @@ export class WordsEngine {
       results,
       uniqueResults,
       addonResults,
+      trickAnnotations,
       trickResults,
+      sluryResult,
       syncopeResult,
       twoWordResult,
       romanNumeralResult,
@@ -331,6 +350,19 @@ function equLatin(a: string, b: string): boolean {
   }
   return true;
 }
+
+const FREQ_ORDER: Record<string, number> = {
+  A: 0,
+  B: 1,
+  C: 2,
+  D: 3,
+  E: 4,
+  F: 5,
+  I: 6,
+  M: 7,
+  N: 8,
+  X: 9,
+};
 
 function normalizeLatinChar(c: string): string {
   if (c === "v") return "u";
