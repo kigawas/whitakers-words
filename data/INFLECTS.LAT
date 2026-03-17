@@ -256,14 +256,13 @@ N     2 8 ACC S N  2 2 on        X A
 
 
 
---  Ex:  Panthus, Panthi => Panth Panth  --  only one? 
---  Ex:  Teucrus
---  and even OLD does not give information to allow this designation
+-- Latin 2nd + Greek 3rd declension
+-- Ex: Theseus, Orpheus
 N     2 9 NOM S C  1 2 us        X A
 N     2 9 VOC S C  2 1 u         X A
 N     2 9 GEN S C  2 1 i         X A
-N     2 9 ACC S C  2 2 un        X A
-
+N     2 9 GEN S C  2 2 os        X B       --  Greek genitive (-eos)
+N     2 9 ACC S C  2 1 a         X B       --  Greek accusative (-ea)
 
 
 
