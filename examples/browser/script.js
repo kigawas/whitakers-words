@@ -390,6 +390,20 @@ function renderWord(word, analysis) {
     }
   }
 
+  // Roman numeral
+  if (analysis.romanNumeralResult) {
+    const val = analysis.romanNumeralResult.value;
+    parts.push(`
+      <div class="entry-group roman-numeral">
+        <div class="inflection-line">
+          <span class="stem-ending"><span class="stem">${esc(word)}</span></span>
+          ${posBadge("NUM")}
+          <span class="grammar">${tip("CARD")}</span>
+        </div>
+        <div class="meaning">${esc(String(val))}  as a ROMAN NUMERAL</div>
+      </div>`);
+  }
+
   if (parts.length === 0) {
     parts.push(`<div class="no-results">No results found.</div>`);
   }

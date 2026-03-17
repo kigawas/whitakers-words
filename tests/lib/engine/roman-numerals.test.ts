@@ -108,7 +108,103 @@ describe("roman numeral: output formatting", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Edge cases
+// Standard subtractive pairs
+// ---------------------------------------------------------------------------
+describe("roman numeral: subtractive pairs", () => {
+  it("iv = 4", () => {
+    expect(engine.parseWord("iv").romanNumeralResult?.value).toBe(4);
+  });
+  it("ix = 9", () => {
+    expect(engine.parseWord("ix").romanNumeralResult?.value).toBe(9);
+  });
+  it("xl = 40", () => {
+    expect(engine.parseWord("xl").romanNumeralResult?.value).toBe(40);
+  });
+  it("xc = 90", () => {
+    expect(engine.parseWord("xc").romanNumeralResult?.value).toBe(90);
+  });
+  it("cd = 400", () => {
+    expect(engine.parseWord("cd").romanNumeralResult?.value).toBe(400);
+  });
+  it("cm = 900", () => {
+    expect(engine.parseWord("cm").romanNumeralResult?.value).toBe(900);
+  });
+  it("mcmxcix = 1999", () => {
+    expect(engine.parseWord("mcmxcix").romanNumeralResult?.value).toBe(1999);
+  });
+  it("cdxliv = 444", () => {
+    expect(engine.parseWord("cdxliv").romanNumeralResult?.value).toBe(444);
+  });
+  it("MMMCMXCIX = 3999 (max standard numeral)", () => {
+    expect(engine.parseWord("MMMCMXCIX").romanNumeralResult?.value).toBe(3999);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Invalid subtractive pairs — must be rejected
+// ---------------------------------------------------------------------------
+describe("roman numeral: invalid subtractive pairs rejected", () => {
+  it("im is not valid (I before M)", () => {
+    expect(engine.parseWord("im").romanNumeralResult).toBeNull();
+  });
+  it("ic is not valid (I before C)", () => {
+    expect(engine.parseWord("ic").romanNumeralResult).toBeNull();
+  });
+  it("il is not valid (I before L)", () => {
+    expect(engine.parseWord("il").romanNumeralResult).toBeNull();
+  });
+  it("id is not valid (I before D)", () => {
+    expect(engine.parseWord("id").romanNumeralResult).toBeNull();
+  });
+  it("xm is not valid (X before M)", () => {
+    expect(engine.parseWord("xm").romanNumeralResult).toBeNull();
+  });
+  it("xd is not valid (X before D)", () => {
+    expect(engine.parseWord("xd").romanNumeralResult).toBeNull();
+  });
+  it("dm is not valid (D before M as subtractive)", () => {
+    expect(engine.parseWord("dm").romanNumeralResult).toBeNull();
+  });
+  it("lc is not valid (L before C as subtractive)", () => {
+    expect(engine.parseWord("lc").romanNumeralResult).toBeNull();
+  });
+  it("imi is not valid", () => {
+    expect(engine.parseWord("imi").romanNumeralResult).toBeNull();
+  });
+  it("ixi is not valid (subtractive pair followed by same denomination)", () => {
+    expect(engine.parseWord("ixi").romanNumeralResult).toBeNull();
+  });
+  it("vx is not valid (V before X)", () => {
+    expect(engine.parseWord("vx").romanNumeralResult).toBeNull();
+  });
+  it("vv is not valid (V cannot repeat)", () => {
+    expect(engine.parseWord("vv").romanNumeralResult).toBeNull();
+  });
+  it("ll is not valid (L cannot repeat)", () => {
+    expect(engine.parseWord("ll").romanNumeralResult).toBeNull();
+  });
+  it("dd is not valid (D cannot repeat)", () => {
+    expect(engine.parseWord("dd").romanNumeralResult).toBeNull();
+  });
+  it("lm is not valid (L before M)", () => {
+    expect(engine.parseWord("lm").romanNumeralResult).toBeNull();
+  });
+  it("mix = 1009 (M + IX is valid)", () => {
+    expect(engine.parseWord("mix").romanNumeralResult?.value).toBe(1009);
+  });
+  it("cdc is not valid", () => {
+    expect(engine.parseWord("cdc").romanNumeralResult).toBeNull();
+  });
+  it("xcx is not valid", () => {
+    expect(engine.parseWord("xcx").romanNumeralResult).toBeNull();
+  });
+  it("ivi is not valid", () => {
+    expect(engine.parseWord("ivi").romanNumeralResult).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases and repetition rules
 // ---------------------------------------------------------------------------
 describe("roman numeral: edge cases", () => {
   it("rejects words with more than 3 identical chars (iiii)", () => {
@@ -116,21 +212,60 @@ describe("roman numeral: edge cases", () => {
     expect(a.romanNumeralResult).toBeNull();
   });
 
-  it("single character 'c' is detected", () => {
-    const a = engine.parseWord("c");
-    expect(a.romanNumeralResult).not.toBeNull();
-    expect(a.romanNumeralResult?.value).toBe(100);
+  it("iii = 3 (max allowed repetition)", () => {
+    expect(engine.parseWord("iii").romanNumeralResult?.value).toBe(3);
   });
 
-  it("single character 'm' is detected", () => {
-    const a = engine.parseWord("m");
-    expect(a.romanNumeralResult).not.toBeNull();
-    expect(a.romanNumeralResult?.value).toBe(1000);
+  it("xxx = 30", () => {
+    expect(engine.parseWord("xxx").romanNumeralResult?.value).toBe(30);
+  });
+
+  it("ccc = 300", () => {
+    expect(engine.parseWord("ccc").romanNumeralResult?.value).toBe(300);
+  });
+
+  it("mmm = 3000", () => {
+    expect(engine.parseWord("mmm").romanNumeralResult?.value).toBe(3000);
+  });
+
+  it("mmmm is rejected (4 M's)", () => {
+    expect(engine.parseWord("mmmm").romanNumeralResult).toBeNull();
+  });
+
+  it("xxxx is rejected (4 X's)", () => {
+    expect(engine.parseWord("xxxx").romanNumeralResult).toBeNull();
+  });
+
+  it("single character 'c' is detected as 100", () => {
+    expect(engine.parseWord("c").romanNumeralResult?.value).toBe(100);
+  });
+
+  it("single character 'm' is detected as 1000", () => {
+    expect(engine.parseWord("m").romanNumeralResult?.value).toBe(1000);
   });
 
   it("'l' is detected as 50", () => {
-    const a = engine.parseWord("l");
-    expect(a.romanNumeralResult).not.toBeNull();
-    expect(a.romanNumeralResult?.value).toBe(50);
+    expect(engine.parseWord("l").romanNumeralResult?.value).toBe(50);
+  });
+
+  it("'d' is detected as 500", () => {
+    expect(engine.parseWord("d").romanNumeralResult?.value).toBe(500);
+  });
+
+  it("empty string is not detected", () => {
+    expect(engine.parseWord("").romanNumeralResult).toBeNull();
+  });
+
+  it("non-numeral characters rejected", () => {
+    expect(engine.parseWord("abc").romanNumeralResult).toBeNull();
+    expect(engine.parseWord("rex").romanNumeralResult).toBeNull();
+  });
+
+  it("complex valid: mmmdccclxxxviii = 3888", () => {
+    expect(engine.parseWord("mmmdccclxxxviii").romanNumeralResult?.value).toBe(3888);
+  });
+
+  it("mixed valid: xlii = 42", () => {
+    expect(engine.parseWord("xlii").romanNumeralResult?.value).toBe(42);
   });
 });
