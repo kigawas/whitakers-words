@@ -2,5 +2,7 @@ node_modules/
 dist/
 coverage/
 
+.DS_Store
+
 # generated browser test files
 tests-browser/**/*.test.ts

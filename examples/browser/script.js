@@ -40,7 +40,11 @@ async function init() {
     loadFile("/data/UNIQUES.LAT", cache),
   ]);
   statusEl.textContent = "Loading dictionary\u2026";
-  const dictline = await loadFile("/data/DICTLINE.GEN", cache);
+  const [dictGen, dictSup] = await Promise.all([
+    loadFile("/data/DICTLINE.GEN", cache),
+    loadFile("/data/DICTLINE.SUP", cache),
+  ]);
+  const dictline = `${dictGen}\n${dictSup}`;
 
   statusEl.textContent = "Building index\u2026";
   // Yield to paint the status update before the blocking create()
@@ -229,10 +233,10 @@ const SOURCE_LABELS = {
 };
 
 const FLAG_DEFS = [
-  { key: "age",    label: "Age",    map: AGE_LABELS },
-  { key: "area",   label: "Area",   map: AREA_LABELS },
-  { key: "geo",    label: "Geo",    map: GEO_LABELS },
-  { key: "freq",   label: "Freq",   map: FREQ_LABELS },
+  { key: "age", label: "Age", map: AGE_LABELS },
+  { key: "area", label: "Area", map: AREA_LABELS },
+  { key: "geo", label: "Geo", map: GEO_LABELS },
+  { key: "freq", label: "Freq", map: FREQ_LABELS },
   { key: "source", label: "Source", map: SOURCE_LABELS },
 ];
 

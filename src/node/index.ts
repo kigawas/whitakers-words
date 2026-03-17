@@ -13,8 +13,10 @@ function readData(name: string): string {
 
 /** Create a WordsEngine with bundled data files. Node/Bun/Deno only. */
 export function createEngine(): WordsEngine {
+  const dictGen = readData("DICTLINE.GEN");
+  const dictSup = readData("DICTLINE.SUP");
   return WordsEngine.create({
-    dictline: readData("DICTLINE.GEN"),
+    dictline: `${dictGen}\n${dictSup}`,
     inflects: readData("INFLECTS.LAT"),
     addons: readData("ADDONS.LAT"),
     uniques: readData("UNIQUES.LAT"),
