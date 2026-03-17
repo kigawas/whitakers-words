@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from "node:fs";
 
 const dataDir = resolve(import.meta.dirname, "../../data");
 
-const DATA_FILES = ["DICTLINE.GEN", "INFLECTS.LAT", "ADDONS.LAT", "UNIQUES.LAT"];
+const DATA_FILES = ["DICTLINE.GEN", "INFLECTS.LAT", "ADDONS.LAT", "UNIQUES.LAT", "DICTLINE.SUP"];
 
 export default defineConfig({
   publicDir: "public",

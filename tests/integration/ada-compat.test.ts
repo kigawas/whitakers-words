@@ -334,13 +334,9 @@ describe("ada-compat: syncope", () => {
 // ---------------------------------------------------------------------------
 
 describe("ada-compat: two-word splitting", () => {
-  it("iarbas: splits into iar+bas", () => {
+  it("iarbas: found as proper name (DICTLINE.SUP)", () => {
     const lines = outputLines("iarbas");
-    expect(lines).toContainEqual("Two words");
-    expect(lines).toContainEqual(
-      "May be 2 words combined (iar+bas) If not obvious, probably incorrect",
-    );
-    expect(lines).toContainEqual(expect.stringContaining("bas"));
+    expect(lines).toContainEqual(expect.stringContaining("Iarbas"));
   });
 
   it("annam: prefix an + nam", () => {
@@ -349,12 +345,9 @@ describe("ada-compat: two-word splitting", () => {
     expect(lines).toContainEqual(expect.stringContaining("nam"));
   });
 
-  it("hecate: splits into he+cate", () => {
+  it("hecate: found as proper name (DICTLINE.SUP)", () => {
     const lines = outputLines("hecate");
-    expect(lines).toContainEqual("Two words");
-    expect(lines).toContainEqual(
-      "May be 2 words combined (he+cate) If not obvious, probably incorrect",
-    );
+    expect(lines).toContainEqual(expect.stringContaining("Hecate"));
   });
 
   it("does not split words with valid standard results", () => {
@@ -429,5 +422,19 @@ describe("word output checks", () => {
     expect(lines).toContainEqual("Word mod r -> rr");
     expect(lines).toContainEqual(expect.stringContaining("irrito, irritare"));
     expect(lines).toContainEqual(expect.stringContaining("VPAR"));
+  });
+
+  it("equus: NOM S M only, no neuter ACC", () => {
+    const lines = outputLines("equus");
+    expect(lines).toContainEqual(expect.stringContaining("NOM S M"));
+    expect(lines).toContainEqual(expect.stringContaining("horse"));
+    expect(lines.some((l) => l.includes("ACC S N"))).toBe(false);
+  });
+
+  it("multus: ADJ NOM S M POS only, no COMP forms", () => {
+    const lines = outputLines("multus");
+    expect(lines).toContainEqual(expect.stringContaining("NOM S M POS"));
+    expect(lines).toContainEqual(expect.stringContaining("much, many"));
+    expect(lines.some((l) => l.includes("COMP"))).toBe(false);
   });
 });

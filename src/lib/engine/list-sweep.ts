@@ -49,6 +49,31 @@ export function filterByPOS(results: ParseResult[]): ParseResult[] {
       return r.ir.qual.prep.cs === r.de.part.prep.obj;
     }
 
+    // Personal names (kind N=proper name, P=person): filter plural and locative.
+    // These are individual persons that cannot be plural or have a location.
+    // The Ada original does not do this, but generic variant-0 inflections
+    // produce nonsensical forms for proper-name entries.
+    if (
+      r.ir.qual.pofs === "N" &&
+      r.de.part.pofs === "N" &&
+      (r.de.part.n.kind === "N" || r.de.part.n.kind === "P") &&
+      (r.ir.qual.noun.number === "P" || r.ir.qual.noun.cs === "LOC")
+    ) {
+      return false;
+    }
+
+    // Pluralia tantum (kind=M): plural-only nouns should not produce singular
+    // forms. Kind M is "plural or Multiple only" in Ada's type system.
+    // Combined with zzz stem1 to block NOM/VOC S, this filters all singulars.
+    if (
+      r.ir.qual.pofs === "N" &&
+      r.de.part.pofs === "N" &&
+      r.de.part.n.kind === "M" &&
+      r.ir.qual.noun.number === "S"
+    ) {
+      return false;
+    }
+
     if (r.ir.qual.pofs !== "V" || r.de.part.pofs !== "V") return true;
     const kind = r.de.part.v.kind;
     const tvm = r.ir.qual.verb.tenseVoiceMood;
