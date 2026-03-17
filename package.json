@@ -35,7 +35,7 @@
     "LICENSE"
   ],
   "bin": {
-    "whitakers": "./dist/cli/main.js"
+    "whitakers": "dist/cli/main.js"
   },
   "scripts": {
     "build": "tsc",

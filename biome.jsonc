@@ -33,6 +33,18 @@
       "formatter": {
         "enabled": false
       }
+    },
+    {
+      "includes": [
+        "tests/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
     }
   ]
 }
