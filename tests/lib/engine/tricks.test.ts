@@ -6,7 +6,9 @@ import {
   getMedievalTricks,
   getTricksForWord,
   type Trick,
+  trickAnnotation,
 } from "../../../src/lib/engine/tricks.js";
+import { createEngine } from "../../../src/node/index.js";
 
 // ---------------------------------------------------------------------------
 // Tricks
@@ -164,7 +166,7 @@ describe("tricks: edge cases", () => {
     expect(getTricksForWord("")).toHaveLength(0);
   });
 
-  it("applyTricks returns empty when no transformations apply", () => {
+  it("applyTricks returns TrickResult array", () => {
     const results = applyTricks("aqua");
     expect(Array.isArray(results)).toBe(true);
   });
@@ -172,6 +174,9 @@ describe("tricks: edge cases", () => {
   it("applyTricks applies word-initial tricks", () => {
     const results = applyTricks("aequus");
     expect(Array.isArray(results)).toBe(true);
+    const equus = results.find((r) => r.word === "equus");
+    expect(equus).toBeDefined();
+    expect(equus?.trick.op).toBe("flip");
   });
 });
 
@@ -182,14 +187,120 @@ describe("applyTricks: identity transformation filter", () => {
   it("does not include identity transformations in results", () => {
     const results = applyTricks("aqua");
     for (const r of results) {
-      expect(r).not.toBe("aqua");
+      expect(r.word).not.toBe("aqua");
     }
   });
 
   it("handles word with no applicable tricks", () => {
     const results = applyTricks("z");
     for (const r of results) {
-      expect(r).not.toBe("z");
+      expect(r.word).not.toBe("z");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// trickAnnotation: Ada-style annotation lines
+// ---------------------------------------------------------------------------
+describe("trickAnnotation", () => {
+  it("generates annotation for flip trick", () => {
+    const trick: Trick = { old: "ham", new: "am", op: "flip" };
+    const lines = trickAnnotation(trick);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe("Word mod ham/am");
+    expect(lines[1]).toContain("An initial 'ham'");
+    expect(lines[1]).toContain("'am'");
+  });
+
+  it("generates annotation for flip_flop trick", () => {
+    const trick: Trick = { old: "pre", new: "prae", op: "flip_flop" };
+    const lines = trickAnnotation(trick);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("Slur");
+    expect(lines[0]).toContain("pre/prae");
+  });
+
+  it("generates annotation for internal trick", () => {
+    const trick: Trick = { old: "ae", new: "e", op: "internal" };
+    const lines = trickAnnotation(trick);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe("Word mod ae/e");
+    expect(lines[1]).toContain("An internal 'ae'");
+    expect(lines[1]).toContain("'e'");
+  });
+
+  it("generates annotation for double_consonant trick", () => {
+    const trick: Trick = { old: "r", new: "rr", op: "double_consonant" };
+    const lines = trickAnnotation(trick);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe("Word mod r -> rr");
+    expect(lines[1]).toContain("doubled consonant");
+    expect(lines[1]).toContain("MEDIEVAL");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Medieval double-consonant trick
+// ---------------------------------------------------------------------------
+describe("double consonant medieval trick", () => {
+  it("iritata → irritata via doubling r", () => {
+    const results = applyTricks("iritata");
+    const doubled = results.find((r) => r.word === "irritata");
+    expect(doubled).toBeDefined();
+    expect(doubled?.trick.op).toBe("double_consonant");
+    expect(doubled?.trick.old).toBe("r");
+    expect(doubled?.trick.new).toBe("rr");
+  });
+
+  it("does not double vowels", () => {
+    const results = applyTricks("aaa");
+    const dbl = results.filter((r) => r.trick.op === "double_consonant");
+    expect(dbl).toHaveLength(0);
+  });
+
+  it("engine: iritata produces trick results with correct annotation", () => {
+    const engine = createEngine();
+    const a = engine.parseWord("iritata");
+    expect(a.trickResults.length).toBeGreaterThan(0);
+    expect(a.trickAnnotations[0]).toBe("Word mod r -> rr");
+
+    const output = engine.formatWord("iritata");
+    expect(output).toContain("Word mod r -> rr");
+    expect(output).toContain("irrito");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Engine integration: trick annotations in formatted output
+// ---------------------------------------------------------------------------
+describe("trick annotations in engine output", () => {
+  it("hamavit shows flip trick annotation for ham→am", () => {
+    const engine = createEngine();
+    const a = engine.parseWord("hamavit");
+    expect(a.trickResults.length).toBeGreaterThan(0);
+    expect(a.trickResults.length).toBeGreaterThan(0);
+    expect(a.trickAnnotations).toHaveLength(2);
+    expect(a.trickAnnotations[0]).toBe("Word mod ham/am");
+
+    const output = engine.formatWord("hamavit");
+    expect(output).toContain("Word mod ham/am");
+    expect(output).toContain("amo");
+  });
+
+  it("predam shows flip_flop trick annotation for pre→prae", () => {
+    const engine = createEngine();
+    const a = engine.parseWord("predam");
+    expect(a.trickResults.length).toBeGreaterThan(0);
+    expect(a.trickAnnotations[0]).toContain("Slur");
+
+    const output = engine.formatWord("predam");
+    expect(output).toContain("Slur");
+    expect(output).toContain("praed");
+  });
+
+  it("no trick annotations when word parses directly", () => {
+    const engine = createEngine();
+    const a = engine.parseWord("aquam");
+    expect(a.trickResults.length).toBe(0);
   });
 });

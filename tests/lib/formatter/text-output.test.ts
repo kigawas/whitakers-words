@@ -502,6 +502,7 @@ describe("text-output: edge case branches", () => {
       results: [],
       uniqueResults: [],
       addonResults: [],
+      trickAnnotations: [],
       trickResults: [],
       syncopeResult: null,
       twoWordResult: null,

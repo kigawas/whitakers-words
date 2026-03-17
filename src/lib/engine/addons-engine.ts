@@ -68,12 +68,16 @@ export function tryTackons(
     }
   }
 
-  // Regular tackons — match any base word.
+  // Regular tackons — filter base results by tackon's base POS when specified.
   for (const tackon of tackons) {
     const tack = tackon.word.toLowerCase();
     if (word.length > tack.length && word.endsWith(tack)) {
       const base = word.slice(0, word.length - tack.length);
-      const baseResults = getBase(base);
+      let baseResults = getBase(base);
+      // Filter by tackon's base POS when it's not X (any)
+      if (tackon.base.pofs !== "X") {
+        baseResults = baseResults.filter((r) => r.ir.qual.pofs === tackon.base.pofs);
+      }
       if (baseResults.length > 0) {
         results.push({ type: "tackon", addon: tackon, baseResults: listSweep(baseResults) });
       }
@@ -103,16 +107,15 @@ export function tryPrefixes(
       // Check connect character
       if (prefix.connect && prefix.connect !== " " && prefix.connect.length > 0) {
         if (rest.length > 0 && rest.charAt(0) === prefix.connect.toLowerCase()) {
-          // Connect matches — analyze the rest (keeping the connect char)
           const baseResults = analyzeWord(rest, inflIndex, dictIndex);
           if (baseResults.length > 0) {
-            results.push({ type: "prefix", addon: prefix, baseResults });
+            results.push({ type: "prefix", addon: prefix, baseResults: listSweep(baseResults) });
           }
         }
       } else {
         const baseResults = analyzeWord(rest, inflIndex, dictIndex);
         if (baseResults.length > 0) {
-          results.push({ type: "prefix", addon: prefix, baseResults });
+          results.push({ type: "prefix", addon: prefix, baseResults: listSweep(baseResults) });
         }
       }
     }
@@ -189,7 +192,7 @@ export function trySuffixes(
         }
       }
       if (baseResults.length > 0) {
-        results.push({ type: "suffix", addon: suffix, baseResults });
+        results.push({ type: "suffix", addon: suffix, baseResults: listSweep(baseResults) });
       }
     }
   }

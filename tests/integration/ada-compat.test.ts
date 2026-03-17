@@ -342,12 +342,10 @@ describe("ada-compat: two-word splitting", () => {
     expect(lines).toContainEqual(expect.stringContaining("bas"));
   });
 
-  it("annam: splits into an+nam", () => {
+  it("annam: prefix an + nam", () => {
     const lines = outputLines("annam");
-    expect(lines).toContainEqual("Two words");
-    expect(lines).toContainEqual(
-      "May be 2 words combined (an+nam) If not obvious, probably incorrect",
-    );
+    expect(lines).toContainEqual("an                   PREFIX");
+    expect(lines).toContainEqual(expect.stringContaining("nam"));
   });
 
   it("hecate: splits into he+cate", () => {
@@ -361,5 +359,74 @@ describe("ada-compat: two-word splitting", () => {
   it("does not split words with valid standard results", () => {
     const a = engine.parseWord("regina");
     expect(a.twoWordResult).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Comprehensive word output checks — tricks, syncope, slury, tackons
+// ---------------------------------------------------------------------------
+describe("word output checks", () => {
+  it("hamavit: flip trick ham→am, finds amo", () => {
+    const lines = outputLines("hamavit");
+    expect(lines).toContainEqual("Word mod ham/am");
+    expect(lines).toContainEqual(expect.stringContaining("amo, amare"));
+    expect(lines).toContainEqual(expect.stringContaining("love"));
+  });
+
+  it("audistis: syncope, finds audio PERF", () => {
+    const lines = outputLines("audistis");
+    expect(lines).toContainEqual(expect.stringContaining("Syncope"));
+    expect(lines).toContainEqual(expect.stringContaining("audio, audire"));
+    expect(lines).toContainEqual(expect.stringContaining("PERF ACTIVE"));
+  });
+
+  it("predam: flip_flop slur pre→prae, finds praeda", () => {
+    const lines = outputLines("predam");
+    expect(lines).toContainEqual(expect.stringContaining("Slur"));
+    expect(lines).toContainEqual(expect.stringContaining("praeda"));
+    expect(lines).toContainEqual(expect.stringContaining("booty"));
+  });
+
+  it("dixti: syncope s/x, finds dico PERF", () => {
+    const lines = outputLines("dixti");
+    expect(lines).toContainEqual(expect.stringContaining("Syncope"));
+    expect(lines).toContainEqual(expect.stringContaining("dico, dicere"));
+    expect(lines).toContainEqual(expect.stringContaining("PERF ACTIVE"));
+  });
+
+  it("ammoverunt: direct + slur, finds ammoveo and admoveo", () => {
+    const lines = outputLines("ammoverunt");
+    expect(lines).toContainEqual(expect.stringContaining("Slur"));
+    expect(lines).toContainEqual(expect.stringContaining("ammoveo"));
+    expect(lines).toContainEqual(expect.stringContaining("admoveo"));
+  });
+
+  it("ludica: suffix stripping ic, finds ludus", () => {
+    const lines = outputLines("ludica");
+    expect(lines).toContainEqual(expect.stringContaining("SUFFIX"));
+    expect(lines).toContainEqual(expect.stringContaining("ludus, ludi"));
+    expect(lines).toContainEqual(expect.stringContaining("game"));
+  });
+
+  it("idem: tackon dem + PRON, no ADJ imus", () => {
+    const lines = outputLines("idem");
+    expect(lines).toContainEqual(expect.stringContaining("TACKON"));
+    expect(lines).toContainEqual(expect.stringContaining("idem, eadem, idem"));
+    // Should NOT contain ADJ "imus" results
+    expect(lines.some((l) => l.includes("imus"))).toBe(false);
+  });
+
+  it("inritata: slur in/i~, finds irrito VPAR", () => {
+    const lines = outputLines("inritata");
+    expect(lines).toContainEqual(expect.stringContaining("Slur in/i~"));
+    expect(lines).toContainEqual(expect.stringContaining("irrito, irritare"));
+    expect(lines).toContainEqual(expect.stringContaining("VPAR"));
+  });
+
+  it("iritata: medieval double consonant r→rr, finds irrito VPAR", () => {
+    const lines = outputLines("iritata");
+    expect(lines).toContainEqual("Word mod r -> rr");
+    expect(lines).toContainEqual(expect.stringContaining("irrito, irritare"));
+    expect(lines).toContainEqual(expect.stringContaining("VPAR"));
   });
 });

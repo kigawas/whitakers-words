@@ -87,6 +87,11 @@ export function searchDictionaries(
     if (pair.stem.length === 0) {
       // Empty stem (ending = entire word) — search the blank-stem dictionary (Ada's Bdl).
       // BDL is pre-filtered at build time to only contain blank stems.
+      // Skip wildcard ADJ/NUM inflections (key=0) — these are designed to match
+      // any real stem, not blank stems. Allowing them produces false positives
+      // like "i" → ADJ "imus" via BDL.
+      const pofs = pair.ir.qual.pofs;
+      if (pair.ir.key === 0 && (pofs === "ADJ" || pofs === "NUM")) continue;
       dictStems = dictIndex.bdl;
     } else {
       dictStems = lookupStems(dictIndex, pair.stem);
@@ -142,9 +147,15 @@ function matchAndResolve(
   // Stem key compatibility: key 0 is wildcard, otherwise must match exactly.
   // Exception: ADJ/ADV/NUM entries can have comparison/sort forms that use a
   // different stem key than the one stored (e.g., imus ADJ SUPER has only
-  // stem1 but matches key=4 inflections).
+  // stem1 but matches key=4 inflections). But NOT for blank-stem (BDL) matches
+  // where the stem is empty — those need strict key matching to avoid false positives.
   if (ir.key !== 0 && stemKey !== 0 && ir.key !== stemKey) {
     if (dictPofs !== "ADJ" && dictPofs !== "ADV" && dictPofs !== "NUM") {
+      return null;
+    }
+    // Reject blank-stem matches even for ADJ/ADV/NUM — the key mismatch exemption
+    // is for comparison forms (stem1 matching key=4 inflections), not for BDL entries.
+    if (de.stems[0] !== undefined && de.stems[0].length <= 1) {
       return null;
     }
   }
