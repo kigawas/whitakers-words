@@ -1,6 +1,7 @@
 import type { DictionaryEntry } from "../types/dictionary.js";
 import type { Comparison, StemKey } from "../types/enums.js";
 import type { InflectionRecord, QualityRecord } from "../types/inflections.js";
+import { matchesGender } from "../types/matching.js";
 import type { DictionaryIndex, DictionaryStem } from "./dictionary-index.js";
 import { lookupStems } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
@@ -145,19 +146,9 @@ function matchAndResolve(
   }
 
   // Stem key compatibility: key 0 is wildcard, otherwise must match exactly.
-  // Exception: ADJ/ADV/NUM entries can have comparison/sort forms that use a
-  // different stem key than the one stored (e.g., imus ADJ SUPER has only
-  // stem1 but matches key=4 inflections). But NOT for blank-stem (BDL) matches
-  // where the stem is empty — those need strict key matching to avoid false positives.
+  // Ada's "<=" for Stem_Key_Type: Right = Left or Right = 0.
   if (ir.key !== 0 && stemKey !== 0 && ir.key !== stemKey) {
-    if (dictPofs !== "ADJ" && dictPofs !== "ADV" && dictPofs !== "NUM") {
-      return null;
-    }
-    // Reject blank-stem matches even for ADJ/ADV/NUM — the key mismatch exemption
-    // is for comparison forms (stem1 matching key=4 inflections), not for BDL entries.
-    if (de.stems[0] !== undefined && de.stems[0].length <= 1) {
-      return null;
-    }
+    return null;
   }
 
   // Declension/comparison compatibility + wildcard resolution
@@ -177,14 +168,17 @@ function matchAndResolveQuality(
     case "N":
       if (part.pofs !== "N") return null;
       if (!matchesDecn(qual.noun.decl, part.n.decl)) return null;
+      // Ada: Pdl_Part.N.Gender <= Sl(I).IR.Qual.Noun.Gender
+      // Dictionary gender must be contained in inflection gender
+      if (!matchesGender(part.n.gender, qual.noun.gender)) return null;
+      // Ada always outputs the dictionary gender (Pdl_Part.N.Gender)
       return {
         pofs: "N",
         noun: {
           decl: part.n.decl,
           cs: qual.noun.cs,
           number: qual.noun.number,
-          gender:
-            qual.noun.gender === "C" || qual.noun.gender === "X" ? part.n.gender : qual.noun.gender,
+          gender: part.n.gender,
         },
       };
     case "PRON":

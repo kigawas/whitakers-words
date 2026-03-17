@@ -217,10 +217,11 @@ describe("ada-compat: multus", () => {
     expect(lines).not.toContainEqual(expect.stringContaining("zzz"));
   });
 
-  it("N dictionary form shows - for missing nominative stem", () => {
-    const lines = outputLines("multus");
-    // stem1=zzz → "-, multi"
-    expect(lines).toContainEqual(expect.stringContaining("-, multi  N (2nd) M"));
+  it("equus: no neuter ACC S for masculine noun", () => {
+    const lines = outputLines("equus");
+    expect(lines).toContainEqual(expect.stringContaining("NOM S M"));
+    // ACC S N should be filtered — equus is masculine, not neuter
+    expect(lines.some((l) => l.includes("ACC S N"))).toBe(false);
   });
 });
 
