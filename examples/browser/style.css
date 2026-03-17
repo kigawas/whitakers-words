@@ -603,6 +603,12 @@ h1 {
   font-style: italic;
 }
 
+/* ---- Roman numeral ---- */
+
+.entry-group.roman-numeral {
+  border-left-color: var(--gold);
+}
+
 /* ---- Unique entry ---- */
 
 .entry-group.unique {
