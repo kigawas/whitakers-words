@@ -26,12 +26,6 @@ export interface DictionaryIndex {
   readonly byStem2: ReadonlyMap<string, readonly DictionaryStem[]>;
   /** The source entries array. */
   readonly entries: readonly DictionaryEntry[];
-  /**
-   * Blank-stem dictionary (Ada's Bdl). Contains ALL stem records from entries
-   * that have at least one stem of length 0 or 1. Used when the word's derived
-   * stem is empty (ending = entire word) or 1 character.
-   */
-  readonly bdl: readonly DictionaryStem[];
 }
 
 /** Normalize a character for indexing: lowercase, v→u, j→i. */
@@ -52,43 +46,17 @@ function stemIndexKey(stem: string): string {
 
 export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): DictionaryIndex {
   const byStem2 = new Map<string, DictionaryStem[]>();
-  const bdl: DictionaryStem[] = [];
-
-  // First pass: identify entries with stem1 of length 0-1 chars.
-  // Ada's Bdl is built from the STEMFILE index where the first-character key is blank.
-  // Only stem1 being short triggers Bdl inclusion — stem2/3/4 being empty is normal
-  // for most entries and would flood the Bdl with false positives.
-  const bdlEntries = new Set<number>();
-  for (let entryIdx = 0; entryIdx < entries.length; entryIdx++) {
-    const entry = entries[entryIdx];
-    if (!entry) continue;
-    if (entry.stems[0] !== undefined && entry.stems[0].length <= 1) {
-      bdlEntries.add(entryIdx);
-    }
-  }
 
   for (let entryIdx = 0; entryIdx < entries.length; entryIdx++) {
     const entry = entries[entryIdx];
     if (!entry) continue;
-
-    const isBdlEntry = bdlEntries.has(entryIdx);
 
     // Index each stem
     for (let stemSlot = 0; stemSlot < 4; stemSlot++) {
       const stem = entry.stems[stemSlot];
 
-      // Bdl entries: only add blank stems (the only ones matched at lookup time).
-      // Previously ALL stems were added and filtered at lookup — this avoids the
-      // runtime filter and reduces BDL from ~160 entries to ~30.
-      if (isBdlEntry && (!stem || stem.length === 0)) {
-        bdl.push({
-          stem: "",
-          stemKey: (stemSlot + 1) as StemKey,
-          entryIndex: entryIdx,
-        });
-      }
-
-      // Normal 2-char index: skip empty stems
+      // Skip empty stems (stems set to "zzz" in DICTLINE are parsed as "zzz",
+      // which is fine — they'll be indexed under "zz" and never match real words)
       if (!stem || stem.length === 0) continue;
 
       const normalized = normalizeStem(stem);
@@ -113,7 +81,7 @@ export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): Dicti
     bucket.sort((a, b) => (a.stem < b.stem ? -1 : a.stem > b.stem ? 1 : 0));
   }
 
-  return { byStem2, entries, bdl };
+  return { byStem2, entries };
 }
 
 /**

@@ -85,18 +85,10 @@ export function searchDictionaries(
   for (const pair of pairs) {
     let dictStems: readonly DictionaryStem[];
 
-    if (pair.stem.length === 0) {
-      // Empty stem (ending = entire word) — search the blank-stem dictionary (Ada's Bdl).
-      // BDL is pre-filtered at build time to only contain blank stems.
-      // Skip wildcard ADJ/NUM inflections (key=0) — these are designed to match
-      // any real stem, not blank stems. Allowing them produces false positives
-      // like "i" → ADJ "imus" via BDL.
-      const pofs = pair.ir.qual.pofs;
-      if (pair.ir.key === 0 && (pofs === "ADJ" || pofs === "NUM")) continue;
-      dictStems = dictIndex.bdl;
-    } else {
-      dictStems = lookupStems(dictIndex, pair.stem);
-    }
+    // Empty stems (ending = entire word) never match — all formerly-blank stem
+    // slots in DICTLINE.GEN are now filled with "zzz", so there are no blank
+    // stems in the index. Short stems (1-2 chars) go through normal lookup.
+    dictStems = pair.stem.length === 0 ? [] : lookupStems(dictIndex, pair.stem);
     if (dictStems.length === 0) continue;
 
     for (const ds of dictStems) {
