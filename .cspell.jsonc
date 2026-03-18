@@ -3,5 +3,9 @@
     "dictline",
     "slury",
     "whitakers"
-  ]
+  ],
+  "ignorePaths": [
+    "data/"
+  ],
+  "language": "en,la"
 }

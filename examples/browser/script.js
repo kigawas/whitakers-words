@@ -255,6 +255,19 @@ function flags(de) {
   return `<span class="flags-wrap" tabindex="0">[${esc(codeStr)}]<span class="flags-tooltip"><table>${rows}</table></span></span>`;
 }
 
+/** Inflection age labels (non-default ages shown as tags on inflection lines) */
+const INFL_AGE_LABELS = {
+  A: "Archaic", B: "Early", D: "Late", E: "Later",
+  F: "Medieval", G: "Scholar", H: "Modern",
+};
+
+/** Render an inflection age tag if the age is non-default */
+function inflAgeTag(age) {
+  const label = INFL_AGE_LABELS[age];
+  if (!label) return "";
+  return `<span class="infl-age">${esc(label)}</span>`;
+}
+
 /** Render a merged entry group ({ results, meaning }) */
 function renderEntryGroup(group, extraClass = "", compound = null) {
   const first = group.results[0];
@@ -265,6 +278,7 @@ function renderEntryGroup(group, extraClass = "", compound = null) {
         <span class="stem-ending">${stemEndingHTML(r.stem, r.ir.ending.suf)}</span>
         ${posBadge(r.ir.qual.pofs)}
         <span class="grammar">${grammarHTML(r.ir.qual)}</span>
+        ${inflAgeTag(r.ir.age)}
       </div>`;
     })
     .join("");
@@ -420,22 +434,14 @@ function parseInput() {
   const text = input.value.trim();
   if (!text) return;
 
-  const words = text.replace(/[^a-zA-Z]/g, " ").split(/\s+/).filter(Boolean);
-  const html = [];
-
   const t0 = performance.now();
-  for (let i = 0; i < words.length; i++) {
-    const nextWord = words[i + 1] ?? "";
-    const analysis = engine.parseWord(words[i], nextWord);
-    html.push(renderWord(words[i], analysis));
-    if (analysis.compoundResults?.length > 0) {
-      i++; // skip next word — consumed by compound
-    }
-  }
+  const analyses = engine.parseLine(text);
+  const html = analyses.map((a) => renderWord(a.word, a));
   const elapsed = performance.now() - t0;
 
+  const n = analyses.length;
   const timeStr = elapsed < 1 ? `${(elapsed * 1000).toFixed(0)} \u00b5s` : elapsed < 1000 ? `${elapsed.toFixed(1)} ms` : `${(elapsed / 1000).toFixed(2)} s`;
-  html.push(`<div class="query-time">Parsed ${words.length} word${words.length !== 1 ? "s" : ""} in ${timeStr}</div>`);
+  html.push(`<div class="query-time">Parsed ${n} word${n !== 1 ? "s" : ""} in ${timeStr}</div>`);
 
   resultsEl.innerHTML = html.join("");
 }

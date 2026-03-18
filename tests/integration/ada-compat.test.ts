@@ -402,6 +402,54 @@ describe("word output checks", () => {
     expect(lines).toContainEqual(expect.stringContaining("game"));
   });
 
+  it("amare ADV: only POS, not COMP/SUPER (stem1 = key 1)", () => {
+    const a = engine.parseWord("amare");
+    const advResults = a.results.filter((r) => r.ir.qual.pofs === "ADV");
+    expect(advResults.length).toBe(1);
+    expect(advResults[0]!.ir.qual.adv.comparison).toBe("POS");
+  });
+
+  it("amarius ADV: only COMP (stem2 = key 2)", () => {
+    const a = engine.parseWord("amarius");
+    const advResults = a.results.filter((r) => r.ir.qual.pofs === "ADV");
+    expect(advResults.length).toBe(1);
+    expect(advResults[0]!.ir.qual.adv.comparison).toBe("COMP");
+  });
+
+  it("amarissime ADV: only SUPER (stem3 = key 3)", () => {
+    const a = engine.parseWord("amarissime");
+    const advResults = a.results.filter((r) => r.ir.qual.pofs === "ADV");
+    expect(advResults.length).toBe(1);
+    expect(advResults[0]!.ir.qual.adv.comparison).toBe("SUPER");
+  });
+
+  it("bene ADV: POS only (stem1 of bene/melius/optime)", () => {
+    const a = engine.parseWord("bene");
+    const advResults = a.results.filter(
+      (r) => r.ir.qual.pofs === "ADV" && r.de.mean.includes("well"),
+    );
+    expect(advResults.length).toBeGreaterThan(0);
+    expect(advResults.every((r) => r.ir.qual.adv.comparison === "POS")).toBe(true);
+  });
+
+  it("melius ADV: COMP only", () => {
+    const a = engine.parseWord("melius");
+    const advResults = a.results.filter(
+      (r) => r.ir.qual.pofs === "ADV" && r.de.mean.includes("well"),
+    );
+    expect(advResults.length).toBeGreaterThan(0);
+    expect(advResults.every((r) => r.ir.qual.adv.comparison === "COMP")).toBe(true);
+  });
+
+  it("optime ADV: SUPER only", () => {
+    const a = engine.parseWord("optime");
+    const advResults = a.results.filter(
+      (r) => r.ir.qual.pofs === "ADV" && r.de.mean.includes("well"),
+    );
+    expect(advResults.length).toBeGreaterThan(0);
+    expect(advResults.every((r) => r.ir.qual.adv.comparison === "SUPER")).toBe(true);
+  });
+
   it("idem: tackon dem + PRON, no ADJ imus", () => {
     const lines = outputLines("idem");
     expect(lines).toContainEqual(expect.stringContaining("TACKON"));

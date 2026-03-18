@@ -276,6 +276,86 @@ describe("BDL: pronouns with zzz stem3/4", () => {
 });
 
 // ---------------------------------------------------------------------------
+// PRON 4 2 DEMONS (idem): filtered from standalone results, only via tackon
+// ---------------------------------------------------------------------------
+
+describe("BDL: PRON 4 2 idem filtering", () => {
+  // Standalone forms should NOT show idem (PRON 4 2)
+  it("'i' does not show idem PRON 4 2", () => {
+    const a = allResults("i");
+    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
+    expect(idem.length).toBe(0);
+  });
+
+  it("'is' does not show idem PRON 4 2", () => {
+    const a = allResults("is");
+    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
+    expect(idem.length).toBe(0);
+  });
+
+  it("'eius' does not show idem PRON 4 2", () => {
+    const a = allResults("eius");
+    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
+    expect(idem.length).toBe(0);
+  });
+
+  it("'ea' does not show idem PRON 4 2", () => {
+    const a = allResults("ea");
+    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
+    expect(idem.length).toBe(0);
+  });
+
+  it("'eum' does not show idem PRON 4 2", () => {
+    const a = allResults("eum");
+    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
+    expect(idem.length).toBe(0);
+  });
+
+  // But is/ea/id (PRON 4 1) should still work
+  it("'is' still shows is/ea/id PRON 4 1", () => {
+    const r = findResult("is", "PRON", "he/she/it");
+    expect(r).toBeDefined();
+  });
+
+  it("'eius' still shows is/ea/id PRON 4 1", () => {
+    const r = findResult("eius", "PRON", "he/she/it");
+    expect(r).toBeDefined();
+  });
+
+  // idem via tackon — should work
+  it("'idem' shows PRON 4 2 via tackon", () => {
+    const a = allResults("idem");
+    const hasAddon = a.addonResults.some((ar) =>
+      ar.baseResults.some((r) => r.de.mean.includes("same")),
+    );
+    const hasUnique = a.uniqueResults.some((u) => u.de.mean.includes("same"));
+    expect(hasAddon || hasUnique).toBe(true);
+  });
+
+  it("'eandem' shows PRON 4 2 ACC S F via tackon", () => {
+    const a = allResults("eandem");
+    const hasAddon = a.addonResults.some((ar) =>
+      ar.baseResults.some((r) => r.de.mean.includes("same") && r.ir.qual.pron.cs === "ACC"),
+    );
+    expect(hasAddon).toBe(true);
+  });
+
+  it("'eundem' shows PRON 4 2 via uniques", () => {
+    const a = allResults("eundem");
+    const hasUnique = a.uniqueResults.some((u) => u.de.mean.includes("same"));
+    expect(hasUnique).toBe(true);
+  });
+
+  it("'eorundem' shows PRON 4 2 via tackon", () => {
+    const a = allResults("eorundem");
+    const hasAddon = a.addonResults.some((ar) =>
+      ar.baseResults.some((r) => r.de.mean.includes("same")),
+    );
+    expect(hasAddon).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Nouns with real stem2 (stem3/4 = zzz)
 // ---------------------------------------------------------------------------
 

@@ -26,6 +26,8 @@ export interface DictionaryIndex {
   readonly byStem2: ReadonlyMap<string, readonly DictionaryStem[]>;
   /** The source entries array. */
   readonly entries: readonly DictionaryEntry[];
+  /** Blank-stem entries (e.g., sum/esse stem2=""). Only for genuinely blank stems. */
+  readonly blankStems: readonly DictionaryStem[];
 }
 
 /** Normalize a character for indexing: lowercase, v→u, j→i. */
@@ -46,6 +48,7 @@ function stemIndexKey(stem: string): string {
 
 export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): DictionaryIndex {
   const byStem2 = new Map<string, DictionaryStem[]>();
+  const blankStems: DictionaryStem[] = [];
 
   for (let entryIdx = 0; entryIdx < entries.length; entryIdx++) {
     const entry = entries[entryIdx];
@@ -55,9 +58,20 @@ export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): Dicti
     for (let stemSlot = 0; stemSlot < 4; stemSlot++) {
       const stem = entry.stems[stemSlot];
 
-      // Skip empty stems (stems set to "zzz" in DICTLINE are parsed as "zzz",
-      // which is fine — they'll be indexed under "zz" and never match real words)
-      if (!stem || stem.length === 0) continue;
+      // Genuinely blank stems (e.g., sum/esse stem2) go into blankStems index.
+      // Only include blank stems from V 5 (to_be) entries — these are the only
+      // entries where a blank stem is intentional (the entire word is the ending).
+      // All other blank stems are just unused slots (set to "zzz" in DICTLINE).
+      if (!stem || stem.length === 0) {
+        if (entry.part.pofs === "V" && entry.part.v.con.which === 5) {
+          blankStems.push({
+            stem: "",
+            stemKey: (stemSlot + 1) as StemKey,
+            entryIndex: entryIdx,
+          });
+        }
+        continue;
+      }
 
       const normalized = normalizeStem(stem);
       const key = stemIndexKey(stem);
@@ -81,7 +95,7 @@ export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): Dicti
     bucket.sort((a, b) => (a.stem < b.stem ? -1 : a.stem > b.stem ? 1 : 0));
   }
 
-  return { byStem2, entries };
+  return { byStem2, entries, blankStems };
 }
 
 /**
