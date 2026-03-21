@@ -52,18 +52,20 @@ import { WordsEngine, formatWordAnalysis } from "whitakers-words";
 
 const load = (url: string) => fetch(url).then((r) => r.text());
 
-const [dictline, inflects, addons, uniques] = await Promise.all([
+const [dictGen, dictSup, inflects, addons, uniques] = await Promise.all([
   load("/data/DICTLINE.GEN"),
+  load("/data/DICTLINE.SUP"),
   load("/data/INFLECTS.LAT"),
   load("/data/ADDONS.LAT"),
   load("/data/UNIQUES.LAT"),
 ]);
+const dictline = `${dictGen}\n${dictSup}`;
 
 const engine = WordsEngine.create({ dictline, inflects, addons, uniques });
 console.log(engine.formatWord("aquam"));
 ```
 
-The four data files are included in the npm package under `data/`. How you serve them is up to your setup (static assets, CDN, bundler plugin, etc.).
+The five data files are included in the npm package under `data/`. Concatenate `DICTLINE.GEN` and `DICTLINE.SUP` into a single `dictline` string (the Node entry point does this automatically). How you serve them is up to your setup (static assets, CDN, bundler plugin, etc.).
 
 ## CLI
 
@@ -102,16 +104,18 @@ echo "saucia cura" | npx whitakers
 
 The main class. Created via `WordsEngine.create(data)` or the convenience `createEngine()` from `whitakers-words/node`.
 
-| Method / Property                                                         | Description                                       |
-| ------------------------------------------------------------------------- | ------------------------------------------------- |
-| `static create(data: WordsEngineData)`                                    | Create an engine from raw data file contents      |
-| `parseWord(word: string): WordAnalysis`                                   | Analyze a Latin word: returns all possible parses |
-| `searchEnglish(word: string, maxResults?: number): EnglishSearchResult[]` | English-to-Latin reverse lookup                   |
-| `formatWord(word: string): string`                                        | Parse and format as human-readable text           |
-| `dictionarySize: number`                                                  | Number of dictionary entries (expect ~39,000)     |
-| `inflectionCount: number`                                                 | Number of inflection rules (expect ~1,800)        |
-| `uniqueCount: number`                                                     | Number of unique/irregular entries (expect ~76)   |
-| `addons: AddonsData`                                                      | The parsed addons (prefixes, suffixes, tackons)   |
+| Method / Property                                                         | Description                                                       |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `static create(data: WordsEngineData)`                                    | Create an engine from raw data file contents                      |
+| `parseWord(word: string, nextWord?: string): WordAnalysis`                | Analyze a Latin word with optional lookahead for compound verbs   |
+| `searchEnglish(word: string, maxResults?: number): EnglishSearchResult[]` | English-to-Latin reverse lookup                                   |
+| `parseLine(line: string): WordAnalysis[]`                                 | Parse a full line of Latin, detecting compound verbs across words |
+| `formatLine(line: string): string`                                        | Parse and format a full line as human-readable text               |
+| `formatWord(word: string): string`                                        | Parse and format a single word as human-readable text             |
+| `dictionarySize: number`                                                  | Number of dictionary entries (expect ~39,000)                     |
+| `inflectionCount: number`                                                 | Number of inflection rules (expect ~1,800)                        |
+| `uniqueCount: number`                                                     | Number of unique/irregular entries (expect ~76)                   |
+| `addons: AddonsData`                                                      | The parsed addons (prefixes, suffixes, tackons)                   |
 
 ### `WordAnalysis`
 
@@ -119,15 +123,21 @@ Returned by `parseWord()`. Contains all possible interpretations of a word:
 
 ```typescript
 interface WordAnalysis {
-  word: string;                          // the input word
-  results: readonly ParseResult[];       // standard dictionary + inflection matches
-  uniqueResults: readonly UniqueEntry[]; // matches from the uniques table
-  addonResults: readonly AddonResult[];  // matches after stripping prefixes/suffixes/enclitics
-  trickResults: readonly ParseResult[];  // matches after spelling transformations
+  word: string;                                    // the input word
+  results: readonly ParseResult[];                 // standard dictionary + inflection matches
+  uniqueResults: readonly UniqueEntry[];           // matches from the uniques table
+  addonResults: readonly AddonResult[];            // matches after stripping prefixes/suffixes/enclitics
+  trickAnnotations: readonly string[];             // human-readable trick descriptions applied
+  trickResults: readonly ParseResult[];            // matches after spelling transformations
+  sluryResult: SluryResult | null;                 // slurred/elided form match
+  syncopeResult: SyncopeResult | null;             // syncopated perfect form match
+  twoWordResult: TwoWordResult | null;             // compound word split (e.g., "mecum")
+  romanNumeralResult: RomanNumeralResult | null;   // Roman numeral parse
+  compoundResults: readonly CompoundResult[];      // compound verb matches (e.g., PPL + esse)
 }
 ```
 
-The engine tries these in order: uniques, then standard analysis, then spelling tricks, then addon stripping. Only the first strategy that produces results is populated.
+The engine tries these in order: uniques, then standard analysis, then spelling tricks, then addon stripping. Compound verb detection, Roman numerals, syncopated perfects, and two-word splits run alongside the main pipeline.
 
 ### `ParseResult`
 
@@ -212,14 +222,15 @@ Dictionary stems and inflection endings use indexed lookup structures for fast r
 
 ## Data Files
 
-The package bundles four data files derived from the original Whitaker's Words distribution:
+The package bundles five data files derived from the original Whitaker's Words distribution:
 
-| File           | Contents                                           | Entries |
-| -------------- | -------------------------------------------------- | ------- |
-| `DICTLINE.GEN` | Dictionary entries (stems, POS, meaning)           | ~39,000 |
-| `INFLECTS.LAT` | Inflection rules (endings, grammatical properties) | ~1,800  |
-| `ADDONS.LAT`   | Prefixes, suffixes, and enclitics                  | ~180    |
-| `UNIQUES.LAT`  | Irregular forms with special handling              | 76      |
+| File           | Contents                                             | Entries |
+| -------------- | ---------------------------------------------------- | ------- |
+| `DICTLINE.GEN` | Dictionary entries (stems, POS, meaning)             | ~39,000 |
+| `DICTLINE.SUP` | Supplementary proper names (people, places, deities) | ~170    |
+| `INFLECTS.LAT` | Inflection rules (endings, grammatical properties)   | ~1,800  |
+| `ADDONS.LAT`   | Prefixes, suffixes, and enclitics                    | ~180    |
+| `UNIQUES.LAT`  | Irregular forms with special handling                | 76      |
 
 ## Examples
 
