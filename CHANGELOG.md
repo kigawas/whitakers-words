@@ -2,7 +2,7 @@
 
 ## v0.1.1
 
-Lots of bug fixes, a few new features, test coverage improvements, and performance enhancements.
+Lots of bug fixes, new features, test coverage improvements, and performance enhancements.
 
 ### New features
 
@@ -10,6 +10,9 @@ Lots of bug fixes, a few new features, test coverage improvements, and performan
 - **Roman numeral detection** — `i`, `di`, `xiv` etc. recognized alongside other results. Output matches Ada format (`NUM 2 0 X X X CARD`).
 - **Syncopated perfect forms** — "amasti" → "amavisti", "noris" → "noveris", etc. Five expansion rules running alongside standard results.
 - **Two-word splitting** — fallback for compound words like "mecum" when other strategies fail.
+- **Trick annotations** — spelling trick results now include human-readable annotations describing which transformations were applied (e.g., "ae => e", "ph => f").
+- **Supplementary proper names dictionary** — 171 additional proper names (historical figures, places, deities) in a new `DICTLINE.SUP` data file.
+- **Browser dark theme** — the browser webapp now supports light/dark themes with a toggle button, smooth transitions, and `prefers-reduced-motion` support.
 
 ### Bug fixes
 
@@ -19,12 +22,16 @@ Lots of bug fixes, a few new features, test coverage improvements, and performan
 - **Preposition filtering** — `ab` now shows only `PREP ABL`, not GEN/ACC/ABL.
 - **Blank-ending imperative** — V 3,1 IMP restricted to stems ending in -c (dic/duc/fac). Fixes "illud" spuriously matching "illudo".
 - **SEMIDEP/DEP verb filtering** — correct voice restrictions per Ada's list_sweep rules.
+- **Neuter accusative** — fixed incorrect neuter accusative handling in word analysis.
+- **Proper names display** — proper names now display correctly with appropriate formatting.
+- **Roman numeral fixes** — improved Roman numeral parsing and display in both engine and browser UI.
+- **Idem handling** — fixed `idem, eadem, idem` and related pronoun issues.
+- **BDL cleanup** — removed BDL (blank dictionary line) runtime logic by baking blank-stem entries directly into the dictionary, simplifying the engine.
 
 ### Performance
 
 - **Suffix trie** — reversed-character trie replaces O(stems x suffixes) loop with O(word_length) per stem.
 - **Split listSweep** — decomposed into `deduplicate()`, `filterByPOS()`, `normalizeDisplay()`, `rank()`.
-- **BDL optimization** — blank-stem dictionary stores only blank stems, eliminating runtime `.filter()`.
 - **Pre-computed addon arrays** — combined tackon/prefix arrays built once, not re-spread per `parseWord()` call.
 
 ### API additions
