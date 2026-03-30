@@ -1,6 +1,6 @@
 {
   "name": "whitakers-words",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "Weiliang Li",
     "email": "to.be.impressive@gmail.com",
@@ -52,12 +52,12 @@
     "node": ">=20"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.7",
+    "@biomejs/biome": "2.4.9",
     "@types/node": "^25.5.0",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.0"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
