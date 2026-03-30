@@ -339,10 +339,14 @@ export function formatInflectionLine(r: ParseResult): string {
   const stemDot = ending ? `${r.stem}.${ending}` : r.stem;
   const verbKind = r.de.part.pofs === "V" ? r.de.part.v.kind : "";
   let line = padRight(stemDot, STEM_DOT_WIDTH) + formatQualityRecord(r.ir.qual, verbKind);
-  // Append inflection age tag if not default (Ada behavior)
+  // Append inflection age and/or frequency tags (Ada behavior).
+  // Age is shown for non-default values; frequency is shown for freq >= C
+  // (uncommon or rarer) as a warning.
   const age = formatAge(r.ir.age);
-  if (age) {
-    line = `${line.padEnd(AGE_TAG_COLUMN)}  ${age}`;
+  const freq = formatInflFreq(r.ir.freq);
+  const tag = [age, freq].filter(Boolean).join("  ");
+  if (tag) {
+    line = `${line.padEnd(AGE_TAG_COLUMN)}  ${tag}`;
   }
   return line;
 }
@@ -470,8 +474,21 @@ function formatDictAge(age: string): string {
   return DICT_AGE[age] ?? "";
 }
 
+/** Ada's Inflection_Frequency labels — shown on inflection lines for freq >= C. */
+const INFL_FREQ: Record<string, string> = {
+  C: "uncommon",
+  D: "infreq",
+  E: "rare",
+  F: "veryrare",
+  I: "inscript",
+};
+
 function formatAge(age: string): string {
   return INFL_AGE[age] ?? "";
+}
+
+function formatInflFreq(freq: string): string {
+  return INFL_FREQ[freq] ?? "";
 }
 
 function formatFrequency(freq: string): string {

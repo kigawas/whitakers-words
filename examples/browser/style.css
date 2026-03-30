@@ -549,6 +549,19 @@ h1 {
   vertical-align: middle;
 }
 
+.infl-freq {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--terracotta);
+  background: oklch(0.85 0.08 25 / 0.15);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
 /* ---- Meaning ---- */
 
 .meaning {

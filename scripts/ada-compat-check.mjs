@@ -11,7 +11,7 @@
 
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -84,8 +84,13 @@ function categorizeMissing(line) {
 }
 
 const NEW_FEATURES = new Set([
-  "compound_perf_passive", "two_words", "syncope", "trick_annotation",
-  "adv_suffix", "roman_numeral", "prompt_marker",
+  "compound_perf_passive",
+  "two_words",
+  "syncope",
+  "trick_annotation",
+  "adv_suffix",
+  "roman_numeral",
+  "prompt_marker",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -180,7 +185,9 @@ console.log(HR);
 console.log("SUMMARY");
 console.log(HR);
 console.log(`Match rate: ${((common.size / adaLines.size) * 100).toFixed(1)}%`);
-console.log(`Missing:    ${missing.size} lines (${((missing.size / adaLines.size) * 100).toFixed(1)}% of Ada)`);
+console.log(
+  `Missing:    ${missing.size} lines (${((missing.size / adaLines.size) * 100).toFixed(1)}% of Ada)`,
+);
 console.log(`Extra:      ${extra.size} lines (our improvements over Ada)`);
 
 console.log();

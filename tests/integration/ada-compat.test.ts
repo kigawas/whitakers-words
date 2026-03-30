@@ -402,6 +402,22 @@ describe("word output checks", () => {
     expect(lines).toContainEqual(expect.stringContaining("game"));
   });
 
+  it("pelagum: shows 'uncommon' inflection frequency tag", () => {
+    const output = engine.formatWord("pelagum");
+    expect(output).toContain("uncommon");
+    expect(output).toContain("GEN P");
+  });
+
+  it("quidam: PACKON dam + qui (certain)", () => {
+    const a = engine.parseWord("quidam");
+    expect(a.addonResults.length).toBeGreaterThan(0);
+    const packon = a.addonResults.find((ar) => ar.type === "tackon" && ar.addon.word === "dam");
+    expect(packon).toBeDefined();
+    expect(packon!.addon.mean).toContain("certain");
+    // Base results should be PRON/PACK "qui"
+    expect(packon!.baseResults.some((r) => r.ir.qual.pofs === "PRON")).toBe(true);
+  });
+
   it("amare ADV: only POS, not COMP/SUPER (stem1 = key 1)", () => {
     const a = engine.parseWord("amare");
     const advResults = a.results.filter((r) => r.ir.qual.pofs === "ADV");
