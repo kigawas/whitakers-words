@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.2
+
+Improved Ada compatibility, inflection frequency tags, and tackon ordering fix.
+
+### Bug fixes
+
+- **Tackon ordering** — tackons now run before tricks, matching Ada's cascade. Fixes "quidam" (qui + dam PACKON) being incorrectly parsed via medieval d→dd trick instead of tackon stripping.
+- **ADV comparison from stem key** — adverbs with `co=X` now derive comparison from the matched stem key (key=1→POS, key=2→COMP, key=3→SUPER), matching Ada. Fixes "amare" ADV showing all three degrees instead of just POS.
+- **PRON 4 2 idem filtering** — the `idem` entry (PRON 4 2 DEMONS) no longer appears in standalone results for "i", "is", "eius", etc. Only shows via the `-dem` tackon path.
+- **Browser merge bug** — fixed `mergeByInflection` incorrectly merging entries with different grammar (e.g., Athena GEN S with Athens NOM P) by including grammar info in the merge key.
+
+### New features
+
+- **Inflection frequency tags** — inflection lines now show frequency warnings (uncommon, infreq, rare, veryrare) matching Ada's `Inflection_Frequency` table. E.g., "pelagum GEN P" shows "uncommon". Shown in both CLI and browser.
+- **Browser inflection frequency badges** — styled terracotta badges for frequency tags alongside the existing gold age badges.
+
 ## v0.1.1
 
 Lots of bug fixes, new features, test coverage improvements, and performance enhancements.

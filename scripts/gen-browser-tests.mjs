@@ -22,12 +22,14 @@ let engine: InstanceType<typeof WordsEngine>;
 
 beforeAll(async () => {
   const load = (p: string) => fetch(p).then((r) => r.text());
-  const [dictline, inflects, addons, uniques] = await Promise.all([
+  const [dictGen, dictSup, inflects, addons, uniques] = await Promise.all([
     load("/data/DICTLINE.GEN"),
+    load("/data/DICTLINE.SUP"),
     load("/data/INFLECTS.LAT"),
     load("/data/ADDONS.LAT"),
     load("/data/UNIQUES.LAT"),
   ]);
+  const dictline = dictGen + "\\n" + dictSup;
   engine = WordsEngine.create({ dictline, inflects, addons, uniques });
 });
 
@@ -42,8 +44,12 @@ const pipelines = [
   (data) => preamble + data.trimStart(),
 ];
 
-handleFile(
-  "./tests/integration/smoke.test.ts",
-  "./tests-browser/integration/smoke.test.ts",
-  ...pipelines,
-);
+const sources = [
+  ["./tests/integration/smoke.test.ts", "./tests-browser/integration/smoke.test.ts"],
+  ["./tests/integration/dictline-sup.test.ts", "./tests-browser/integration/dictline-sup.test.ts"],
+  ["./tests/integration/bdl-cleanup.test.ts", "./tests-browser/integration/bdl-cleanup.test.ts"],
+];
+
+for (const [src, dst] of sources) {
+  handleFile(src, dst, ...pipelines);
+}

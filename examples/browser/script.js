@@ -176,7 +176,7 @@ function stemEndingHTML(stem, ending) {
  */
 function mergeByInflection(groups) {
   const keyFn = (g) =>
-    g.results.map((r) => `${r.stem}|${r.ir.ending.suf}|${r.ir.qual.pofs}`).join("\n");
+    g.results.map((r) => `${r.stem}|${r.ir.ending.suf}|${grammarHTML(r.ir.qual)}`).join("\n");
 
   const map = new Map();
   const order = [];
@@ -261,11 +261,19 @@ const INFL_AGE_LABELS = {
   F: "Medieval", G: "Scholar", H: "Modern",
 };
 
-/** Render an inflection age tag if the age is non-default */
-function inflAgeTag(age) {
-  const label = INFL_AGE_LABELS[age];
-  if (!label) return "";
-  return `<span class="infl-age">${esc(label)}</span>`;
+/** Inflection frequency labels (shown for freq >= C as warning) */
+const INFL_FREQ_LABELS = {
+  C: "uncommon", D: "infreq", E: "rare", F: "veryrare", I: "inscript",
+};
+
+/** Render inflection age/frequency tags */
+function inflTags(age, freq) {
+  const parts = [];
+  const ageLabel = INFL_AGE_LABELS[age];
+  if (ageLabel) parts.push(`<span class="infl-age">${esc(ageLabel)}</span>`);
+  const freqLabel = INFL_FREQ_LABELS[freq];
+  if (freqLabel) parts.push(`<span class="infl-freq">${esc(freqLabel)}</span>`);
+  return parts.join(" ");
 }
 
 /** Render a merged entry group ({ results, meaning }) */
@@ -278,7 +286,7 @@ function renderEntryGroup(group, extraClass = "", compound = null) {
         <span class="stem-ending">${stemEndingHTML(r.stem, r.ir.ending.suf)}</span>
         ${posBadge(r.ir.qual.pofs)}
         <span class="grammar">${grammarHTML(r.ir.qual)}</span>
-        ${inflAgeTag(r.ir.age)}
+        ${inflTags(r.ir.age, r.ir.freq)}
       </div>`;
     })
     .join("");

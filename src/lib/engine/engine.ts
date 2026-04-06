@@ -154,27 +154,13 @@ export class WordsEngine {
         ),
     );
 
-    // 4. If no results, try tricks (spelling variations)
-    let trickAnnotations: string[] = [];
-    let trickResults: ParseResult[] = [];
-    if (results.length === 0 && uniqueResults.length === 0) {
-      const trickWords = applyTricks(lowerWord);
-      for (const tw of trickWords) {
-        const trickParses = analyzeWord(tw.word, this.#inflIndex, this.#dictIndex);
-        if (trickParses.length > 0) {
-          trickAnnotations = trickAnnotation(tw.trick);
-          trickResults = listSweep(trickParses);
-          break; // take first successful trick
-        }
-      }
-    }
-
-    // 4b. Always try slury (prefix assimilation detection) and syncope.
+    // 4. Always try slury (prefix assimilation detection) and syncope.
     // Ada runs these alongside standard results (shown as additional info).
     const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex);
     const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex);
 
     // 5. Try tackons (enclitics like -que, -ne, -ve) when no direct results found.
+    // Ada tries tackons BEFORE tricks — e.g., "quidam" = qui + dam (PACKON).
     const addonResults: AddonResult[] = [];
     const noResults = () =>
       results.length === 0 &&
@@ -182,7 +168,7 @@ export class WordsEngine {
       trickResults.length === 0 &&
       addonResults.length === 0;
 
-    if (noResults()) {
+    if (results.length === 0 && uniqueResults.length === 0) {
       addonResults.push(
         ...tryTackons(
           lowerWord,
@@ -194,14 +180,29 @@ export class WordsEngine {
       );
     }
 
-    // 6. Try prefixes — Ada tries prefix stripping before suffixes.
+    // 6. If no results, try tricks (spelling variations)
+    let trickAnnotations: string[] = [];
+    let trickResults: ParseResult[] = [];
+    if (noResults()) {
+      const trickWords = applyTricks(lowerWord);
+      for (const tw of trickWords) {
+        const trickParses = analyzeWord(tw.word, this.#inflIndex, this.#dictIndex);
+        if (trickParses.length > 0) {
+          trickAnnotations = trickAnnotation(tw.trick);
+          trickResults = listSweep(trickParses);
+          break; // take first successful trick
+        }
+      }
+    }
+
+    // 7. Try prefixes — Ada tries prefix stripping before suffixes.
     if (noResults()) {
       addonResults.push(
         ...tryPrefixes(lowerWord, this.#allPrefixes, this.#inflIndex, this.#dictIndex),
       );
     }
 
-    // 7. Try suffixes.
+    // 8. Try suffixes.
     if (noResults()) {
       addonResults.push(
         ...trySuffixes(lowerWord, this.#suffixTrie, this.#inflIndex, this.#dictIndex),
@@ -219,13 +220,13 @@ export class WordsEngine {
       addonResults.sort((a, b) => freqOf(a) - freqOf(b));
     }
 
-    // 8. Two-word splitting — last resort fallback.
+    // 9. Two-word splitting — last resort fallback.
     let twoWordResult: TwoWordResult | null = null;
     if (noResults() && !syncopeResult) {
       twoWordResult = tryTwoWords(lowerWord, this.#inflIndex, this.#dictIndex);
     }
 
-    // 9. Roman numeral detection — runs alongside other results (not fallback).
+    // 10. Roman numeral detection — runs alongside other results (not fallback).
     let romanNumeralResult: RomanNumeralResult | null = null;
     const romanValue = parseRomanNumeral(word.toUpperCase());
     if (romanValue !== null) {
