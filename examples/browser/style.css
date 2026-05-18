@@ -503,6 +503,23 @@ h1 {
   font-style: normal;
 }
 
+.perseus-link {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--ink-faint);
+  padding-bottom: 1px;
+  margin-left: 0.35rem;
+  font-style: normal;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.perseus-link:hover {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
 .flags-wrap {
   position: relative;
   cursor: help;
