@@ -237,6 +237,43 @@ describe("formatWordAnalysis", () => {
   });
 });
 
+describe("'cecidit' shows both cado and caedo (regression)", () => {
+  // Both cado (fall, INTRANS) and caedo (chop, TRANS) are 3rd-conjugation
+  // verbs whose perfect stem is "cecid", so "cecidit" must parse to two
+  // distinct dictionary entries — not collapse into one.
+  it("parseWord returns one result for each dictionary entry", () => {
+    const a = engine.parseWord("cecidit");
+    const stem1s = a.results.map((r) => r.de.stems[0]);
+    expect(stem1s).toContain("cad");
+    expect(stem1s).toContain("caed");
+  });
+
+  it("groupAndMerge keeps each entry as its own group", () => {
+    const a = engine.parseWord("cecidit");
+    const groups = groupAndMerge(a.results);
+
+    const dictForms = groups.map((g) => {
+      const first = g.results[0];
+      return first ? dictionaryForm(first.de) : "";
+    });
+    expect(dictForms.some((f) => f.startsWith("cado,"))).toBe(true);
+    expect(dictForms.some((f) => f.startsWith("caedo,"))).toBe(true);
+
+    const meaningFor = (stem1: string) =>
+      groups.find((g) => g.results[0]?.de.stems[0] === stem1)?.meaning ?? "";
+    expect(meaningFor("cad")).toContain("fall");
+    expect(meaningFor("caed")).toContain("chop");
+  });
+
+  it("formatWord output lists both dict forms with their meanings", () => {
+    const out = engine.formatWord("cecidit");
+    expect(out).toContain("cado, cadere, cecidi, casus");
+    expect(out).toContain("caedo, caedere, cecidi, caesus");
+    expect(out).toContain("fall");
+    expect(out).toContain("chop");
+  });
+});
+
 describe("dictionaryForm: extended POS coverage", () => {
   it("formats 2nd declension noun (dominus)", () => {
     const a = engine.parseWord("dominus");
