@@ -168,37 +168,9 @@ function stemEndingHTML(stem, ending) {
   return `<span class="stem">${esc(stem)}</span><span class="dot">&middot;</span><span class="ending">${esc(ending)}</span>`;
 }
 
-// groupAndMerge imported from library — groups by entryIndex and merges | continuations
-
-/**
- * Merge groups with identical inflection patterns (same stem+ending+grammar)
- * into a single group with combined meanings — mirrors the text formatter's mergeByMeaning.
- */
-function mergeByInflection(groups) {
-  const keyFn = (g) =>
-    g.results.map((r) => `${r.stem}|${r.ir.ending.suf}|${grammarHTML(r.ir.qual)}`).join("\n");
-
-  const map = new Map();
-  const order = [];
-  for (const g of groups) {
-    const k = keyFn(g);
-    if (map.has(k)) {
-      const existing = map.get(k);
-      // Append meaning if different
-      if (!existing.meanings.includes(g.meaning)) {
-        existing.meanings.push(g.meaning);
-      }
-    } else {
-      const entry = { results: g.results, meanings: [g.meaning] };
-      map.set(k, entry);
-      order.push(k);
-    }
-  }
-  return order.map((k) => {
-    const e = map.get(k);
-    return { results: e.results, meaning: e.meanings.join("\n") };
-  });
-}
+// groupAndMerge imported from library — each dictionary entry gets its own
+// card, even when two entries (e.g. cado / caedo for "cecidit") share the
+// same inflection pattern.
 
 /** Escape HTML */
 function esc(s) {
@@ -276,7 +248,7 @@ function inflTags(age, freq) {
   return parts.join(" ");
 }
 
-/** Render a merged entry group ({ results, meaning }) */
+/** Render a merged entry group ({ results, meaning }) — one card per dictionary entry */
 function renderEntryGroup(group, extraClass = "", compound = null) {
   const first = group.results[0];
   const inflLines = group.results
@@ -349,9 +321,9 @@ function renderWord(word, analysis) {
     }
   }
 
-  // Standard results grouped by entry, then merged by inflection pattern
-  const groups = mergeByInflection(groupAndMerge(analysis.results));
-  for (const group of groups) {
+  // Standard results — one card per dictionary entry (entries sharing the
+  // same inflection, e.g. cado/caedo for "cecidit", get separate cards).
+  for (const group of groupAndMerge(analysis.results)) {
     const cr = compoundMap.get(group.results[0].entryIndex);
     parts.push(renderEntryGroup(group, "", cr));
   }
@@ -360,8 +332,7 @@ function renderWord(word, analysis) {
   if (analysis.sluryResult) {
     parts.push(`<div class="slury-note"><span class="slury-label">${esc(analysis.sluryResult.label)}</span> &mdash; <span class="slury-explanation">${esc(analysis.sluryResult.explanation)}</span></div>`);
     if (analysis.sluryResult.results.length > 0) {
-      const sluryGroups = mergeByInflection(groupAndMerge(analysis.sluryResult.results));
-      for (const group of sluryGroups) {
+      for (const group of groupAndMerge(analysis.sluryResult.results)) {
         parts.push(renderEntryGroup(group, "slury"));
       }
     }
@@ -371,8 +342,7 @@ function renderWord(word, analysis) {
   if (analysis.syncopeResult) {
     const sr = analysis.syncopeResult;
     parts.push(`<div class="syncope-note"><span class="syncope-label">${esc(sr.label)}</span><span class="syncope-explanation">${esc(sr.explanation)}</span></div>`);
-    const syncopeGroups = mergeByInflection(groupAndMerge(sr.results));
-    for (const group of syncopeGroups) {
+    for (const group of groupAndMerge(sr.results)) {
       parts.push(renderEntryGroup(group, "syncope"));
     }
   }
@@ -382,8 +352,7 @@ function renderWord(word, analysis) {
     parts.push(`<div class="trick-note">${analysis.trickAnnotations.map(esc).join(" &mdash; ")}</div>`);
   }
   if (analysis.trickResults?.length > 0) {
-    const trickGroups = mergeByInflection(groupAndMerge(analysis.trickResults));
-    for (const group of trickGroups) {
+    for (const group of groupAndMerge(analysis.trickResults)) {
       parts.push(renderEntryGroup(group, "trick"));
     }
   }
@@ -393,13 +362,11 @@ function renderWord(word, analysis) {
     const tw = analysis.twoWordResult;
     parts.push(`<div class="two-word-note"><span class="two-word-label">${esc(tw.label)}</span> &mdash; <span class="two-word-explanation">${esc(tw.explanation)}</span></div>`);
     if (tw.leftResults?.length > 0) {
-      const leftGroups = mergeByInflection(groupAndMerge(tw.leftResults));
-      for (const group of leftGroups) {
+      for (const group of groupAndMerge(tw.leftResults)) {
         parts.push(renderEntryGroup(group, "two-word"));
       }
     }
-    const rightGroups = mergeByInflection(groupAndMerge(tw.rightResults));
-    for (const group of rightGroups) {
+    for (const group of groupAndMerge(tw.rightResults)) {
       parts.push(renderEntryGroup(group, "two-word"));
     }
   }
@@ -409,8 +376,7 @@ function renderWord(word, analysis) {
     for (const ar of analysis.addonResults) {
       const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
       parts.push(`<div class="addon-note"><span class="addon-type">${esc(ar.type.toUpperCase())}</span> <span class="addon-name">${esc(addonName)}</span> &mdash; ${esc(ar.addon.mean)}</div>`);
-      const baseGroups = mergeByInflection(groupAndMerge(ar.baseResults));
-      for (const group of baseGroups) {
+      for (const group of groupAndMerge(ar.baseResults)) {
         parts.push(renderEntryGroup(group, "addon"));
       }
     }
