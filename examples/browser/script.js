@@ -248,6 +248,15 @@ function inflTags(age, freq) {
   return parts.join(" ");
 }
 
+/** Build Perseus dictionary links for the given dictionary form string */
+function perseusLinks(form) {
+  const lemma = encodeURIComponent(form.split(",")[0].trim().split(/\s/)[0]);
+  const ls = `https://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.04.0059:entry=${lemma}`;
+  const lewis = `https://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.04.0060:entry=${lemma}`;
+  return `<a class="perseus-link" href="${ls}" target="_blank" rel="noopener" title="Lewis &amp; Short">L&amp;S</a>`
+    + `<a class="perseus-link" href="${lewis}" target="_blank" rel="noopener" title="Lewis Elementary">Lewis</a>`;
+}
+
 /** Render a merged entry group ({ results, meaning }) — one card per dictionary entry */
 function renderEntryGroup(group, extraClass = "", compound = null) {
   const first = group.results[0];
@@ -281,7 +290,7 @@ function renderEntryGroup(group, extraClass = "", compound = null) {
     <div class="entry-group ${extraClass}">
       ${inflLines}
       ${compoundLine}
-      <div class="dict-form">${esc(form)} <span class="dict-flags">${flags(first.de)}</span></div>
+      <div class="dict-form">${esc(form)} <span class="dict-flags">${flags(first.de)}</span> ${perseusLinks(form)}</div>
       ${group.meaning.split("\n").map((m) => `<div class="meaning">${esc(m)}</div>`).join("")}
     </div>`;
 }
@@ -299,7 +308,7 @@ function renderUnique(u) {
         ${posBadge(pofs)}
         <span class="grammar">${grammarHTML(u.qual)}</span>
       </div>
-      <div class="dict-form">${esc(form)} <span class="dict-flags">${flags(u.de)}</span></div>
+      <div class="dict-form">${esc(form)} <span class="dict-flags">${flags(u.de)}</span> ${perseusLinks(form)}</div>
       <div class="meaning">${esc(u.de.mean)}</div>
     </div>`;
 }
