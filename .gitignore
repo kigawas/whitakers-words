@@ -4,5 +4,7 @@ coverage/
 
 .DS_Store
 
+.playwright-mcp/
+
 # generated browser test files
 tests-browser/**/*.test.ts
