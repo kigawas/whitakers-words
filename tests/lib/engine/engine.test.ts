@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildEnglishIndex, searchEnglish } from "../../../src/lib/engine/english-search.js";
+import { dictionaryForm } from "../../../src/lib/formatter/dictionary-form.js";
 import type { DictionaryEntry } from "../../../src/lib/types/dictionary.js";
 import { createEngine } from "../../../src/node";
 
@@ -214,5 +215,58 @@ describe("buildEnglishIndex: defensive branches", () => {
     expect(searchEnglish(index, "formal")).toHaveLength(0);
     expect(searchEnglish(index, "world")).toHaveLength(1);
     expect(searchEnglish(index, "earth")).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// concietur / conciet: the cieo compound's verb readings.
+//
+// concieō is a 2nd-conjugation verb (cieō, ciēre) with a 4th-conjugation
+// byform (ciō, cīre). It is NOT related to eō, īre ("go"), so the compound's
+// original DICTLINE entry under conjugation 6 — Whitaker's eō/īre "go" class —
+// was a miscategorization. The compound was also missing the 2nd-conjugation
+// entry its simplex cieō has, so "concietur" only ever surfaced "concire",
+// never the 2nd-conjugation infinitive "conciere".
+//
+// Fix: add the V 2 1 entry (→ "concieo, conciere", 2nd) and drop the mis-filed
+// V 6 1 entry, which merely duplicated the existing 4th-conjugation byform
+// V 3 4 (→ "concio, concire", 4th).
+//
+// The simplex cieō keeps its own V 6 1 entry: original Ada emits "cio, cire"
+// for it and the Aeneid compat test depends on that output.
+// ---------------------------------------------------------------------------
+describe("concietur (cieo compound) surfaces 2nd-conjugation conciere", () => {
+  const verbForms = (word: string) =>
+    engine
+      .parseWord(word)
+      .results.filter((r) => r.de.part.pofs === "V")
+      .map((r) => dictionaryForm(r.de));
+
+  it("control: simplex 'cietur' already yields 'cieo, ciere ... V (2nd)'", () => {
+    expect(verbForms("cietur").some((f) => f.includes("cieo, ciere") && f.includes("(2nd)"))).toBe(
+      true,
+    );
+  });
+
+  it("compound 'concietur' yields 'concieo, conciere ... V (2nd)'", () => {
+    expect(
+      verbForms("concietur").some((f) => f.includes("concieo, conciere") && f.includes("(2nd)")),
+    ).toBe(true);
+  });
+
+  it("compound drops the redundant 6,1 byform — only 2nd + 4th conjugation remain", () => {
+    // The simplex keeps its own 6,1 byform (we only touch the compound):
+    // original Ada displays it as the e-less "cio, cire".
+    expect(verbForms("cietur").some((f) => f.startsWith("cio, cire"))).toBe(true);
+
+    // The compound's byform is now the single, clean 4th-conjugation entry.
+    const forms = verbForms("conciet");
+    expect(forms.some((f) => f.startsWith("concio, concire") && f.includes("(4th)"))).toBe(true);
+
+    // No malformed mixed 1st person ("concieo, concire"), and no "(ii)" perfect
+    // annotation — that annotation is produced only by the now-removed 6,1
+    // paradigm, so its absence proves the redundant byform is gone.
+    expect(forms.some((f) => f.startsWith("concieo, concire"))).toBe(false);
+    expect(forms.some((f) => f.includes("(ii)"))).toBe(false);
   });
 });
