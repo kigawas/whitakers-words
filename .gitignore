@@ -8,3 +8,6 @@ coverage/
 
 # generated browser test files
 tests-browser/**/*.test.ts
+
+bun.lock
+deno.lock
