@@ -1,4 +1,4 @@
-import type { DictionaryEntry } from "../types/dictionary.js";
+import type { DictionaryEntry, PartEntry } from "../types/dictionary.js";
 import type { Comparison, StemKey } from "../types/enums.js";
 import type { InflectionRecord, QualityRecord } from "../types/inflections.js";
 import { matchesGender } from "../types/matching.js";
@@ -96,7 +96,7 @@ export function searchDictionaries(
       if (!entry) continue;
 
       // Verify compatibility and resolve wildcards in one pass
-      const resolvedIr = matchAndResolve(pair.ir, entry, ds.stemKey);
+      const resolvedIr = matchAndResolve(pair.ir, entry.part, ds.stemKey);
       if (!resolvedIr) continue;
 
       results.push({
@@ -112,17 +112,24 @@ export function searchDictionaries(
 }
 
 /**
- * Check compatibility AND resolve wildcards in one pass.
- * Returns the resolved InflectionRecord if compatible, null if not.
- * Combines Ada's POS check, declension check, and Reduce_Stem_List wildcard resolution.
+ * Check whether an inflection (a stem/ending split) fits a part-entry, and
+ * resolve its wildcards in one pass. Returns the resolved InflectionRecord if
+ * compatible, null if not. Combines Ada's POS check, declension check, and
+ * Reduce_Stem_List wildcard resolution.
+ *
+ * The part-entry is the dictionary entry's `part` for a direct lookup, or a
+ * suffix's synthesized `target` when deriving a word from an addon — both flow
+ * through this one matcher, so the same compatibility rules and wildcard
+ * resolution apply everywhere. `stemKey` is the matched dictionary stem's key
+ * (or a suffix's target key), used as a wildcard-aware constraint and to derive
+ * comparison level when the inflection leaves it unspecified.
  */
-function matchAndResolve(
+export function matchAndResolve(
   ir: InflectionRecord,
-  de: DictionaryEntry,
+  part: PartEntry,
   stemKey: StemKey,
 ): InflectionRecord | null {
   const qual = ir.qual;
-  const part = de.part;
   const inflPofs = qual.pofs;
   const dictPofs = part.pofs;
 
@@ -288,7 +295,7 @@ function matchAndResolveQuality(
  * (0,0) matches everything except which=9.
  * (N,0) matches any variant with the same which.
  */
-export function matchesDecn(
+function matchesDecn(
   inflDecn: { which: number; var: number },
   dictDecn: { which: number; var: number },
 ): boolean {
