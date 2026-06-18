@@ -1,7 +1,7 @@
 import type { DictionaryEntry, PartEntry } from "../types/dictionary.js";
 import type { Comparison, StemKey } from "../types/enums.js";
 import type { InflectionRecord, QualityRecord } from "../types/inflections.js";
-import { matchesGender } from "../types/matching.js";
+import { comparisonsCompatible, decnsCompatible, matchesGender } from "../types/matching.js";
 import type { DictionaryIndex, DictionaryStem } from "./dictionary-index.js";
 import { lookupStems } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
@@ -166,7 +166,7 @@ function matchAndResolveQuality(
   switch (qual.pofs) {
     case "N":
       if (part.pofs !== "N") return null;
-      if (!matchesDecn(qual.noun.decl, part.n.decl)) return null;
+      if (!decnsCompatible(qual.noun.decl, part.n.decl)) return null;
       // Ada: Pdl_Part.N.Gender <= Sl(I).IR.Qual.Noun.Gender
       // Dictionary gender must be contained in inflection gender
       if (!matchesGender(part.n.gender, qual.noun.gender)) return null;
@@ -182,7 +182,7 @@ function matchAndResolveQuality(
       };
     case "PRON":
       if (part.pofs !== "PRON") return null;
-      if (!matchesDecn(qual.pron.decl, part.pron.decl)) return null;
+      if (!decnsCompatible(qual.pron.decl, part.pron.decl)) return null;
       return {
         pofs: "PRON",
         pron: {
@@ -205,10 +205,10 @@ function matchAndResolveQuality(
       };
     case "ADJ": {
       if (part.pofs !== "ADJ") return null;
-      if (!matchesDecn(qual.adj.decl, part.adj.decl)) return null;
+      if (!decnsCompatible(qual.adj.decl, part.adj.decl)) return null;
       const ic = qual.adj.comparison;
       const dc = part.adj.co;
-      if (ic !== dc && ic !== "X" && dc !== "X") return null;
+      if (!comparisonsCompatible(ic, dc)) return null;
       return {
         pofs: "ADJ",
         adj: {
@@ -222,7 +222,7 @@ function matchAndResolveQuality(
     }
     case "NUM":
       if (part.pofs !== "NUM") return null;
-      if (!matchesDecn(qual.num.decl, part.num.decl)) return null;
+      if (!decnsCompatible(qual.num.decl, part.num.decl)) return null;
       return {
         pofs: "NUM",
         num: {
@@ -243,7 +243,7 @@ function matchAndResolveQuality(
     }
     case "V":
       if (part.pofs !== "V") return null;
-      if (!matchesDecn(qual.verb.con, part.v.con)) return null;
+      if (!decnsCompatible(qual.verb.con, part.v.con)) return null;
       return {
         pofs: "V",
         verb: {
@@ -255,7 +255,7 @@ function matchAndResolveQuality(
       };
     case "VPAR":
       if (part.pofs !== "V") return null;
-      if (!matchesDecn(qual.vpar.con, part.v.con)) return null;
+      if (!decnsCompatible(qual.vpar.con, part.v.con)) return null;
       return {
         pofs: "VPAR",
         vpar: {
@@ -268,7 +268,7 @@ function matchAndResolveQuality(
       };
     case "SUPINE":
       if (part.pofs !== "V") return null;
-      if (!matchesDecn(qual.supine.con, part.v.con)) return null;
+      if (!decnsCompatible(qual.supine.con, part.v.con)) return null;
       return {
         pofs: "SUPINE",
         supine: {
@@ -288,38 +288,6 @@ function matchAndResolveQuality(
       /* v8 ignore next */
       return qual;
   }
-}
-
-/**
- * Matches declension/conjugation with wildcard support.
- * (0,0) matches everything except which=9.
- * (N,0) matches any variant with the same which.
- */
-function matchesDecn(
-  inflDecn: { which: number; var: number },
-  dictDecn: { which: number; var: number },
-): boolean {
-  // Exact match
-  if (inflDecn.which === dictDecn.which && inflDecn.var === dictDecn.var) {
-    return true;
-  }
-  // (0,0) inflection matches everything except which=9
-  if (inflDecn.which === 0 && inflDecn.var === 0 && dictDecn.which !== 9) {
-    return true;
-  }
-  // (N,0) inflection matches any variant
-  if (inflDecn.which === dictDecn.which && inflDecn.var === 0) {
-    return true;
-  }
-  // Dictionary (0,0) matches everything except inflection which=9
-  if (dictDecn.which === 0 && dictDecn.var === 0 && inflDecn.which !== 9) {
-    return true;
-  }
-  // Dictionary (N,0) matches any variant
-  if (dictDecn.which === inflDecn.which && dictDecn.var === 0) {
-    return true;
-  }
-  return false;
 }
 
 // ---------------------------------------------------------------------------

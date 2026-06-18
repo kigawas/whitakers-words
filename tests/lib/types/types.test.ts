@@ -4,7 +4,9 @@ import {
   assertNever,
   CASES,
   COMPARISONS,
+  comparisonsCompatible,
   type DecnRecord,
+  decnsCompatible,
   FREQUENCIES,
   GENDERS,
   MOODS,
@@ -115,6 +117,43 @@ describe("matchesDecn", () => {
   });
 });
 
+describe("decnsCompatible", () => {
+  it("accepts a wildcard variant on either side", () => {
+    // inflection-side wildcard: an inflection "1 0" with a dictionary "1 1"
+    expect(decnsCompatible({ which: 1, var: 0 }, { which: 1, var: 1 })).toBe(true);
+    // dictionary-side wildcard: the "0 0" comparatives against a specific form
+    expect(decnsCompatible({ which: 3, var: 2 }, { which: 0, var: 0 })).toBe(true);
+  });
+
+  it("is symmetric — argument order does not matter", () => {
+    const a: DecnRecord = { which: 1, var: 1 };
+    const b: DecnRecord = { which: 1, var: 0 };
+    expect(decnsCompatible(a, b)).toBe(decnsCompatible(b, a));
+    expect(decnsCompatible(a, b)).toBe(true);
+  });
+
+  it("is exactly the union of both <= directions", () => {
+    const samples: DecnRecord[] = [
+      { which: 0, var: 0 },
+      { which: 1, var: 0 },
+      { which: 1, var: 1 },
+      { which: 3, var: 2 },
+      { which: 9, var: 0 },
+    ];
+    for (const a of samples) {
+      for (const b of samples) {
+        expect(decnsCompatible(a, b)).toBe(matchesDecn(a, b) || matchesDecn(b, a));
+      }
+    }
+  });
+
+  it("rejects genuinely incompatible declensions", () => {
+    expect(decnsCompatible({ which: 2, var: 1 }, { which: 1, var: 1 })).toBe(false);
+    // Which=9 is never wild, even against (0,0)
+    expect(decnsCompatible({ which: 9, var: 0 }, { which: 0, var: 0 })).toBe(false);
+  });
+});
+
 describe("matchesGender", () => {
   it("X matches everything", () => {
     for (const g of GENDERS) {
@@ -176,6 +215,22 @@ describe("matchesComparison", () => {
     for (const c of COMPARISONS) {
       expect(matchesComparison(c, "X")).toBe(true);
     }
+  });
+});
+
+describe("comparisonsCompatible", () => {
+  it("accepts the X wildcard on either side", () => {
+    expect(comparisonsCompatible("X", "POS")).toBe(true);
+    expect(comparisonsCompatible("POS", "X")).toBe(true);
+  });
+
+  it("accepts equal degrees and rejects conflicting ones", () => {
+    expect(comparisonsCompatible("COMP", "COMP")).toBe(true);
+    expect(comparisonsCompatible("POS", "COMP")).toBe(false);
+  });
+
+  it("is symmetric — argument order does not matter", () => {
+    expect(comparisonsCompatible("POS", "COMP")).toBe(comparisonsCompatible("COMP", "POS"));
   });
 });
 
