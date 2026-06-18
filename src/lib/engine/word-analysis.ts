@@ -288,7 +288,7 @@ function matchAndResolveQuality(
  * (0,0) matches everything except which=9.
  * (N,0) matches any variant with the same which.
  */
-function matchesDecn(
+export function matchesDecn(
   inflDecn: { which: number; var: number },
   dictDecn: { which: number; var: number },
 ): boolean {

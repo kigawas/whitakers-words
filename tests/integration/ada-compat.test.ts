@@ -402,6 +402,25 @@ describe("word output checks", () => {
     expect(lines).toContainEqual(expect.stringContaining("game"));
   });
 
+  it("ludica: no spurious accusative singular (would be ludicam, not ludica)", () => {
+    // The "ic" suffix forms a 1st/2nd-declension adjective (ADJ 1 1), so only
+    // that paradigm's "-a" endings apply. Endings from other declensions
+    // (ADJ 2 3 VOC/ABL S, ADJ 3 6 ACC S C) must not leak through — in
+    // particular there is no accusative-singular "ludica" (that would be
+    // "ludicam"); the only legitimate "-a" accusative is the neuter plural.
+    const adjForms = outputLines("ludica").filter(
+      (l) => l.startsWith("ludic.a") && l.includes("ADJ"),
+    );
+    expect(adjForms.length).toBeGreaterThan(0);
+    // The correct neuter-plural accusative is present...
+    expect(adjForms).toContainEqual(expect.stringContaining("ACC P N POS"));
+    for (const form of adjForms) {
+      // ...but no accusative singular, and nothing outside the ADJ 1 paradigm.
+      expect(form).not.toContain("ACC S");
+      expect(form).toContain("ADJ    1 ");
+    }
+  });
+
   it("pelagum: shows 'uncommon' inflection frequency tag", () => {
     const output = engine.formatWord("pelagum");
     expect(output).toContain("uncommon");
