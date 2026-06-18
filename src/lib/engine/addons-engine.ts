@@ -1,4 +1,11 @@
-import type { AddonsData, PrefixItem, SuffixItem, TackonItem } from "../types/addons.js";
+import type {
+  AddonsData,
+  PrefixItem,
+  SuffixItem,
+  TackonItem,
+  TargetEntry,
+} from "../types/addons.js";
+import type { DecnRecord, QualityRecord } from "../types/inflections.js";
 import type { DictionaryIndex } from "./dictionary-index.js";
 import { lookupStems } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
@@ -6,7 +13,57 @@ import { listSweep } from "./list-sweep.js";
 import type { SuffixTrieNode } from "./suffix-trie.js";
 import { findMatchingSuffixes } from "./suffix-trie.js";
 import type { ParseResult } from "./word-analysis.js";
-import { analyzeWord, runInflections } from "./word-analysis.js";
+import { analyzeWord, matchesDecn, runInflections } from "./word-analysis.js";
+
+// ---------------------------------------------------------------------------
+// Declension helpers — extract the declension/conjugation a record carries so a
+// suffix's target declension can constrain which inflections apply (mirrors the
+// declension check the main dictionary search performs via matchesDecn).
+// ---------------------------------------------------------------------------
+
+/** Declension/conjugation carried by an inflection's quality record, if any. */
+function declOfQual(qual: QualityRecord): DecnRecord | null {
+  switch (qual.pofs) {
+    case "N":
+      return qual.noun.decl;
+    case "PRON":
+      return qual.pron.decl;
+    case "PACK":
+      return qual.pack.decl;
+    case "ADJ":
+      return qual.adj.decl;
+    case "NUM":
+      return qual.num.decl;
+    case "V":
+      return qual.verb.con;
+    case "VPAR":
+      return qual.vpar.con;
+    case "SUPINE":
+      return qual.supine.con;
+    default:
+      return null;
+  }
+}
+
+/** Declension/conjugation carried by a suffix's target entry, if any. */
+function declOfTarget(part: TargetEntry): DecnRecord | null {
+  switch (part.pofs) {
+    case "N":
+      return part.n.decl;
+    case "PRON":
+      return part.pron.decl;
+    case "PACK":
+      return part.pack.decl;
+    case "ADJ":
+      return part.adj.decl;
+    case "NUM":
+      return part.num.decl;
+    case "V":
+      return part.v.con;
+    default:
+      return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Addon stripping — try removing tackons, prefixes, suffixes from a word
@@ -171,6 +228,12 @@ export function trySuffixes(
         }
       }
 
+      // The derived word inflects as the suffix's target, so constrain the
+      // inflection pairs to the target's POS, stem key, and declension.
+      const targetPofs = suffix.entr.target.pofs;
+      const targetKey = suffix.entr.targetKey;
+      const targetDecl = declOfTarget(suffix.entr.target);
+
       // Look up the stripped stem directly in the dictionary.
       const dictStems = lookupStems(dictIndex, strippedStem);
       const baseResults: ParseResult[] = [];
@@ -181,13 +244,17 @@ export function trySuffixes(
         if (suffix.entr.root !== "X" && entry.part.pofs !== suffix.entr.root) continue;
         // Filter by root key (0 = match any)
         if (suffix.entr.rootKey !== 0 && suffix.entr.rootKey !== ds.stemKey) continue;
-        // Emit one result per inflection pair whose POS matches the suffix's
-        // target POS.
-        const targetPofs = suffix.entr.target.pofs;
-        const targetKey = suffix.entr.targetKey;
+        // Emit one result per inflection pair compatible with the target.
         for (const pair of stemPairs) {
           if (targetPofs !== "X" && pair.ir.qual.pofs !== targetPofs) continue;
           if (targetKey !== 0 && pair.ir.key !== targetKey) continue;
+          // Reject endings from a different declension than the target's
+          // (e.g. the "ic" suffix forms an ADJ 1 1, so a stray ADJ 3 6 ACC S
+          // ending in "a" must not produce a spurious accusative singular).
+          if (targetDecl) {
+            const pairDecl = declOfQual(pair.ir.qual);
+            if (pairDecl && !matchesDecn(pairDecl, targetDecl)) continue;
+          }
           baseResults.push({ stem: pair.stem, ir: pair.ir, de: entry, entryIndex: ds.entryIndex });
         }
       }
