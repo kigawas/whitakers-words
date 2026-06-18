@@ -402,22 +402,28 @@ describe("word output checks", () => {
     expect(lines).toContainEqual(expect.stringContaining("game"));
   });
 
-  it("ludica: no spurious accusative singular (would be ludicam, not ludica)", () => {
-    // The "ic" suffix forms a 1st/2nd-declension adjective (ADJ 1 1), so only
-    // that paradigm's "-a" endings apply. Endings from other declensions
-    // (ADJ 2 3 VOC/ABL S, ADJ 3 6 ACC S C) must not leak through — in
-    // particular there is no accusative-singular "ludica" (that would be
-    // "ludicam"); the only legitimate "-a" accusative is the neuter plural.
-    const adjForms = outputLines("ludica").filter(
-      (l) => l.startsWith("ludic.a") && l.includes("ADJ"),
-    );
-    expect(adjForms.length).toBeGreaterThan(0);
-    // The correct neuter-plural accusative is present...
-    expect(adjForms).toContainEqual(expect.stringContaining("ACC P N POS"));
+  it("ludica: only the six correct ADJ 1 1 forms (no spurious accusative singular)", () => {
+    // The "ic" suffix forms a 1st/2nd-declension adjective, so the suffix's
+    // target (ADJ 1 1) acts as the part-entry the inflections are matched and
+    // resolved against — exactly as the dictionary search does. Endings from
+    // other declensions (ADJ 2 3 VOC/ABL S, ADJ 3 6 ACC S C) must not leak
+    // through, and the surviving endings resolve to the target's "1 1": there
+    // is no accusative-singular "ludica" (that would be "ludicam"); the only
+    // legitimate "-a" accusative is the neuter plural.
+    const lines = outputLines("ludica");
+    const adjForms = lines.filter((l) => l.startsWith("ludic.a") && l.includes("ADJ"));
+    const unique = [...new Set(adjForms)].sort();
+    expect(unique).toEqual([
+      "ludic.a              ADJ    1 1 ABL S F POS",
+      "ludic.a              ADJ    1 1 ACC P N POS",
+      "ludic.a              ADJ    1 1 NOM P N POS",
+      "ludic.a              ADJ    1 1 NOM S F POS",
+      "ludic.a              ADJ    1 1 VOC P N POS",
+      "ludic.a              ADJ    1 1 VOC S F POS",
+    ]);
+    // Defensive: no accusative singular survives under any declension.
     for (const form of adjForms) {
-      // ...but no accusative singular, and nothing outside the ADJ 1 paradigm.
       expect(form).not.toContain("ACC S");
-      expect(form).toContain("ADJ    1 ");
     }
   });
 
