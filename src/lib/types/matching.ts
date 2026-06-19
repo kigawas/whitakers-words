@@ -1,6 +1,20 @@
 // "Contained in" matching functions — Ada's overridden `<=` operator.
 // In Ada, `Left <= Right` means "Left is contained in Right", where
 // X (or 0 for numeric types) is the wildcard matching everything.
+//
+// Two tiers live here:
+//   - matchesX(left, right): the directional `<=` primitives (left ⊑ right).
+//   - xCompatible(a, b): symmetric helpers (a ⊑ b OR b ⊑ a), for fields where
+//     the wildcard can sit on either side — e.g. an inflection and a dictionary
+//     entry that may BOTH carry a wildcard declension or comparison. These are
+//     defined in terms of the primitives, so the `<=` model stays the source.
+//
+// This module is the single home for that wildcard matching. Several primitives
+// (matchesPofs, matchesCase, matchesNumber, matchesPerson, matchesTVM,
+// matchesStemKey, matchesAge, matchesFrequency) currently have no caller: the
+// engine enumerates every inflection rather than filtering a parse against a
+// requested spec, so it never matches those fields. They are kept as a faithful
+// 1:1 mirror of Ada's `<=` operators (and for that future filtering use).
 
 import type {
   Age,
@@ -29,6 +43,16 @@ export function matchesDecn(left: DecnRecord, right: DecnRecord): boolean {
   );
 }
 
+/**
+ * Symmetric declension match: the wildcard may sit on either side. Inflection
+ * records routinely carry a wildcard variant (e.g. `1 0`) and dictionary
+ * entries can too (e.g. the `0 0` comparatives), so a compatible pair is one
+ * where either is contained in the other.
+ */
+export function decnsCompatible(a: DecnRecord, b: DecnRecord): boolean {
+  return matchesDecn(a, b) || matchesDecn(b, a);
+}
+
 /** X on Right matches everything. C on Right matches M and F on Left. */
 export function matchesGender(left: Gender, right: Gender): boolean {
   return right === left || right === "X" || (right === "C" && (left === "M" || left === "F"));
@@ -52,6 +76,16 @@ export function matchesPerson(left: Person, right: Person): boolean {
 /** X on Right matches everything. */
 export function matchesComparison(left: Comparison, right: Comparison): boolean {
   return right === left || right === "X";
+}
+
+/**
+ * Symmetric comparison match: the `X` (unspecified degree) wildcard may sit on
+ * either side — an inflection ending or a dictionary entry can each leave the
+ * comparison unspecified — so a compatible pair is one where either contains
+ * the other.
+ */
+export function comparisonsCompatible(a: Comparison, b: Comparison): boolean {
+  return matchesComparison(a, b) || matchesComparison(b, a);
 }
 
 /** X on Right matches everything (per field). */
