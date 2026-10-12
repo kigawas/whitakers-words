@@ -20,6 +20,14 @@ function outputLines(word: string): string[] {
     .filter((l) => l.length > 0);
 }
 
+/** The run of `count` lines starting at the first line that starts with `first`. */
+function block(word: string, first: string, count: number): string[] {
+  const lines = outputLines(word);
+  const start = lines.findIndex((l) => l.startsWith(first));
+  expect(start).toBeGreaterThanOrEqual(0);
+  return lines.slice(start, start + count);
+}
+
 // ---------------------------------------------------------------------------
 // Aeneid Book IV, line 1: "at regina gravi iamdudum saucia cura"
 // Ada expected from test/01_aeneid/expected.txt
@@ -525,5 +533,305 @@ describe("word output checks", () => {
     expect(lines).toContainEqual(expect.stringContaining("NOM S M POS"));
     expect(lines).toContainEqual(expect.stringContaining("much, many"));
     expect(lines.some((l) => l.includes("COMP"))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nouns of kind P (a person: homo, soror, rex) keep their plurals. Only
+// capitalized kind-P entries are names (Moses) and lose them.
+// Ada expected from latin-words.com.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: person nouns (kind P) have plurals", () => {
+  it("latrones: latron.es NOM P M, not the -es SUFFIX reading", () => {
+    const lines = outputLines("latrones");
+    expect(lines).toContainEqual("latron.es            N      3 1 NOM P M");
+    expect(lines).not.toContainEqual(expect.stringContaining("SUFFIX"));
+  });
+
+  it("latronum: latron.um GEN P M, not two words", () => {
+    const lines = outputLines("latronum");
+    expect(lines).toContainEqual("latron.um            N      3 1 GEN P M");
+    expect(lines).not.toContainEqual(expect.stringContaining("Two words"));
+  });
+
+  it("hominum: homin.um GEN P M of homo, not omen through h-dropping", () => {
+    const lines = outputLines("hominum");
+    expect(lines).toContainEqual("homin.um             N      3 1 GEN P M");
+    expect(lines).toContainEqual("homo, hominis  N (3rd) M   [XXXAX]");
+    expect(lines).not.toContainEqual(expect.stringContaining("omen, ominis"));
+  });
+
+  it("sororibus: soror.ibus DAT P F, not two words", () => {
+    const lines = outputLines("sororibus");
+    expect(lines).toContainEqual("soror.ibus           N      3 1 DAT P F");
+    expect(lines).not.toContainEqual(expect.stringContaining("Two words"));
+  });
+
+  it("deabus: de.abus DAT P F, not two words", () => {
+    const lines = outputLines("deabus");
+    expect(lines).toContainEqual(
+      expect.stringContaining("de.abus              N      1 1 DAT P F"),
+    );
+    expect(lines).not.toContainEqual(expect.stringContaining("Two words"));
+  });
+
+  it("viri: vir.i NOM P M alongside the GEN S readings", () => {
+    const lines = outputLines("viri");
+    expect(lines).toContainEqual("vir.i                N      2 3 NOM P M");
+    expect(lines).toContainEqual("vir.i                N      2 3 GEN S M");
+  });
+
+  it("regum: reg.um GEN P M", () => {
+    expect(outputLines("regum")).toContainEqual("reg.um               N      3 1 GEN P M");
+  });
+
+  it("comites: comit.es NOM P C", () => {
+    expect(outputLines("comites")).toContainEqual("comit.es             N      3 1 NOM P C");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deus is entered as a proper name (De De N 2 1 M N, "God; god; ...") but is
+// also the common noun "god", so it is exempt from the proper-name filter.
+// Other kind-N names still lose plural and locative readings.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: deus has plurals; other proper names do not", () => {
+  it("deorum: de.orum GEN P M under Deus, Dei", () => {
+    const lines = outputLines("deorum");
+    expect(lines).toContainEqual("de.orum              N      2 1 GEN P M");
+    expect(lines).toContainEqual("Deus, Dei  N (2nd) M   [XEXAO]");
+  });
+
+  it("deos: de.os ACC P M", () => {
+    expect(outputLines("deos")).toContainEqual("de.os                N      2 1 ACC P M");
+  });
+
+  it("dei: de.i NOM P M alongside GEN S", () => {
+    const lines = outputLines("dei");
+    expect(lines).toContainEqual("de.i                 N      2 1 NOM P M");
+    expect(lines).toContainEqual("de.i                 N      2 1 GEN S M");
+  });
+
+  it("aeneas, cari, anchise: no plural or locative of the proper name", () => {
+    expect(outputLines("aeneas")).not.toContainEqual(
+      expect.stringContaining("aene.as              N      1 8 ACC P M"),
+    );
+    expect(outputLines("cari")).not.toContainEqual(
+      expect.stringContaining("car.i                N      2 1 NOM P M"),
+    );
+    expect(outputLines("anchise")).not.toContainEqual(
+      expect.stringContaining("anchis.e             N      3 8 LOC S M"),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Adjectives entered only as COMP or SUPER (pri ADJ 0 0 COMP, pessi ADJ 0 0
+// SUPER) list one stem but inflect it as stem 3 or 4, as Ada's makedict does.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: comparison-only adjectives", () => {
+  it("pessimam: pessi.mam ACC S F SUPER, not two words", () => {
+    const lines = outputLines("pessimam");
+    expect(lines).toContainEqual("pessi.mam            ADJ    0 0 ACC S F SUPER");
+    expect(lines).not.toContainEqual(expect.stringContaining("Two words"));
+  });
+
+  it("summus: sum.mus NOM S M SUPER, not two words", () => {
+    const lines = outputLines("summus");
+    expect(lines).toContainEqual("sum.mus              ADJ    0 0 NOM S M SUPER");
+    expect(lines).not.toContainEqual(expect.stringContaining("Two words"));
+  });
+
+  it("proximam: proxi.mam ACC S F SUPER", () => {
+    expect(outputLines("proximam")).toContainEqual("proxi.mam            ADJ    0 0 ACC S F SUPER");
+  });
+
+  it("prior: pri.or NOM S C COMP besides the noun prior, prioris", () => {
+    const lines = outputLines("prior");
+    expect(lines).toContainEqual("pri.or               ADJ    0 0 NOM S C COMP");
+    expect(lines).toContainEqual("prior, prior, prius  ADJ   [XXXAX]");
+  });
+
+  it("propior: propi.or NOM S C COMP", () => {
+    expect(outputLines("propior")).toContainEqual("propi.or             ADJ    0 0 NOM S C COMP");
+  });
+
+  it("intima: inti.ma NOM S F SUPER besides the verb intimo", () => {
+    expect(outputLines("intima")).toContainEqual("inti.ma              ADJ    0 0 NOM S F SUPER");
+  });
+
+  it("sume, compluria: the lone stem no longer matches as stem 1", () => {
+    expect(outputLines("sume")).not.toContainEqual(expect.stringContaining("summus"));
+    expect(outputLines("compluria")).not.toContainEqual(expect.stringContaining("complurimus"));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// qu- pronouns (issue #29). Ada matches a PRON 1 x inflection only to entries
+// of the same declension variant, and prints a dictionary line only when it
+// differs from the one before. Expected blocks are from aeneid-expected.txt,
+// except that the port prints the stem ("qu  PRON") where Ada prints none.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: qu- pronouns (issue #29)", () => {
+  const REL = "who; that; which, what; of which kind/degree; person/thing/time/point that;";
+  const INTERR = "who/what/which?, what/which one/man/person/thing? what kind/type of?;";
+  const INDEF = "who/whatever, everyone who, all that, anything that;";
+  const INDEF_ANY = "anyone/anybody/anything; whoever you pick; something (or other); any (NOM S);";
+  const ADJECT = "any; anyone/anything, any such; unspecified some; (after si/sin/sive/ne);";
+  const ADJECT_Q = "who?, which?, what?; what kind of?;";
+
+  it("qui: NOM P M with the five 1 0 meanings, then NOM S M with the four 1 1 meanings", () => {
+    expect(block("qui", "qu.i", 12)).toEqual([
+      "qu.i                 PRON   1 0 NOM P M",
+      "qu  PRON   [XXXAO]",
+      REL,
+      INTERR,
+      INDEF,
+      ADJECT,
+      ADJECT_Q,
+      "qu.i                 PRON   1 0 NOM S M",
+      REL,
+      INDEF,
+      ADJECT,
+      ADJECT_Q,
+    ]);
+  });
+
+  it("quae: NOM P F, NOM S F and NOM/ACC P N, each with its own entries", () => {
+    expect(block("quae", "qu.ae", 17)).toEqual([
+      "qu.ae                PRON   1 0 NOM P F",
+      "qu  PRON   [XXXAO]",
+      REL,
+      INTERR,
+      INDEF,
+      ADJECT,
+      ADJECT_Q,
+      "qu.ae                PRON   1 0 NOM S F",
+      REL,
+      INDEF_ANY,
+      INDEF,
+      ADJECT,
+      ADJECT_Q,
+      "qu.ae                PRON   1 0 NOM P N",
+      "qu.ae                PRON   1 0 ACC P N",
+      INDEF_ANY,
+      ADJECT,
+    ]);
+  });
+
+  it("quod: NOM/ACC S N with the four 1 7 meanings only", () => {
+    expect(block("quod", "qu.od", 7)).toEqual([
+      "qu.od                PRON   1 0 NOM S N",
+      "qu.od                PRON   1 0 ACC S N",
+      "qu  PRON   [XXXAO]",
+      REL,
+      INDEF,
+      ADJECT,
+      ADJECT_Q,
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// -dam packons (quidam). As in Ada's Process_Packons, the stripped qu-/cu-
+// form is read as a PRON and attached to the PACK entry whose meaning names
+// the packon; m turns back from n before -dam (quendam = quem + dam).
+// Ada expected from latin-words.com.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: -dam packon forms", () => {
+  const CERTAIN = "(w/-dam) certain; as INDEF a certain thing; somebody, one, something;";
+
+  it("quendam: qu.em ACC S M under qu PACK (w/-dam)", () => {
+    const lines = outputLines("quendam");
+    expect(lines).toContainEqual("dam                  TACKON");
+    expect(lines).toContainEqual("qu.em                PRON   1 0 ACC S M");
+    expect(lines).toContainEqual("qu  PACK   [XXXBX]");
+    expect(lines).toContainEqual(CERTAIN);
+  });
+
+  it("quandam: qu.am ACC S F", () => {
+    expect(outputLines("quandam")).toContainEqual("qu.am                PRON   1 0 ACC S F");
+  });
+
+  it("quorundam: qu.orum GEN P M and GEN P N", () => {
+    const lines = outputLines("quorundam");
+    expect(lines).toContainEqual("qu.orum              PRON   1 0 GEN P M");
+    expect(lines).toContainEqual("qu.orum              PRON   1 0 GEN P N");
+  });
+
+  it("quarundam: qu.arum GEN P F", () => {
+    expect(outputLines("quarundam")).toContainEqual("qu.arum              PRON   1 0 GEN P F");
+  });
+
+  it("cuiusdam: cu.jus GEN S X", () => {
+    expect(outputLines("cuiusdam")).toContainEqual("cu.jus               PRON   1 0 GEN S X");
+  });
+
+  it("quiddam: qu.id NOM/ACC S N besides quiddam N 9 9", () => {
+    const lines = outputLines("quiddam");
+    expect(lines).toContainEqual("qu.id                PRON   1 0 NOM S N");
+    expect(lines).toContainEqual("qu.id                PRON   1 0 ACC S N");
+    expect(lines).toContainEqual(
+      "(w/-dam) a certain (one), a certain thing; somebody, one, something;",
+    );
+    expect(lines).toContainEqual("quiddam              N      9 9 X   X N");
+  });
+
+  it("quidam: the PACK meaning, not the plain qu- pronoun meanings", () => {
+    const lines = outputLines("quidam");
+    expect(lines).toContainEqual("qu.i                 PRON   1 0 NOM S M");
+    expect(lines).toContainEqual("qu.i                 PRON   1 0 NOM P M");
+    expect(lines).toContainEqual(CERTAIN);
+    expect(lines).not.toContainEqual(expect.stringContaining("who; that; which, what"));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Found in review: a qu- form with -que has both the packon and the "and"
+// reading; packons match i/j and u/v alike; DICTLINE's "|" lines print without
+// their bars, next to entries of the same form (Ada's Trim_Bar).
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: packon and tackon readings together", () => {
+  const AND = "-que = and (enclitic, translated before attached word); completes plerus/uter;";
+  const EACH = "(w/-que) each, each one; every, everybody, everything (more than 2); whatever;";
+
+  it("quibusque, cuique: -que each (packon) and -que and (tackon)", () => {
+    for (const word of ["quibusque", "cuique"]) {
+      const lines = outputLines(word);
+      expect(lines).toContainEqual(EACH);
+      expect(lines).toContainEqual(AND);
+    }
+  });
+
+  it("quiuis: the vis packon, though written with u", () => {
+    const lines = outputLines("quiuis");
+    expect(lines).toContainEqual("vis                  TACKON");
+    expect(lines).toContainEqual("qu.i                 PRON   1 0 NOM P M");
+    expect(lines).not.toContainEqual(expect.stringContaining("Two words"));
+  });
+});
+
+describe("ada-compat: continuation meanings", () => {
+  it("potior: the COMP adjective with its three meanings, apart from the verb", () => {
+    expect(block("potior", "poti.or              ADJ", 6)).toEqual([
+      "poti.or              ADJ    0 0 NOM S C COMP",
+      "poti.or              ADJ    0 0 VOC S C COMP",
+      "potior, potior, potius  ADJ   [XXXAO]",
+      "better/preferable/superior; more useful/effective; more important;",
+      "more important/desirable/precious; stronger, having greater control;",
+      "having better claim, more entitled/qualified, carrying greater weight;",
+    ]);
+  });
+
+  it("potius, delicias: no meaning keeps its leading bars", () => {
+    for (const word of ["potius", "delicias"]) {
+      expect(outputLines(word).filter((l) => l.startsWith("|"))).toEqual([]);
+    }
   });
 });

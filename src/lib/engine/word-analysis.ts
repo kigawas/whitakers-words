@@ -1,3 +1,4 @@
+import { equStr } from "../support/latin-string.js";
 import type { DictionaryEntry, PartEntry } from "../types/dictionary.js";
 import type { Comparison, StemKey } from "../types/enums.js";
 import type { InflectionRecord, QualityRecord } from "../types/inflections.js";
@@ -49,8 +50,9 @@ export function runInflections(word: string, inflectionIndex: InflectionIndex): 
     const stem = word.slice(0, stemLen);
 
     for (const ir of candidates) {
-      // Verify the full ending matches (not just size and last char)
-      if (ir.ending.suf === wordEnding) {
+      // Verify the full ending matches (not just size and last char), with
+      // i/j and u/v alike as in Ada's Equ: "cuius" ends in the PRON "jus".
+      if (equStr(ir.ending.suf, wordEnding)) {
         results.push({ stem, ir });
       }
     }
@@ -182,7 +184,14 @@ function matchAndResolveQuality(
       };
     case "PRON":
       if (part.pofs !== "PRON") return null;
-      if (!decnsCompatible(qual.pron.decl, part.pron.decl)) return null;
+      // qu- pronouns (PRON 1 x): Ada's Process_Qu_Pronouns pairs an inflection
+      // only with entries of the same variant, so the 1 1 "qui" (NOM S M) is
+      // not read as the 1 0 interrogative, whose NOM S M is "quis".
+      if (part.pron.decl.which === 1) {
+        if (qual.pron.decl.which !== 1 || qual.pron.decl.var !== part.pron.decl.var) return null;
+      } else if (!decnsCompatible(qual.pron.decl, part.pron.decl)) {
+        return null;
+      }
       return {
         pofs: "PRON",
         pron: {
