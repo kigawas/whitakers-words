@@ -7,7 +7,13 @@ import { parseUniquesFile } from "../parsers/uniques.js";
 import type { AddonsData } from "../types/addons.js";
 import type { DictionaryEntry } from "../types/dictionary.js";
 import type { InflectionRecord } from "../types/inflections.js";
-import { type AddonResult, tryPrefixes, trySuffixes, tryTackons } from "./addons-engine.js";
+import {
+  type AddonResult,
+  tryPackons,
+  tryPrefixes,
+  trySuffixes,
+  tryTackons,
+} from "./addons-engine.js";
 import { type CompoundResult, tryCompound } from "./compounds.js";
 import { buildDictionaryIndex, type DictionaryIndex } from "./dictionary-index.js";
 import {
@@ -159,9 +165,21 @@ export class WordsEngine {
     const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex);
     const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex);
 
-    // 5. Try tackons (enclitics like -que, -ne, -ve) when no direct results found.
-    // Ada tries tackons BEFORE tricks — e.g., "quidam" = qui + dam (PACKON).
+    // 5. Packons: Ada reads a qu-/cu- word as a qu- pronoun plus packon
+    // ("quidam" = qui + dam) whenever it is not a plain qu- pronoun, alongside
+    // any other readings ("quiddam" is also an indeclinable noun).
     const addonResults: AddonResult[] = [];
+    const isQuPronoun = (r: ParseResult) =>
+      r.de.part.pofs === "PRON" && r.de.part.pron.decl.which === 1;
+    if (/^(qu|cu)/.test(lowerWord) && !results.some(isQuPronoun)) {
+      addonResults.push(
+        ...tryPackons(lowerWord, this.#allPackons, this.#inflIndex, this.#dictIndex),
+      );
+    }
+
+    // 5a. Try tackons (enclitics like -que, -ne, -ve) when no direct results found,
+    // packon hits or not: "quibusque" is both "each" (packon) and "and" (tackon).
+    // Ada tries tackons BEFORE tricks.
     const noResults = () =>
       results.length === 0 &&
       uniqueResults.length === 0 &&
@@ -170,13 +188,7 @@ export class WordsEngine {
 
     if (results.length === 0 && uniqueResults.length === 0) {
       addonResults.push(
-        ...tryTackons(
-          lowerWord,
-          this.#allTackons,
-          this.#allPackons,
-          this.#inflIndex,
-          this.#dictIndex,
-        ),
+        ...tryTackons(lowerWord, this.#allTackons, this.#inflIndex, this.#dictIndex),
       );
     }
 

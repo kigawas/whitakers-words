@@ -1,4 +1,6 @@
+import { equStr } from "../support/latin-string.js";
 import type { AddonsData, PrefixItem, SuffixItem, TackonItem } from "../types/addons.js";
+import { matchesDecn } from "../types/matching.js";
 import type { DictionaryIndex } from "./dictionary-index.js";
 import { lookupStems } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
@@ -31,13 +33,65 @@ export type AddonResult =
     };
 
 /**
+ * The word without the tackon at its end, or undefined if it does not end in
+ * it. Like Ada's Subtract_Tackon, u/v and i/j are alike: "quiuis" ends in "vis".
+ */
+function subtractTackon(word: string, tack: string): string | undefined {
+  if (word.length <= tack.length) return undefined;
+  const base = word.slice(0, word.length - tack.length);
+  return equStr(word.slice(base.length), tack) ? base : undefined;
+}
+
+/**
+ * Try packons on a qu-/cu- word, as Ada's Process_Packons does: strip the
+ * packon, split what is left into a qu-/cu- stem and a PRON ending, and attach
+ * it to the PACK entry whose meaning names that packon ("(w/-dam) certain").
+ * E.g., "quendam" → strip "dam", n back to m → "quem" → qu.em under qu PACK.
+ */
+export function tryPackons(
+  word: string,
+  packons: readonly TackonItem[],
+  inflIndex: InflectionIndex,
+  dictIndex: DictionaryIndex,
+): AddonResult[] {
+  const results: AddonResult[] = [];
+  for (const packon of packons) {
+    const tack = packon.word.toLowerCase();
+    let base = subtractTackon(word, tack);
+    if (base === undefined) continue;
+    // Ada: "Takes care of the m -> n shift with dam" (quendam, quorundam).
+    if (tack.startsWith("dam") && base.endsWith("n")) base = `${base.slice(0, -1)}m`;
+
+    const baseResults: ParseResult[] = [];
+    for (const pair of runInflections(base, inflIndex)) {
+      const qual = pair.ir.qual;
+      if (qual.pofs !== "PRON" || packon.base.pofs !== "PACK") continue;
+      if (!matchesDecn(qual.pron.decl, packon.base.pack.decl)) continue;
+      for (const ds of lookupStems(dictIndex, pair.stem)) {
+        const entry = dictIndex.entries[ds.entryIndex];
+        if (entry?.part.pofs !== "PACK" || !entry.mean.startsWith(`(w/-${tack}`)) continue;
+        // Same variant only, as for the qu- pronouns. Unlike Ada, also keep the
+        // stem key: "cu" takes only the cu- endings, so cui is DAT S, not NOM P.
+        const decl = entry.part.pack.decl;
+        if (decl.which !== qual.pron.decl.which || decl.var !== qual.pron.decl.var) continue;
+        if (pair.ir.key !== 0 && pair.ir.key !== ds.stemKey) continue;
+        baseResults.push({ stem: pair.stem, ir: pair.ir, de: entry, entryIndex: ds.entryIndex });
+      }
+    }
+    if (baseResults.length > 0) {
+      results.push({ type: "tackon", addon: packon, baseResults: listSweep(baseResults) });
+    }
+  }
+  return results;
+}
+
+/**
  * Try stripping tackons (enclitics) from the end of a word.
  * E.g., "aquamque" → strip "que" → analyze "aquam"
  */
 export function tryTackons(
   word: string,
   tackons: readonly TackonItem[],
-  packons: readonly TackonItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
 ): AddonResult[] {
@@ -54,25 +108,10 @@ export function tryTackons(
     return r;
   }
 
-  // Packons — only match PRON/PACK base words.
-  for (const packon of packons) {
-    const tack = packon.word.toLowerCase();
-    if (word.length > tack.length && word.endsWith(tack)) {
-      const base = word.slice(0, word.length - tack.length);
-      const baseResults = getBase(base).filter(
-        (r) => r.ir.qual.pofs === "PACK" || r.ir.qual.pofs === "PRON",
-      );
-      if (baseResults.length > 0) {
-        results.push({ type: "tackon", addon: packon, baseResults: listSweep(baseResults) });
-      }
-    }
-  }
-
   // Regular tackons — filter base results by tackon's base POS when specified.
   for (const tackon of tackons) {
-    const tack = tackon.word.toLowerCase();
-    if (word.length > tack.length && word.endsWith(tack)) {
-      const base = word.slice(0, word.length - tack.length);
+    const base = subtractTackon(word, tackon.word.toLowerCase());
+    if (base !== undefined) {
       let baseResults = getBase(base);
       // Filter by tackon's base POS when it's not X (any)
       if (tackon.base.pofs !== "X") {
@@ -224,8 +263,9 @@ export function tryAddons(
 ): AddonResult[] {
   const results: AddonResult[] = [];
 
-  // Tackons (enclitics) — most common, try first
-  results.push(...tryTackons(word, addons.tackons, addons.packons, inflIndex, dictIndex));
+  // Packons and tackons (enclitics) — most common, try first
+  results.push(...tryPackons(word, addons.packons, inflIndex, dictIndex));
+  results.push(...tryTackons(word, addons.tackons, inflIndex, dictIndex));
 
   // Prefixes (including tickons)
   results.push(...tryPrefixes(word, [...addons.prefixes, ...addons.tickons], inflIndex, dictIndex));

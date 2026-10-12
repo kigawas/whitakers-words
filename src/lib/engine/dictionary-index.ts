@@ -84,7 +84,7 @@ export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): Dicti
       }
       bucket.push({
         stem: normalized,
-        stemKey: (stemSlot + 1) as StemKey,
+        stemKey: adjustStemKey(entry, stemSlot),
         entryIndex: entryIdx,
       });
     }
@@ -96,6 +96,19 @@ export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): Dicti
   }
 
   return { byStem2, entries, blankStems };
+}
+
+/**
+ * The inflection key a stem slot matches. A COMP- or SUPER-only ADJ (pessi,
+ * sum, propi) lists its one stem first but inflects it as stem 3 or 4, as Ada
+ * does in makedict_main.adb and support_utils-line_stuff.adb.
+ */
+function adjustStemKey(entry: DictionaryEntry, stemSlot: number): StemKey {
+  if (entry.part.pofs === "ADJ" && stemSlot === 0) {
+    if (entry.part.adj.co === "COMP") return 3;
+    if (entry.part.adj.co === "SUPER") return 4;
+  }
+  return (stemSlot + 1) as StemKey;
 }
 
 /**

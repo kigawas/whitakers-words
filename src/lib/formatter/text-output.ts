@@ -189,50 +189,88 @@ export interface MergedGroup {
 export function groupAndMerge(results: readonly ParseResult[]): MergedGroup[] {
   // Group by entryIndex, preserving order
   const map = new Map<number, ParseResult[]>();
-  const order: number[] = [];
   for (const r of results) {
     let group = map.get(r.entryIndex);
     if (!group) {
       group = [];
       map.set(r.entryIndex, group);
-      order.push(r.entryIndex);
     }
     group.push(r);
   }
 
-  // Merge continuations (mutable during construction)
-  const merged: { results: ParseResult[]; meaning: string }[] = [];
-  for (const idx of order) {
-    const groupResults = map.get(idx) ?? [];
+  // Merge continuations into the entry before them of the same form; a "|"
+  // line with none (poti ADJ, which follows a noun) stands alone, its bars
+  // trimmed as in Ada's Trim_Bar.
+  const merged: { results: ParseResult[]; meaning: string; form: string }[] = [];
+  for (const groupResults of clusterByForm([...map.values()])) {
     const first = groupResults[0];
     if (!first) continue;
 
+    const form = dictionaryForm(first.de);
     const mean = first.de.mean;
-    if (mean.startsWith("|") && merged.length > 0) {
-      const prev = merged[merged.length - 1];
-      if (prev) prev.meaning += `\n${mean.replace(/^\|+/, "")}`;
+    const prev = merged[merged.length - 1];
+    if (mean.startsWith("|") && prev?.form === form) {
+      prev.meaning += `\n${mean.replace(/^\|+/, "")}`;
     } else {
-      merged.push({ results: groupResults, meaning: mean });
+      merged.push({ results: groupResults, meaning: mean.replace(/^\|+/, ""), form });
     }
   }
 
-  return merged;
+  return merged.map(({ results, meaning }) => ({ results, meaning }));
+}
+
+/**
+ * Prints a dictionary line only when its form differs from the previous
+ * entry's, as Ada's Put_Parse_Details does ("put at first chance, skip
+ * duplicates"). The qu- pronoun entries all read "qu  PRON", so their meanings
+ * follow a single dictionary line.
+ */
+class DictionaryLines {
+  #lastForm: string | undefined;
+
+  push(out: string[], de: DictionaryEntry): void {
+    const form = dictionaryForm(de);
+    if (form === this.#lastForm) return;
+    this.#lastForm = form;
+    out.push(`${form}   ${formatFlags(de)}`);
+  }
 }
 
 /**
  * Render a group into output lines: inflection lines + dictionary form + meaning.
  */
-function renderGroup(group: MergedGroup): string[] {
+function renderGroup(group: MergedGroup, dictLines: DictionaryLines): string[] {
   const out: string[] = [];
   for (const r of group.results) {
     out.push(formatInflectionLine(r));
   }
   const first = group.results[0];
   if (first) {
-    out.push(`${dictionaryForm(first.de)}   ${formatFlags(first.de)}`);
+    dictLines.push(out, first.de);
     out.push(truncateMeaning(group.meaning));
   }
   return out;
+}
+
+/**
+ * Move entries that print the same dictionary form next to the first of them,
+ * in dictionary order. They are one lemma (jus "gravy" and jus "law"; the kinds
+ * of qu- pronoun), which Ada lists in dictionary order under one form line.
+ */
+function clusterByForm(entryGroups: readonly ParseResult[][]): ParseResult[][] {
+  const byForm = new Map<string, ParseResult[][]>();
+  for (const g of entryGroups) {
+    const first = g[0];
+    const form = first ? dictionaryForm(first.de) : "";
+    let cluster = byForm.get(form);
+    if (!cluster) {
+      cluster = [];
+      byForm.set(form, cluster);
+    }
+    cluster.push(g);
+  }
+  const entryIndex = (g: readonly ParseResult[]) => g[0]?.entryIndex ?? 0;
+  return [...byForm.values()].flatMap((c) => c.sort((a, b) => entryIndex(a) - entryIndex(b)));
 }
 
 /**
@@ -267,12 +305,13 @@ function mergeByMeaning(groups: MergedGroup[]): string[][] {
   }
 
   const blocks: string[][] = [];
+  const dictLines = new DictionaryLines();
   for (const key of inflOrder) {
     const sameInflection = byInflection.get(key);
     if (!sameInflection) continue;
 
     if (sameInflection.length === 1 && sameInflection[0]) {
-      blocks.push(renderGroup(sameInflection[0]));
+      blocks.push(renderGroup(sameInflection[0], dictLines));
     } else {
       // Show inflection lines once, then each dict form + meaning
       const out: string[] = [];
@@ -300,16 +339,9 @@ function mergeByMeaning(groups: MergedGroup[]): string[][] {
       for (const meaning of meaningOrder) {
         const mGroups = meaningGroups.get(meaning);
         if (!mGroups) continue;
-        const seenDf = new Set<string>();
         for (const g of mGroups) {
           const first = g.results[0];
-          if (first) {
-            const df = `${dictionaryForm(first.de)}   ${formatFlags(first.de)}`;
-            if (!seenDf.has(df)) {
-              seenDf.add(df);
-              out.push(df);
-            }
-          }
+          if (first) dictLines.push(out, first.de);
         }
         out.push(truncateMeaning(meaning));
       }
