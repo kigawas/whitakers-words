@@ -672,8 +672,9 @@ describe("ada-compat: comparison-only adjectives", () => {
 // ---------------------------------------------------------------------------
 // qu- pronouns (issue #29). Ada matches a PRON 1 x inflection only to entries
 // of the same declension variant, and prints a dictionary line only when it
-// differs from the one before. Expected blocks are from aeneid-expected.txt,
-// except that the port prints the stem ("qu  PRON") where Ada prints none.
+// differs from the one before. The meanings under each inflection are Ada's
+// (aeneid-expected.txt). Where Ada prints no form, the port prints headwords
+// and groups the meanings under them.
 // ---------------------------------------------------------------------------
 
 describe("ada-compat: qu- pronouns (issue #29)", () => {
@@ -683,55 +684,71 @@ describe("ada-compat: qu- pronouns (issue #29)", () => {
   const INDEF_ANY = "anyone/anybody/anything; whoever you pick; something (or other); any (NOM S);";
   const ADJECT = "any; anyone/anything, any such; unspecified some; (after si/sin/sive/ne);";
   const ADJECT_Q = "who?, which?, what?; what kind of?;";
+  const QUI = "qui, quae, quod  PRON   [XXXAO]";
+  const QUIS = "quis, quid  PRON   [XXXAO]";
+  const QUA = "qui, qua, quod  PRON   [XXXAO]";
+  const QUIS_QUA = "quis, qua, quid  PRON   [XXXAO]";
 
   it("qui: NOM P M with the five 1 0 meanings, then NOM S M with the four 1 1 meanings", () => {
-    expect(block("qui", "qu.i", 12)).toEqual([
+    expect(block("qui", "qu.i", 16)).toEqual([
       "qu.i                 PRON   1 0 NOM P M",
-      "qu  PRON   [XXXAO]",
+      QUI,
       REL,
+      INDEF,
+      ADJECT_Q,
+      QUIS,
       INTERR,
-      INDEF,
+      QUA,
       ADJECT,
-      ADJECT_Q,
       "qu.i                 PRON   1 0 NOM S M",
+      QUI,
       REL,
       INDEF,
-      ADJECT,
       ADJECT_Q,
+      QUA,
+      ADJECT,
     ]);
   });
 
   it("quae: NOM P F, NOM S F and NOM/ACC P N, each with its own entries", () => {
-    expect(block("quae", "qu.ae", 17)).toEqual([
+    expect(block("quae", "qu.ae", 24)).toEqual([
       "qu.ae                PRON   1 0 NOM P F",
-      "qu  PRON   [XXXAO]",
+      QUI,
       REL,
+      INDEF,
+      ADJECT_Q,
+      QUIS,
       INTERR,
-      INDEF,
+      QUA,
       ADJECT,
-      ADJECT_Q,
       "qu.ae                PRON   1 0 NOM S F",
+      QUI,
       REL,
-      INDEF_ANY,
       INDEF,
-      ADJECT,
       ADJECT_Q,
+      "qui, qua, quod  PRON   [XXXBO]",
+      ADJECT,
+      "quis, qua, quid  PRON   [XXXBO]",
+      INDEF_ANY,
       "qu.ae                PRON   1 0 NOM P N",
       "qu.ae                PRON   1 0 ACC P N",
-      INDEF_ANY,
+      QUA,
       ADJECT,
+      QUIS_QUA,
+      INDEF_ANY,
     ]);
   });
 
   it("quod: NOM/ACC S N with the four 1 7 meanings only", () => {
-    expect(block("quod", "qu.od", 7)).toEqual([
+    expect(block("quod", "qu.od", 8)).toEqual([
       "qu.od                PRON   1 0 NOM S N",
       "qu.od                PRON   1 0 ACC S N",
-      "qu  PRON   [XXXAO]",
+      QUI,
       REL,
       INDEF,
-      ADJECT,
       ADJECT_Q,
+      QUA,
+      ADJECT,
     ]);
   });
 });
@@ -833,5 +850,195 @@ describe("ada-compat: continuation meanings", () => {
     for (const word of ["potius", "delicias"]) {
       expect(outputLines(word).filter((l) => l.startsWith("|"))).toEqual([]);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dictionary forms, as Ada's Dictionary_Form builds them. Expected lines are
+// from aeneid-expected.txt unless marked latin-words.com.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: uniques print their own form as X", () => {
+  it("eodem: eodem  X, not the idem paradigm", () => {
+    expect(block("eodem", "eodem                PRON", 3)).toEqual([
+      "eodem                PRON   4 2 ABL S X",
+      "eodem  X   [XXXBX]",
+      "same, the same, the very same; also; (idem, eadem, idem);",
+    ]);
+  });
+
+  it("deus, vis, mare: the unique's line, whatever its part of speech", () => {
+    expect(outputLines("deus")).toContainEqual("deus  X   [XEXCX]");
+    expect(outputLines("vis")).toContainEqual("vis  X   [XXXAX]");
+    expect(outputLines("mare")).toContainEqual("mare  X   [XXXFO]    veryrare");
+  });
+
+  it("eadem: three uniques share one form line and one meaning", () => {
+    expect(block("eadem", "eadem                PRON", 5)).toEqual([
+      "eadem                PRON   4 2 NOM S F",
+      "eadem  X   [XXXBX]",
+      "eadem                PRON   4 2 NOM P N",
+      "eadem                PRON   4 2 ACC P N",
+      "same, the same, the very same; also; (idem, eadem, idem);",
+    ]);
+  });
+});
+
+describe("ada-compat: a part field with an extra space", () => {
+  // DICTLINE.GEN has "N       2 2 N T" for diptot and militari; Ada reads the
+  // part by tokens, so the extra blank does not shift the fields.
+  it("diptotum, militariis: N 2 2, with their dictionary forms", () => {
+    const diptotum = outputLines("diptotum");
+    expect(diptotum).toContainEqual("diptot.um            N      2 2 NOM S N");
+    expect(diptotum).toContainEqual("diptotum, diptoti  N (2nd) N   [DGXES]    Late  uncommon");
+    expect(outputLines("militariis")).toContainEqual(
+      "militarium, militarii  N (2nd) N   [FWXEM]    Medieval  uncommon",
+    );
+  });
+});
+
+describe("ada-compat: adjective dictionary forms", () => {
+  it("ultimas, deterrimus: a zzz stem prints as - (latin-words.com)", () => {
+    expect(outputLines("ultimas")).toContainEqual(
+      "-, -, ulterior -or -us, ultimus -a -um  ADJ   [XXXDX]    lesser",
+    );
+    expect(outputLines("deterrimus")).toContainEqual(
+      "-, -, deterior -or -us, deterrimus -a -um  ADJ   [XXXBO]",
+    );
+  });
+
+  it("quot, totidem, necesse: ADJ 9 9 is undeclined", () => {
+    expect(outputLines("quot")).toContainEqual("quot, undeclined  ADJ   [XXXAX]");
+    expect(outputLines("totidem")).toContainEqual("totidem, undeclined  ADJ   [XXXBO]");
+    expect(outputLines("necesse")).toContainEqual("necesse, undeclined  ADJ   [XXXBO]");
+  });
+
+  it("nequam, nequissimus: undeclined (latin-words.com)", () => {
+    expect(outputLines("nequam")).toContainEqual("nequam, undeclined  ADJ   [XXXBO]");
+    expect(outputLines("nequissimus")).toContainEqual("nequissimus, undeclined  ADJ   [XXXCO]");
+  });
+
+  it("alius: ADJ 1 5 has neuter -ud", () => {
+    expect(outputLines("alius")).toContainEqual("alius, alia, aliud  ADJ   [XXXAQ]");
+  });
+});
+
+describe("ada-compat: numeral dictionary forms", () => {
+  it("semel, duo, tertium: the four parts of a NUM 1 x entry", () => {
+    expect(outputLines("semel")).toContainEqual(
+      "unus -a -um, primus -a -um, singuli -ae -a, semel  NUM   [XXXAX]",
+    );
+    expect(outputLines("duo")).toContainEqual(
+      "duo -ae o, secundus -a -um, bini -ae -a, bis  NUM   [XXXAX]",
+    );
+    expect(outputLines("tertium")).toContainEqual(
+      "tres -es -ia, tertius -a -um, terni -ae -a, ter  NUM   [XXXAX]",
+    );
+  });
+
+  it("centum, sex: the four parts of a NUM 2 0 entry", () => {
+    expect(outputLines("centum")).toContainEqual(
+      "centum, centesimus -a -um, centeni -ae -a, centie (n)s  NUM   [XXXAO]",
+    );
+    expect(outputLines("sex")).toContainEqual(
+      "sex, sextus -a -um, seni -ae -a, sexie (n)s  NUM   [XXXAX]",
+    );
+  });
+
+  it("ambae: a one-stem entry prints its stem", () => {
+    expect(outputLines("ambae")).toContainEqual("amb  NUM   [XXXBO]");
+  });
+});
+
+describe("ada-compat: verb dictionary forms", () => {
+  it("fero, aufero: only var 1 and 3 4 name the conjugation", () => {
+    expect(outputLines("fero")).toContainEqual("fero, ferre, tuli, latus  V   [XXXAX]");
+    expect(outputLines("aufero")).toContainEqual(
+      "aufero, auferre, abstuli, ablatus  V TRANS   [XXXAO]",
+    );
+  });
+
+  it("sum, absum, possum: no conjugation, and TO_BE/TO_BEING are not shown", () => {
+    expect(outputLines("sum")).toContainEqual("sum, esse, fui, futurus  V   [XXXAX]");
+    expect(outputLines("absum")).toContainEqual("absum, abesse, afui, afuturus  V   [XXXAO]");
+    expect(outputLines("possum")).toContainEqual("possum, posse, potui, -  V   [XXXAX]");
+  });
+
+  it("fio: the infinitive fieri", () => {
+    expect(outputLines("fio")).toContainEqual("fio, fieri, factus sum  V SEMIDEP   [XXXAO]");
+  });
+
+  it("refert, convenit: IMPERS 3 2 and 3 4 end in -t", () => {
+    expect(outputLines("refert")).toContainEqual(
+      "refert, referre, retulit, relatus est  V IMPERS   [XXXBO]",
+    );
+    expect(outputLines("convenit")).toContainEqual(
+      "convenit, convenire, convenit, conventus est  V (4th) IMPERS   [XXXCO]",
+    );
+  });
+
+  it("memini: PERFDEF keeps its missing supine as -", () => {
+    expect(outputLines("memini")).toContainEqual("memini, meminisse, -  V (2nd) PERFDEF   [XXXAO]");
+  });
+
+  it("iussi: V 8 prints additional forms", () => {
+    expect(outputLines("iussi")).toContainEqual(
+      "jubo, jubere, additional, forms  V TRANS   [XXXCO]",
+    );
+  });
+
+  it("abfero: a verb with no perfect stems keeps both dashes", () => {
+    expect(outputLines("abfero")).toContainEqual("abfero, abferre, -, -  V TRANS   [XXXCO]");
+  });
+
+  it("placet: IMPERS with no perfect stem", () => {
+    expect(outputLines("placet")).toContainEqual(
+      "placet, placere, -, placitus est  V (2nd) IMPERS   [XXXDX]    lesser",
+    );
+  });
+});
+
+describe("ada-compat: a zzz stem prints as - in nouns and adverbs", () => {
+  it("epos: N 3 2 with no genitive stem", () => {
+    expect(outputLines("epos")).toContainEqual("epos, -  N (3rd) N   [XXXDX]    lesser");
+  });
+
+  it("nuper, uberius: ADV with a missing degree", () => {
+    expect(outputLines("nuper")).toContainEqual("nuper, -, nuperrime  ADV   [XXXBO]");
+    expect(outputLines("uberius")).toContainEqual("-, uberius, uberrime  ADV   [XXXDX]    lesser");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ada prints no form for the qu-, aliqu- and personal pronouns (only their
+// flags, " [XXXAO]"). The port prints a headword instead.
+// ---------------------------------------------------------------------------
+
+describe("pronoun headwords where Ada prints no form", () => {
+  it("qui: the relative, interrogative and indefinite qu- pronouns", () => {
+    const lines = outputLines("qui");
+    expect(lines).toContainEqual("qui, quae, quod  PRON   [XXXAO]");
+    expect(lines).toContainEqual("quis, quid  PRON   [XXXAO]");
+    expect(lines).toContainEqual("qui, qua, quod  PRON   [XXXAO]");
+    expect(lines).not.toContainEqual(expect.stringMatching(/^qu {2}PRON/));
+  });
+
+  it("quis: interrogative quis, quid and indefinite quis, qua, quid", () => {
+    const lines = outputLines("quis");
+    expect(lines).toContainEqual("quis, quid  PRON   [XXXAO]");
+    expect(lines).toContainEqual("quis, qua, quid  PRON   [XXXAO]");
+  });
+
+  it("aliquis, aliquod: the substantive and the adjective", () => {
+    expect(outputLines("aliquis")).toContainEqual("aliquis, aliqua, aliquid  PRON   [XXXAO]");
+    expect(outputLines("aliquod")).toContainEqual("aliqui, aliqua, aliquod  PRON   [XXXAO]");
+  });
+
+  it("ego, tu, nos, vos, sibi: the personal and reflexive pronouns", () => {
+    expect(outputLines("ego")).toContainEqual("ego  PRON   [XXXAX]");
+    expect(outputLines("tu")).toContainEqual("tu  PRON   [XXXAX]");
+    expect(outputLines("nos")).toContainEqual("nos  PRON   [XXXAX]");
+    expect(outputLines("vos")).toContainEqual("vos  PRON   [XXXBO]");
+    expect(outputLines("sibi")).toContainEqual("sui  PRON   [XXXAX]");
   });
 });

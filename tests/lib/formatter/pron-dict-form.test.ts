@@ -5,14 +5,19 @@ import { createEngine } from "../../../src/node/index.js";
 
 const engine = createEngine();
 
-function makePron(stems: [string, string], which: number, variant: number): DictionaryEntry {
+function makePron(
+  stems: [string, string],
+  which: number,
+  variant: number,
+  kind = "ADJECT",
+): DictionaryEntry {
   return {
     stems: [stems[0], stems[1], "", ""] as const,
     part: {
       pofs: "PRON" as const,
       pron: {
         decl: { which: which as 1, var: variant as 1 },
-        kind: "ADJECT" as const,
+        kind: kind as "ADJECT",
       },
     },
     tran: {
@@ -86,28 +91,35 @@ describe("dictionaryForm: PRON decl 6", () => {
 // ---------------------------------------------------------------------------
 describe("dictionaryForm: PRON decl 9", () => {
   it("var 8 — abbreviated", () => {
-    const form = dictionaryForm(makePron(["Id", ""], 9, 8));
+    const form = dictionaryForm(makePron(["Id", "zzz"], 9, 8));
     expect(form).toBe("Id., abb.  PRON");
   });
 
   it("var 9 — undeclined", () => {
-    const form = dictionaryForm(makePron(["tot", ""], 9, 9));
+    const form = dictionaryForm(makePron(["tot", "zzz"], 9, 9));
     expect(form).toBe("tot, undeclined  PRON");
+  });
+
+  it("with one stem, the stem alone (Ada declines only N, ADJ and V 9 from one)", () => {
+    expect(dictionaryForm(makePron(["tot", ""], 9, 9))).toBe("tot  PRON");
   });
 });
 
 // ---------------------------------------------------------------------------
 // Fallback — declensions without specific form logic
 // ---------------------------------------------------------------------------
-describe("dictionaryForm: PRON fallback", () => {
-  it("decl 1 — falls back to stem1", () => {
-    const form = dictionaryForm(makePron(["qu", "cu"], 1, 0));
-    expect(form).toBe("qu  PRON");
+describe("dictionaryForm: headwords for the pronouns Ada gives no form", () => {
+  it("decl 1 — the qu- pronoun of the entry's kind", () => {
+    expect(dictionaryForm(makePron(["qu", "cu"], 1, 0, "REL"))).toBe("qui, quae, quod  PRON");
+    expect(dictionaryForm(makePron(["qu", "cu"], 1, 0, "INTERR"))).toBe("quis, quid  PRON");
   });
 
-  it("decl 5 — falls back to stem1", () => {
-    const form = dictionaryForm(makePron(["ego", "m"], 5, 1));
-    expect(form).toBe("ego  PRON");
+  it("decl 5 — the personal pronoun", () => {
+    expect(dictionaryForm(makePron(["ego", "m"], 5, 1, "PERS"))).toBe("ego  PRON");
+  });
+
+  it("no headword — no form, as Ada", () => {
+    expect(dictionaryForm(makePron(["xyz", "xy"], 1, 0))).toBe("");
   });
 });
 

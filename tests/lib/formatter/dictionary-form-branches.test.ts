@@ -1,12 +1,6 @@
 /**
- * Tests targeting every uncovered branch in lib/formatter/.
- *
- * dictionary-form.ts uncovered lines: 25-28, 70-82, 90-94, 98-115,
- *   126-128, 135-149, 163, 197-202, 247, 382-389
- * text-output.ts uncovered lines: 225-226
- *
- * Almost all uncovered branches are the FALSY path of `stem2 || stem1`
- * or `s[1]`/`s[2]` expressions — i.e., when stem2 is empty string.
+ * Branch tests for dictionaryForm on hand-built entries, including shapes
+ * DICTLINE does not use. Expected forms follow Ada's Dictionary_Form.
  */
 import { describe, expect, it } from "vitest";
 import { dictionaryForm } from "../../../src/lib/formatter/dictionary-form.js";
@@ -73,28 +67,10 @@ function adj(
   };
 }
 
-function pron(s1: string, s2: string, w: number, v: number): DictionaryEntry {
-  return {
-    stems: [s1, s2, "", ""] as const,
-    part: {
-      pofs: "PRON" as const,
-      pron: { decl: { which: w as 1, var: v as 1 }, kind: "ADJECT" as const },
-    },
-    tran: {
-      age: "X" as const,
-      area: "X" as const,
-      geo: "X" as const,
-      freq: "X" as const,
-      source: "X" as const,
-    },
-    mean: "test",
-  };
-}
-
 // ===========================================================================
-// Lines 25-28: ADV co=X with s[1]/s[2] branches
+// ADV co=X: stems 1-3, a blank one left out
 // ===========================================================================
-describe("dictionaryForm: ADV co=X stem branches (lines 25-28)", () => {
+describe("dictionaryForm: ADV co=X stem branches", () => {
   it("ADV co=X with stem2 only (s[1] truthy, s[2] falsy)", () => {
     const de: DictionaryEntry = {
       stems: ["bene", "melius", "", ""],
@@ -127,175 +103,20 @@ describe("dictionaryForm: ADV co=X stem branches (lines 25-28)", () => {
 });
 
 // ===========================================================================
-// Lines 70-82: noun decl 1 var 6/7/8/default with empty stem2 (|| fallback)
+// One-stem entries: Ada prints the stem alone, never borrowing stem 1 for a
+// missing stem 2. Only N/ADJ/V 9 and COMP/SUPER adjectives decline from it.
 // ===========================================================================
-describe("dictionaryForm: noun decl 1 stem2 fallback (lines 70-82)", () => {
-  it("decl 1 var 6 with empty stem2", () => {
-    expect(dictionaryForm(noun("nymph", "", 1, 6, "F"))).toBe("nymphe, nymphes  N F");
+describe("dictionaryForm: one-stem entries", () => {
+  it("a one-stem noun prints its stem", () => {
+    expect(dictionaryForm(noun("aqu", "", 1, 1, "F"))).toBe("aqu  N");
   });
-  it("decl 1 var 7 with empty stem2", () => {
-    expect(dictionaryForm(noun("orest", "", 1, 7, "M"))).toBe("orestes, orestae  N M");
-  });
-  it("decl 1 var 8 with empty stem2", () => {
-    expect(dictionaryForm(noun("Bore", "", 1, 8, "M"))).toBe("Boreas, Boreae  N M");
-  });
-  it("decl 1 default with empty stem2", () => {
-    expect(dictionaryForm(noun("aqu", "", 1, 1, "F"))).toBe("aqua, aquae  N (1st) F");
-  });
-});
 
-// ===========================================================================
-// Lines 90-94: noun decl 2 var 2/3 with empty stem2
-// ===========================================================================
-describe("dictionaryForm: noun decl 2 stem2 fallback (lines 90-94)", () => {
-  it("decl 2 var 2 with empty stem2", () => {
-    expect(dictionaryForm(noun("bell", "", 2, 2, "N"))).toBe("bellum, belli  N (2nd) N");
+  it("a one-stem POS adjective prints its stem", () => {
+    expect(dictionaryForm(adj(["bon", "", "", ""], 1, 1, "POS"))).toBe("bon  ADJ");
   });
-  it("decl 2 var 3 with empty stem2", () => {
-    expect(dictionaryForm(noun("puer", "", 2, 3, "M"))).toBe("puer, pueri  N (2nd) M");
-  });
-});
 
-// ===========================================================================
-// Lines 98-115: noun decl 2 var 4/5/6/7/8/9/default with empty stem2
-// ===========================================================================
-describe("dictionaryForm: noun decl 2 var 4-9 stem2 fallback (lines 98-115)", () => {
-  it("decl 2 var 4 with empty stem2", () => {
-    expect(dictionaryForm(noun("imperi", "", 2, 4, "N"))).toBe("imperium, imperi(i)  N (2nd) N");
-  });
-  it("decl 2 var 5 with empty stem2", () => {
-    expect(dictionaryForm(noun("Juli", "", 2, 5, "M"))).toBe("Julius, Juli  N (2nd) M");
-  });
-  it("decl 2 var 6 with empty stem2", () => {
-    expect(dictionaryForm(noun("cerv", "", 2, 6, "M"))).toBe("cervos, cervi  N M");
-  });
-  it("decl 2 var 8 with empty stem2", () => {
-    expect(dictionaryForm(noun("ar", "", 2, 8, "N"))).toBe("aron, ari  N N");
-  });
-  it("decl 2 var 9 with empty stem2", () => {
-    expect(dictionaryForm(noun("av", "", 2, 9, "M"))).toBe("avus, avi  N M");
-  });
-  it("decl 2 default with empty stem2", () => {
-    expect(dictionaryForm(noun("domin", "", 2, 1, "M"))).toBe("dominus, domini  N (2nd) M");
-  });
-});
-
-// ===========================================================================
-// Lines 126-128: noun decl 3 var 7/9 and default with empty stem2
-// ===========================================================================
-describe("dictionaryForm: noun decl 3 stem2 fallback (lines 126-128)", () => {
-  it("decl 3 var 7 with empty stem2 → os/is", () => {
-    expect(dictionaryForm(noun("chlamys", "", 3, 7, "F"))).toBe("chlamys, chlamysos/is  N F");
-  });
-  it("decl 3 default with empty stem2 → is", () => {
-    expect(dictionaryForm(noun("rex", "", 3, 1, "M"))).toBe("rex, rexis  N (3rd) M");
-  });
-});
-
-// ===========================================================================
-// Lines 135-149: noun decl 4 var 2/3/default and decl 5 with empty stem2
-// ===========================================================================
-describe("dictionaryForm: noun decl 4/5 stem2 fallback (lines 135-149)", () => {
-  it("decl 4 var 2 with empty stem2", () => {
-    expect(dictionaryForm(noun("corn", "", 4, 2, "N"))).toBe("cornu, cornus  N (4th) N");
-  });
-  it("decl 4 var 3 with empty stem2", () => {
-    expect(dictionaryForm(noun("gest", "", 4, 3, "M"))).toBe("gestus, gestu  N (4th) M");
-  });
-  it("decl 4 default with empty stem2", () => {
-    expect(dictionaryForm(noun("man", "", 4, 1, "F"))).toBe("manus, manus  N (4th) F");
-  });
-  it("decl 5 with empty stem2", () => {
-    expect(dictionaryForm(noun("r", "", 5, 1, "F"))).toBe("res, rei  N (5th) F");
-  });
-});
-
-// ===========================================================================
-// Line 163: noun default (unknown decl) with empty stem2
-// ===========================================================================
-describe("dictionaryForm: noun default decl stem2 fallback (line 163)", () => {
-  it("unknown decl with empty stem2", () => {
-    expect(dictionaryForm(noun("test", "", 8, 1, "M"))).toBe("test, testis  N M");
-  });
-});
-
-// ===========================================================================
-// Lines 197-202: PRON decl 4 var 1/2 with empty stem2
-// ===========================================================================
-describe("dictionaryForm: PRON stem2 fallback (lines 197-202)", () => {
-  it("PRON decl 4 var 1 with empty stem2 → ox2 uses stem1", () => {
-    const form = dictionaryForm(pron("i", "", 4, 1));
-    // ox2 = (stem2 || stem1) + "a" = "i" + "a" = "ia"
-    expect(form).toBe("is, ia, id  PRON");
-  });
-  it("PRON decl 4 var 2 with empty stem2 → ox2 uses stem1", () => {
-    const form = dictionaryForm(pron("i", "", 4, 2));
-    expect(form).toBe("idem, iadem, idem  PRON");
-  });
-  it("PRON decl 4 var 0 (neither 1 nor 2) → falls through to fallback (line 199 falsy)", () => {
-    const form = dictionaryForm(pron("qu", "cu", 4, 0));
-    // Neither var 1 nor var 2 → ox1/ox2/ox3 stay null → fallback to stem1
-    expect(form).toBe("qu  PRON");
-  });
-});
-
-// ===========================================================================
-// Line 247: DEP INF chained ?? fallback
-// DEP_INF[`${which}.${variant}`] ?? DEP_INF[String(which)] ?? "i"
-// Need: which.variant misses AND which misses → final "i" fallback
-// ===========================================================================
-describe("dictionaryForm: DEP INF fallback paths (line 247)", () => {
-  it("DEP with which=5 → both keys miss → final fallback 'i'", () => {
-    const form = dictionaryForm(verb(["test", "test", "", "test"], 5, 1, "DEP"));
-    expect(form).toContain("testi");
-  });
-  it("DEP 1st conj with empty stem2 → stem2||stem1 fallback on line 247", () => {
-    const form = dictionaryForm(verb(["hort", "", "", "hortat"], 1, 1, "DEP"));
-    // stem2 is "" → stem2 || stem1 = "hort" → "hort" + "ari" = "hortari"
-    expect(form).toContain("hortari");
-  });
-  it("DEP 3,4 with empty stem2 → stem2||stem1 + 'iri'", () => {
-    const form = dictionaryForm(verb(["part", "", "", "partit"], 3, 4, "DEP"));
-    expect(form).toContain("partiri");
-  });
-});
-
-// ===========================================================================
-// Lines 382-389: ADJ POS branches (all `s2 || s1` falsy paths)
-// ===========================================================================
-describe("dictionaryForm: ADJ POS stem2 fallback (lines 382-389)", () => {
-  it("which=3 var=1 with empty stem2 (line 382)", () => {
-    expect(dictionaryForm(adj(["acer", "", "", ""], 3, 1, "POS"))).toBe(
-      "acer, (gen.), aceris  ADJ",
-    );
-  });
-  it("which=3 var=2 with empty stem2 (line 383)", () => {
-    expect(dictionaryForm(adj(["fort", "", "", ""], 3, 2, "POS"))).toBe(
-      "fortis, fortis, forte  ADJ",
-    );
-  });
-  it("which=3 var=3 with empty stem2 (line 384)", () => {
-    expect(dictionaryForm(adj(["felix", "", "", ""], 3, 3, "POS"))).toBe(
-      "felix, felixis, felixe  ADJ",
-    );
-  });
-  it("which=3 var=6 with empty stem2 (line 385)", () => {
-    expect(dictionaryForm(adj(["inops", "", "", ""], 3, 6, "POS"))).toBe(
-      "inops, (gen.), inopsos  ADJ",
-    );
-  });
-  it("var=2 with empty stem2 (line 388)", () => {
-    expect(dictionaryForm(adj(["pulcher", "", "", ""], 1, 2, "POS"))).toBe(
-      "pulcher, pulchera, pulcherum  ADJ",
-    );
-  });
-  it("var=3 with empty stem2 (line 389)", () => {
-    expect(dictionaryForm(adj(["ali", "", "", ""], 1, 3, "POS"))).toBe(
-      "alius, alia, alium (gen -ius)  ADJ",
-    );
-  });
-  it("default with empty stem2 (line 390)", () => {
-    expect(dictionaryForm(adj(["bon", "", "", ""], 1, 1, "POS"))).toBe("bonus, bona, bonum  ADJ");
+  it("an undeclined noun declines from its one stem", () => {
+    expect(dictionaryForm(noun("fas", "", 9, 9, "N"))).toBe("fas, undeclined  N N");
   });
 });
 
@@ -338,10 +159,13 @@ describe("dictionaryForm: exhaustive verb table coverage", () => {
     expect(f).toContain("fo");
     expect(f).toContain("fre");
   });
-  it("con 3,3 → -o, -ere", () => {
-    const f = v(["cap", "cap", "cep", "capt"], 3, 3);
-    expect(f).toContain("capo");
-    expect(f).toContain("capere");
+  it("con 3,3 → -o, -eri; fio, fieri", () => {
+    expect(v(["confi", "conf", "zzz", "confact"], 3, 3, "SEMIDEP")).toBe(
+      "confio, conferi, confactus sum  V SEMIDEP",
+    );
+    expect(v(["fi", "f", "zzz", "fact"], 3, 3, "SEMIDEP")).toBe(
+      "fio, fieri, factus sum  V SEMIDEP",
+    );
   });
   it("con 3,4 → -o, -ire", () => {
     const f = v(["aud", "aud", "audiv", "audit"], 3, 4);
@@ -394,27 +218,20 @@ describe("dictionaryForm: exhaustive verb table coverage", () => {
     const f = v(["ait", "", "", ""], 9, 8);
     expect(f).toContain("V");
   });
-  it("unknown con → default -o, -re", () => {
-    const f = v(["test", "test", "", ""], 4, 1);
-    expect(f).toContain("testo");
-    expect(f).toContain("testre");
-  });
 });
 
 // ---------------------------------------------------------------------------
 // dictionaryForm: remaining branch coverage (from branch-coverage)
 // ---------------------------------------------------------------------------
 describe("dictionaryForm: remaining branch coverage", () => {
-  it("noun with unknown declension (default case)", () => {
+  it("noun with unknown declension: no form, as Ada's Not_Found", () => {
     const de: DictionaryEntry = {
       stems: ["test", "test", "", ""],
       part: { pofs: "N", n: { decl: { which: 8, var: 1 }, gender: "M", kind: "T" } },
       tran: { age: "X", area: "X", geo: "X", freq: "X", source: "X" },
       mean: "test",
     };
-    const form = dictionaryForm(de);
-    expect(form).toContain("N");
-    expect(form).toContain("M");
+    expect(dictionaryForm(de)).toBe("");
   });
 
   it("PRON with decl 9 non-8-non-9 variant (falls through)", () => {
@@ -428,15 +245,14 @@ describe("dictionaryForm: remaining branch coverage", () => {
     expect(form).toBe("test  PRON");
   });
 
-  it("PRON with decl 2 (no specific form, falls back)", () => {
+  it("PRON with decl 2 and no headword: no form, as Ada", () => {
     const de: DictionaryEntry = {
       stems: ["test", "test", "", ""],
       part: { pofs: "PRON", pron: { decl: { which: 2, var: 1 }, kind: "ADJECT" } },
       tran: { age: "X", area: "X", geo: "X", freq: "X", source: "X" },
       mean: "test",
     };
-    const form = dictionaryForm(de);
-    expect(form).toBe("test  PRON");
+    expect(dictionaryForm(de)).toBe("");
   });
 });
 
@@ -589,25 +405,21 @@ describe("dictionaryForm: adjective stem3/stem4 edge cases", () => {
 // dictionaryForm: DEP and PERFDEF branches (from remaining-branches)
 // ---------------------------------------------------------------------------
 describe("dictionaryForm: DEP and PERFDEF branches", () => {
-  it("DEP with unusual conjugation hits chained fallback (line 247)", () => {
-    const form = dictionaryForm(verb(["test", "test", "", "test"], 7, 1, "DEP"));
-    expect(form).toContain("testor");
-    expect(form).toContain("testi");
-    expect(form).toContain("DEP");
+  it("DEP outside conjugations 1-3: no form, as Ada's Not_Found", () => {
+    expect(dictionaryForm(verb(["test", "test", "", "test"], 7, 1, "DEP"))).toBe("");
   });
 
-  it("DEP with which.variant key match in DEP_INF (line 247 first ??)", () => {
+  it("DEP 3 4 → -iri", () => {
     const form = dictionaryForm(verb(["part", "part", "", "partit"], 3, 4, "DEP"));
     expect(form).toContain("partiri");
   });
 
-  it("PERFDEF without stem3 but with stem4 (line 255 not taken)", () => {
+  it("PERFDEF with a zzz stem 3 prints - for both its parts", () => {
     const form = dictionaryForm(verb(["", "", "zzz", "os"], 0, 0, "PERFDEF"));
-    expect(form).toContain("osus");
-    expect(form).not.toContain("zzzi");
+    expect(form).toBe("-, -, osus  V PERFDEF");
   });
 
-  it("PERFDEF with stem3 present (line 255 taken)", () => {
+  it("PERFDEF with stem3 present", () => {
     const form = dictionaryForm(verb(["", "", "od", "os"], 0, 0, "PERFDEF"));
     expect(form).toContain("odi");
     expect(form).toContain("odisse");
@@ -641,11 +453,6 @@ describe("dictionaryForm: ADJ POS which=3 all variants", () => {
     expect(dictionaryForm(adj(["inops", "inop", "", ""], 3, 6, "POS"))).toBe(
       "inops, (gen.), inopos  ADJ",
     );
-  });
-
-  it("which=3, var=5 (no specific case) falls through to default", () => {
-    const form = dictionaryForm(adj(["test", "test", "", ""], 3, 5, "POS"));
-    expect(form).toBe("testus, testa, testum  ADJ");
   });
 
   it("which=1, var=2 → stem, stem2+a, stem2+um (er-type)", () => {

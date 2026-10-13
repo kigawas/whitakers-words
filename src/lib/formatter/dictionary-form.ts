@@ -1,50 +1,133 @@
-import type { DictionaryEntry } from "../types/dictionary.js";
+import type {
+  AdjectiveEntry,
+  DictionaryEntry,
+  NounEntry,
+  NumeralEntry,
+  PartEntry,
+  VerbEntry,
+} from "../types/dictionary.js";
+import type { DecnRecord } from "../types/inflections.js";
 import { NULL_STEM } from "./field-layout.js";
 
-/** Check if a stem is present (not empty and not the null stem placeholder). */
-function hasStem(s: string): boolean {
-  return s.length > 0 && s !== NULL_STEM;
-}
-
 /**
- * Generate the citation/dictionary form for a dictionary entry.
- * E.g., "aqua, aquae  N (1st) F" for a 1st declension feminine noun.
+ * The citation form of a dictionary entry, as Ada's Dictionary_Form builds it
+ * (support_utils-dictionary_form.adb): e.g. "aqua, aquae  N (1st) F". Unlike
+ * Ada, a part is never cut short at 24 characters, and the pronouns Ada gives
+ * no form get a headword ("qui, quae, quod  PRON").
  */
 export function dictionaryForm(de: DictionaryEntry): string {
   const part = de.part;
-  const s = de.stems;
+  const s1 = de.stems[0];
+  if (part.pofs === "PREP") return `${s1}  PREP  ${part.prep.obj}`;
+  if (isBareStem(de)) return `${s1}  ${part.pofs}`;
+  const parts = principalParts(de);
+  if (!parts) return part.pofs === "PRON" ? pronounHeadword(de) : "";
+  return `${joinParts(parts)}  ${part.pofs}${formSuffix(part)}`.trim();
+}
 
+/**
+ * Headwords for the pronouns Ada has no form rule for: the qu- and aliqu-
+ * pronouns (PRON 1) and the personal and reflexive ones (PRON 5). Some qu-
+ * kinds hold two words, told apart by meaning; the first match wins.
+ */
+const PRONOUN_HEADWORDS: readonly {
+  stem: string;
+  kind: string;
+  mean?: string;
+  form: string;
+}[] = [
+  { stem: "qu", kind: "REL", form: "qui, quae, quod" },
+  { stem: "qu", kind: "INTERR", form: "quis, quid" },
+  { stem: "qu", kind: "INDEF", mean: "who/whatever", form: "qui, quae, quod" },
+  { stem: "qu", kind: "INDEF", form: "quis, qua, quid" },
+  { stem: "qu", kind: "ADJECT", mean: "who?", form: "qui, quae, quod" },
+  { stem: "qu", kind: "ADJECT", form: "qui, qua, quod" },
+  { stem: "aliqu", kind: "INDEF", form: "aliquis, aliqua, aliquid" },
+  { stem: "aliqu", kind: "ADJECT", form: "aliqui, aliqua, aliquod" },
+  { stem: "ego", kind: "PERS", form: "ego" },
+  { stem: "tu", kind: "PERS", form: "tu" },
+  { stem: "n", kind: "PERS", form: "nos" },
+  { stem: "v", kind: "PERS", form: "vos" },
+  // sui has no nominative, so no stem 1
+  { stem: NULL_STEM, kind: "REFLEX", form: "sui" },
+];
+
+function pronounHeadword(de: DictionaryEntry): string {
+  if (de.part.pofs !== "PRON") return "";
+  const kind = de.part.pron.kind;
+  const headword = PRONOUN_HEADWORDS.find(
+    (h) => h.stem === de.stems[0] && h.kind === kind && (!h.mean || de.mean.startsWith(h.mean)),
+  );
+  return headword ? `${headword.form}  PRON` : "";
+}
+
+/** An entry's principal parts, Ada's Ox (1 .. 4); undefined leaves one out. */
+type Parts = readonly (string | undefined)[];
+
+/**
+ * Ada prints an entry with only stem 1 as that stem (uniques, CONJ, INTERJ,
+ * one-stem numerals), except the kinds that decline from it: undeclined and
+ * abbreviated nouns, adjectives and verbs, and COMP- or SUPER-only adjectives.
+ */
+function isBareStem(de: DictionaryEntry): boolean {
+  const [, s2, s3, s4] = de.stems;
+  if (s2 || s3 || s4) return false;
+  const part = de.part;
   switch (part.pofs) {
     case "N":
-      return formatNoun(s[0], s[1], part.n.decl.which, part.n.decl.var, part.n.gender);
-    case "V":
-      return formatVerb(s[0], s[1], s[2], s[3], part.v.con.which, part.v.con.var, part.v.kind);
+      return part.n.decl.which !== 9;
     case "ADJ":
-      return formatAdjective(s, part.adj.decl.which, part.adj.decl.var, part.adj.co);
-    case "ADV": {
-      if (part.adv.co === "X" && (s[1] || s[2])) {
-        const parts = [s[0]];
-        if (s[1]) parts.push(s[1]);
-        if (s[2]) parts.push(s[2]);
-        return `${parts.join(", ")}  ADV`;
-      }
-      return `${s[0]}  ADV`;
-    }
-    case "PREP":
-      return `${s[0]}  PREP  ${part.prep.obj}`;
-    case "CONJ":
-      return `${s[0]}  CONJ`;
-    case "INTERJ":
-      return `${s[0]}  INTERJ`;
-    case "PRON":
-      return formatPronoun(s[0], s[1], part.pron.decl.which, part.pron.decl.var);
-    case "PACK":
-      return `${s[0]}  PACK`;
-    case "NUM":
-      return `${s[0]}  NUM`;
+      return part.adj.decl.which !== 9 && part.adj.co !== "COMP" && part.adj.co !== "SUPER";
+    case "V":
+      return part.v.con.which !== 9 || (part.v.con.var !== 8 && part.v.con.var !== 9);
     default:
-      return s[0];
+      return true;
   }
+}
+
+/** The parts by part of speech; undefined where Ada has no rule (its Not_Found). */
+function principalParts(de: DictionaryEntry): Parts | undefined {
+  const part = de.part;
+  const s = de.stems;
+  switch (part.pofs) {
+    case "N":
+      return nounParts(s, part.n);
+    case "PRON":
+      return pronounParts(s, part.pron.decl);
+    case "ADJ":
+      return adjectiveParts(s, part.adj);
+    case "ADV":
+      return part.adv.co === "X" ? [s[0], s[1], s[2]] : [s[0]];
+    case "V":
+      return verbParts(s, part.v);
+    case "NUM":
+      return numeralParts(s, part.num);
+    default:
+      return [s[0]];
+  }
+}
+
+/**
+ * Ada's clean-up of the parts: one built on a zzz stem prints as "-", an
+ * unset or empty one not at all. Each part after the first brings its comma.
+ */
+function joinParts(parts: Parts): string {
+  return parts
+    .map((p, i) => {
+      if (!p) return "";
+      const text = p.startsWith(NULL_STEM) ? "-" : p;
+      return i === 0 ? text : `, ${text}`;
+    })
+    .join("");
+}
+
+/** What follows the part of speech: a noun's declension and gender, a verb's conjugation and kind. */
+function formSuffix(part: PartEntry): string {
+  if (part.pofs === "V") return verbSuffix(part.v);
+  if (part.pofs !== "N") return "";
+  const { which, var: variant } = part.n.decl;
+  const decl = which >= 1 && which <= 5 && variant >= 1 && variant <= 5;
+  return `${decl ? ` (${ordinal(which)})` : ""} ${part.n.gender}`;
 }
 
 const ORDINALS: Record<number, string> = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th" };
@@ -52,346 +135,321 @@ function ordinal(which: number): string {
   return ORDINALS[which] ?? "";
 }
 
-function formatNoun(
-  stem1: string,
-  stem2: string,
-  which: number,
-  variant: number,
-  gender: string,
-): string {
-  let nom: string;
-  let gen: string;
-
+function nounParts([s1, s2]: DictionaryEntry["stems"], n: NounEntry): Parts | undefined {
+  const { which, var: variant } = n.decl;
   switch (which) {
     case 1:
-      switch (variant) {
-        case 6:
-          nom = `${stem1}e`;
-          gen = `${stem2 || stem1}es`;
-          break;
-        case 7:
-          nom = `${stem1}es`;
-          gen = `${stem2 || stem1}ae`;
-          break;
-        case 8:
-          nom = `${stem1}as`;
-          gen = `${stem2 || stem1}ae`;
-          break;
-        default:
-          nom = `${stem1}a`;
-          gen = `${stem2 || stem1}ae`;
-          break;
-      }
-      break;
     case 2:
-      switch (variant) {
-        case 2:
-          nom = `${stem1}um`;
-          gen = `${stem2 || stem1}i`;
-          break;
-        case 3:
-          nom = stem1; // stem1 IS the nominative (ager, puer, vir)
-          gen = `${stem2 || stem1}i`;
-          break;
-        case 4:
-          nom = stem1 + (gender === "N" ? "um" : "us");
-          gen = `${stem2 || stem1}(i)`;
-          break;
-        case 5:
-          nom = `${stem1}us`;
-          gen = stem2 || stem1;
-          break;
-        case 6:
-        case 7:
-          nom = `${stem1}os`;
-          gen = `${stem2 || stem1}i`;
-          break;
-        case 8:
-          nom = `${stem1}on`;
-          gen = `${stem2 || stem1}i`;
-          break;
-        case 9:
-          nom = `${stem1}us`;
-          gen = `${stem2 || stem1}i`;
-          break;
-        default:
-          nom = `${stem1}us`;
-          gen = `${stem2 || stem1}i`;
-          break;
+    case 4: {
+      if (which === 2 && variant === 4) {
+        return [`${s1}${n.gender === "N" ? "um" : "us"}`, `${s2}(i)`];
       }
-      break;
+      const endings = NOUN_ENDINGS[`${which} ${variant}`];
+      return endings ? [`${s1}${endings[0]}`, `${s2}${endings[1]}`] : [];
+    }
     case 3:
-      nom = stem1; // stem1 IS the nominative for 3rd decl
-      if (variant === 7 || variant === 9) {
-        gen = `${stem2 || stem1}os/is`;
-      } else {
-        gen = `${stem2 || stem1}is`;
-      }
-      break;
-    case 4:
-      switch (variant) {
-        case 2:
-          nom = `${stem1}u`;
-          gen = `${stem2 || stem1}us`;
-          break;
-        case 3:
-          nom = `${stem1}us`;
-          gen = `${stem2 || stem1}u`;
-          break;
-        default:
-          nom = `${stem1}us`;
-          gen = `${stem2 || stem1}us`;
-          break;
-      }
-      break;
+      // stem 1 is the nominative
+      return [s1, `${s2}${variant === 7 || variant === 9 ? "os/is" : "is"}`];
     case 5:
-      nom = `${stem1}es`;
-      gen = `${stem2 || stem1}ei`;
-      break;
+      return [`${s1}es`, `${s2}ei`];
     case 9:
-      if (variant === 8) {
-        nom = `${stem1}.`;
-        gen = "abb.";
-      } else {
-        // var 9 = undeclined
-        nom = stem1;
-        gen = "undeclined";
-      }
-      break;
+      if (variant === 8) return [`${s1}.`, "abb."];
+      return variant === 9 ? [s1, "undeclined"] : [];
     default:
-      nom = stem1;
-      gen = `${stem2 || stem1}is`;
-      break;
+      return undefined;
   }
+}
 
-  if (!hasStem(stem1)) nom = "-";
+/** Nominative and genitive endings of declensions 1, 2 and 4, by variant. */
+const NOUN_ENDINGS: Record<string, readonly [string, string]> = {
+  "1 1": ["a", "ae"],
+  "1 6": ["e", "es"],
+  "1 7": ["es", "ae"],
+  "1 8": ["as", "ae"],
+  "2 1": ["us", "i"],
+  "2 2": ["um", "i"],
+  "2 3": ["", "i"],
+  "2 5": ["us", ""],
+  "2 6": ["os", "i"],
+  "2 7": ["os", "i"],
+  "2 8": ["on", "i"],
+  "2 9": ["us", "i"],
+  "4 1": ["us", "us"],
+  "4 2": ["u", "us"],
+  "4 3": ["us", "u"],
+};
 
-  // Ada shows ordinal only when which 1-5 AND var 1-5
-  const showOrdinal = which >= 1 && which <= 5 && variant >= 1 && variant <= 5;
-  const declStr = showOrdinal ? ` (${ordinal(which)})` : "";
-  return `${nom}, ${gen}  N${declStr} ${gender}`;
+/** The three nominatives of the demonstratives; Ada has no rule for the others. */
+function pronounParts(
+  [s1, s2]: DictionaryEntry["stems"],
+  { which, var: variant }: DecnRecord,
+): Parts | undefined {
+  switch (which) {
+    case 3:
+      // hic, haec, hoc
+      return [
+        `${s1}ic`,
+        `${s1}aec`,
+        variant === 1 ? `${s1}oc` : variant === 2 ? `${s1}uc` : undefined,
+      ];
+    case 4:
+      // is, ea, id; idem, eadem, idem
+      if (variant === 1) return [`${s1}s`, `${s2}a`, `${s1}d`];
+      return variant === 2 ? [`${s1}dem`, `${s2}adem`, `${s1}dem`] : [];
+    case 6:
+      // ille, illa, illud; ipse, ipsa, ipsum
+      return [
+        `${s1}e`,
+        `${s1}a`,
+        variant === 1 ? `${s1}ud` : variant === 2 ? `${s1}um` : undefined,
+      ];
+    case 9:
+      if (variant === 8) return [`${s1}.`, "abb."];
+      return variant === 9 ? [s1, "undeclined"] : [];
+    default:
+      return undefined;
+  }
+}
+
+function adjectiveParts(
+  [s1, s2, s3, s4]: DictionaryEntry["stems"],
+  adj: AdjectiveEntry,
+): Parts | undefined {
+  const { which, var: variant } = adj.decl;
+  switch (adj.co) {
+    case "COMP":
+      return [`${s1}or`, `${s1}or`, `${s1}us`];
+    case "SUPER":
+      return [`${s1}mus`, `${s1}ma`, `${s1}mum`];
+    case "POS":
+      return positiveParts(s1, s2, which, variant);
+    case "X": {
+      const comp = `${s3}or -or -us`;
+      const sup = `${s4}mus -a -um`;
+      switch (`${which} ${variant}`) {
+        case "1 1":
+          return [`${s1}us`, `${s2}a -um`, comp, sup];
+        case "1 2":
+          return [s1, `${s2}a -um`, comp, sup];
+        case "3 1":
+          return [s1, `${s2}is (gen.)`, comp, sup];
+        case "3 2":
+          return [`${s1}is`, `${s2}e`, comp, sup];
+        case "3 3":
+          return [s1, `${s2}is -e`, comp, sup];
+      }
+      if (which === 9) return [s1, "undeclined", comp, sup];
+      return which === 1 || which === 3 ? [] : undefined;
+    }
+  }
+}
+
+/** ADJ POS, by declension; 2 x are the Greek adjectives. */
+function positiveParts(s1: string, s2: string, which: number, variant: number): Parts | undefined {
+  switch (`${which} ${variant}`) {
+    case "1 1":
+      return [`${s1}us`, `${s2}a`, `${s2}um`];
+    case "1 2":
+    case "1 4":
+      return [s1, `${s2}a`, `${s2}um`];
+    case "1 3":
+      return [`${s1}us`, `${s2}a`, `${s2}um (gen -ius)`];
+    case "1 5":
+      return [`${s1}us`, `${s2}a`, `${s2}ud`];
+    case "2 1":
+      return ["-", `${s1}e`, "-"];
+    case "2 2":
+      return ["-", "a", "-"];
+    case "2 3":
+      return [`${s1}es`, `${s1}es`, `${s1}es`];
+    case "2 6":
+      return [`${s1}os`, `${s1}os`, "-"];
+    case "2 7":
+      return [`${s1}os`, "-", "-"];
+    case "2 8":
+      return ["-", "-", `${s2}on`];
+    case "3 1":
+      return [s1, "(gen.)", `${s2}is`];
+    case "3 2":
+      return [`${s1}is`, `${s2}is`, `${s2}e`];
+    case "3 3":
+      return [s1, `${s2}is`, `${s2}e`];
+    case "3 6":
+      return [s1, "(gen.)", `${s2}os`];
+    case "9 8":
+      return [`${s1}.`, "abb."];
+    case "9 9":
+      return [s1, "undeclined"];
+  }
+  return which === 2 || which === 3 ? [] : undefined;
+}
+
+function verbParts(
+  [s1, s2, s3, s4]: DictionaryEntry["stems"],
+  { con: { which, var: variant }, kind }: VerbEntry,
+): Parts | undefined {
+  let parts: (string | undefined)[];
+  if (kind === "DEP") {
+    // No active perfect: the perfect is the participle with sum
+    const present = DEPONENT_PRESENT[which];
+    if (!present) return undefined;
+    const infinitive = which === 3 && variant === 4 ? "iri" : present[1];
+    parts = [`${s1}${present[0]}`, `${s2}${infinitive}`, undefined, `${s4}us sum`];
+  } else if (kind === "PERFDEF") {
+    parts = [`${s3}i`, `${s3}isse`, `${s4}us`];
+  } else if (kind === "IMPERS" && s1.startsWith(NULL_STEM) && s2.startsWith(NULL_STEM)) {
+    // An impersonal verb found only in the perfect
+    parts = [`${s3}it`, `${s3}isse`, `${s4}us est`];
+  } else {
+    parts = [
+      presentPart(s1, which, variant, kind),
+      infinitivePart(s1, s2, which, variant),
+      ...perfectParts(s3, s4, which, variant, kind),
+    ];
+  }
+  // eo, ire: ivi(ii)
+  if (which === 6 && variant === 1) parts[2] = `${parts[2] ?? ""}(ii)`;
+  return parts;
+}
+
+const DEPONENT_PRESENT: Record<number, readonly [string, string]> = {
+  1: ["or", "ari"],
+  2: ["eor", "eri"],
+  3: ["or", "i"],
+};
+
+/** The first part: 1st singular present, or 3rd singular for IMPERS. */
+function presentPart(s1: string, which: number, variant: number, kind: string): string | undefined {
+  if (which === 9 && variant === 8) return `${s1}.`;
+  if (which === 9 && variant === 9) return s1;
+  if (kind === "IMPERS") {
+    switch (which) {
+      case 1:
+        return `${s1}at`;
+      case 2:
+        return `${s1}et`;
+      case 3:
+        return variant === 2 || s1.endsWith("i") ? `${s1}t` : `${s1}it`;
+      case 5:
+        return variant === 1 ? `${s1}est` : undefined;
+      case 7:
+        return variant === 1 || variant === 2 ? `${s1}t` : undefined;
+      default:
+        return undefined;
+    }
+  }
+  if (which === 2) return `${s1}eo`;
+  if (which === 5) return `${s1}um`;
+  if (which === 7 && variant === 2) return `${s1}am`;
+  return `${s1}o`;
+}
+
+function infinitivePart(
+  s1: string,
+  s2: string,
+  which: number,
+  variant: number,
+): string | undefined {
+  switch (which) {
+    case 1:
+      return `${s2}are`;
+    case 2:
+      return `${s2}ere`;
+    case 3:
+      if (variant === 2) return `${s2}re`;
+      if (variant === 3) return s2 === "f" ? `${s2}ieri` : `${s2}eri`;
+      if (variant === 4) return `${s2}ire`;
+      return `${s2}ere`;
+    case 5:
+      if (variant === 1) return `${s2}esse`;
+      return variant === 2 ? `${s1}e` : undefined;
+    case 6:
+      if (variant === 1) return `${s2}re`;
+      return variant === 2 ? `${s2}le` : undefined;
+    case 7:
+      return variant === 3 ? `${s2}se` : undefined;
+    case 8:
+      return `${s2}${variant === 1 ? "are" : variant === 4 ? "ire" : "ere"}`;
+    case 9:
+      if (variant === 8) return "abb.";
+      return variant === 9 ? "undeclined" : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/** The last two parts: perfect and supine, with Ada's special cases. */
+function perfectParts(s3: string, s4: string, which: number, variant: number, kind: string): Parts {
+  if (kind === "IMPERS") return [`${s3}it`, `${s4}us est`];
+  if (kind === "SEMIDEP") return [undefined, `${s4}us sum`];
+  if (which === 5 && variant === 1) return [`${s3}i`, `${s4}urus`];
+  if (which === 8) return ["additional", "forms"];
+  if (which === 9) return [];
+  return [`${s3}i`, `${s4}us`];
+}
+
+/** Kinds Ada names after the form, GEN through PERFDEF. */
+const SHOWN_VERB_KINDS: ReadonlySet<string> = new Set([
+  "GEN",
+  "DAT",
+  "ABL",
+  "TRANS",
+  "INTRANS",
+  "IMPERS",
+  "DEP",
+  "SEMIDEP",
+  "PERFDEF",
+]);
+
+/** " (2nd) IMPERS": the conjugation for var 1 (3 4 is the 4th), then the kind. */
+function verbSuffix({ con: { which, var: variant }, kind }: VerbEntry): string {
+  let suffix = "";
+  if (which >= 1 && which <= 3 && variant === 1) suffix = ` (${ordinal(which)})`;
+  else if (which === 3 && variant === 4) suffix = ` (${ordinal(4)})`;
+  return SHOWN_VERB_KINDS.has(kind) ? `${suffix} ${kind}` : suffix;
 }
 
 /**
- * Format pronoun dictionary form following Ada's DICTIONARY_FORM PRON logic.
- * Pronouns display 3 nominative forms (M, F, N) for declensions 3, 4, 6.
- * Declension 9 handles abbreviated and undeclined forms.
- * Other declensions fall back to stem1.
+ * A NUM X entry lists the cardinal, ordinal, distributive and adverb; a
+ * CARD, ORD or DIST entry declines its one stem.
  */
-function formatPronoun(stem1: string, stem2: string, which: number, variant: number): string {
-  let ox1: string | null = null;
-  let ox2: string | null = null;
-  let ox3: string | null = null;
-
-  switch (which) {
-    case 3:
-      // Proximal demonstrative (hic, haec, hoc)
-      ox1 = `${stem1}ic`;
-      ox2 = `${stem1}aec`;
-      ox3 = variant === 1 ? `${stem1}oc` : `${stem1}uc`;
-      break;
-    case 4:
-      if (variant === 1) {
-        // is, ea, id
-        ox1 = `${stem1}s`;
-        ox2 = `${stem2 || stem1}a`;
-        ox3 = `${stem1}d`;
-      } else if (variant === 2) {
-        // idem, eadem, idem
-        ox1 = `${stem1}dem`;
-        ox2 = `${stem2 || stem1}adem`;
-        ox3 = `${stem1}dem`;
+function numeralParts([s1, s2, s3, s4]: DictionaryEntry["stems"], num: NumeralEntry): Parts {
+  const { which, var: variant } = num.decl;
+  switch (num.sort) {
+    case "X": {
+      const rest = [`${s2}us -a -um`, `${s3}i -ae -a`];
+      if (which === 2) return [s1, ...rest, `${s4}ie (n)s`];
+      if (which !== 1) return [];
+      switch (variant) {
+        case 1:
+          return [`${s1}us -a -um`, ...rest, s4];
+        case 2:
+          return [`${s1}o -ae o`, ...rest, s4];
+        case 3:
+          return [`${s1}es -es -ia`, ...rest, s4];
+        case 4:
+          return [`${s1}i -ae -a`, ...rest, `${s4}ie (n)s`];
       }
-      break;
-    case 6:
-      // Distal/medial demonstrative (ille/iste/olle and ipse)
-      ox1 = `${stem1}e`;
-      ox2 = `${stem1}a`;
-      ox3 = variant === 1 ? `${stem1}ud` : `${stem1}um`;
-      break;
-    case 9:
-      if (variant === 8) {
-        return `${stem1}., abb.  PRON`;
-      }
-      if (variant === 9) {
-        return `${stem1}, undeclined  PRON`;
-      }
-      break;
-  }
-
-  if (ox1 && ox2 && ox3) {
-    return `${ox1}, ${ox2}, ${ox3}  PRON`;
-  }
-
-  // Fallback for declensions without specific form logic (1, 2, 5, etc.)
-  return `${stem1}  PRON`;
-}
-
-function formatVerb(
-  stem1: string,
-  stem2: string,
-  stem3: string,
-  stem4: string,
-  which: number,
-  variant: number,
-  kind: string,
-): string {
-  const parts: string[] = [];
-
-  // --- Deponent verbs: passive forms (table-driven) ---
-  if (kind === "DEP") {
-    const DEP_OX1: Record<number, string> = { 1: "or", 2: "eor", 3: "or" };
-    const DEP_INF: Record<string, string> = { "1": "ari", "2": "eri", "3": "i", "3.4": "iri" };
-    parts.push(`${stem1}${DEP_OX1[which] ?? "or"}`);
-    parts.push(
-      `${stem2 || stem1}${DEP_INF[`${which}.${variant}`] ?? DEP_INF[String(which)] ?? "i"}`,
-    );
-    parts.push(hasStem(stem4) ? `${stem4}us sum` : "-");
-    return formatVerbResult(parts, which, variant, kind);
-  }
-
-  // --- Perfect definite ---
-  if (kind === "PERFDEF") {
-    if (hasStem(stem3)) {
-      parts.push(`${stem3}i`);
-      parts.push(`${stem3}isse`);
+      return [];
     }
-    if (hasStem(stem4)) parts.push(`${stem4}us`);
-    return formatVerbResult(parts, which, variant, kind);
-  }
-
-  // --- OX1: Present 1sg (table-driven) ---
-  if (kind === "IMPERS") {
-    const IMPERS_OX1: Record<number, string> = { 1: "at", 2: "et", 3: "it" };
-    if (which === 5 && variant === 1) parts.push(`${stem1}est`);
-    else parts.push(`${stem1}${IMPERS_OX1[which] ?? "t"}`);
-  } else {
-    const OX1: Record<string, string> = { "2": "eo", "5": "um", "7.2": "am" };
-    parts.push(`${stem1}${OX1[`${which}.${variant}`] ?? OX1[String(which)] ?? "o"}`);
-  }
-
-  // --- V 7,1 and 7,2 (defective aio/inquam): only OX1, rest are "-" ---
-  if (which === 7 && (variant === 1 || variant === 2)) {
-    parts.push("-", "-");
-    return formatVerbResult(parts, which, variant, kind);
-  }
-
-  // --- OX2: Infinitive (table-driven for common conjugations) ---
-  const infStem = stem2 || stem1;
-  const INF_ENDINGS: Record<string, string> = {
-    "1": "are",
-    "2": "ere",
-    "3": "ere",
-    "3.2": "re",
-    "3.4": "ire",
-    "5.2": "",
-    "6.1": "re",
-    "6.2": "le",
-    "7.3": "se",
-    "8.1": "are",
-    "8.4": "ire",
-    "8": "ere",
-  };
-  const infKey = `${which}.${variant}`;
-  if (which === 5 && variant === 1) {
-    parts.push(`${stem2}esse`);
-  } else if (which === 5 && variant === 2) {
-    parts.push(`${stem1}e`);
-  } else {
-    const ending = INF_ENDINGS[infKey] ?? INF_ENDINGS[String(which)] ?? "re";
-    parts.push(`${infStem}${ending}`);
-  }
-
-  // --- OX3 & OX4: Perfect and supine ---
-  if (kind === "IMPERS") {
-    if (hasStem(stem3)) parts.push(`${stem3}it`);
-    else if (hasStem(stem4)) parts.push("-");
-    if (hasStem(stem4)) parts.push(`${stem4}us est`);
-    else if (hasStem(stem3)) parts.push("-");
-  } else if (kind === "SEMIDEP") {
-    // Ada: only Ox(4) is set for SEMIDEP — stem3 (active perfect) is skipped
-    if (hasStem(stem4)) parts.push(`${stem4}us sum`);
-  } else if (which === 5 && variant === 1) {
-    // sum, esse: fui, futurus
-    if (hasStem(stem3)) parts.push(`${stem3}i`);
-    if (hasStem(stem4)) parts.push(`${stem4}urus`);
-  } else {
-    if (hasStem(stem3)) parts.push(`${stem3}i`);
-    else parts.push("-");
-    if (hasStem(stem4)) parts.push(`${stem4}us`);
-    else parts.push("-");
-  }
-
-  // Ada finalization: con (6,1) verbs (eo/ire class) append "(ii)" to perfect stem
-  if (which === 6 && variant === 1 && parts.length >= 3) {
-    const perf = parts[2];
-    if (perf && perf !== "-") {
-      parts[2] = `${perf}(ii)`;
+    case "CARD": {
+      if (which === 2) return [s1];
+      if (which !== 1) return [];
+      const endings = CARDINAL_ENDINGS[variant] ?? [];
+      return endings.map((e) => `${s1}${e}`);
     }
+    case "ORD":
+      return [`${s1}us`, `${s1}a`, `${s1}um`];
+    case "DIST":
+      return [`${s1}i`, `${s1}ae`, `${s1}a`];
+    default:
+      return [s1];
   }
-
-  return formatVerbResult(parts, which, variant, kind);
 }
 
-function formatVerbResult(parts: string[], which: number, variant: number, kind: string): string {
-  // Latin tradition: (3,4) = 4th conjugation (io-verbs)
-  const displayWhich = which === 3 && variant === 4 ? 4 : which;
-  const ord = ordinal(displayWhich);
-  const conjStr = ord ? ` (${ord})` : "";
-  const kindStr = kind && kind !== "X" ? ` ${kind}` : "";
-  return `${parts.join(", ")}  V${conjStr}${kindStr}`;
-}
-
-function formatAdjective(
-  stems: readonly [string, string, string, string],
-  which: number,
-  variant: number,
-  co: string,
-): string {
-  const [s1, s2, s3, s4] = stems;
-
-  // Comparative only
-  if (co === "COMP") return `${s1}or, ${s1}or, ${s1}us  ADJ`;
-  // Superlative only
-  if (co === "SUPER") return `${s1}mus, ${s1}ma, ${s1}mum  ADJ`;
-
-  // co = X (all forms): stem1+pos, stem2+shorthand, stem3+comp, stem4+super
-  if (co === "X" && (hasStem(s3) || hasStem(s4))) {
-    let ox1: string;
-    let ox2: string;
-    if (which === 1) {
-      ox1 = variant === 2 || variant === 4 ? `${s1}` : `${s1}us`;
-      ox2 = `${s2 || s1}a -um`;
-    } else if (which === 3) {
-      if (variant === 1) {
-        ox1 = s1;
-        ox2 = `${s2 || s1}is (gen.)`;
-      } else if (variant === 2) {
-        ox1 = `${s1}is`;
-        ox2 = `${s2 || s1}e`;
-      } else {
-        ox1 = s1;
-        ox2 = `${s2 || s1}is -e`;
-      }
-    } else {
-      ox1 = `${s1}us`;
-      ox2 = `${s2 || s1}a -um`;
-    }
-    const parts = [ox1, ox2];
-    parts.push(hasStem(s3) ? `${s3}or -or -us` : "-");
-    parts.push(hasStem(s4) ? `${s4}mus -a -um` : "-");
-    return `${parts.join(", ")}  ADJ`;
-  }
-
-  // co = POS (positive only)
-  if (which === 3) {
-    if (variant === 1) return `${s1}, (gen.), ${s2 || s1}is  ADJ`;
-    if (variant === 2) return `${s1}is, ${s2 || s1}is, ${s2 || s1}e  ADJ`;
-    if (variant === 3) return `${s1}, ${s2 || s1}is, ${s2 || s1}e  ADJ`;
-    if (variant === 6) return `${s1}, (gen.), ${s2 || s1}os  ADJ`;
-  }
-  // 1st/2nd declension positive
-  if (variant === 2 || variant === 4) return `${s1}, ${s2 || s1}a, ${s2 || s1}um  ADJ`;
-  if (variant === 3) return `${s1}us, ${s2 || s1}a, ${s2 || s1}um (gen -ius)  ADJ`;
-  return `${s1}us, ${s2 || s1}a, ${s2 || s1}um  ADJ`;
-}
+const CARDINAL_ENDINGS: Record<number, readonly string[]> = {
+  1: ["us", "a", "um"],
+  2: ["o", "ae", "o"],
+  3: ["es", "es", "ia"],
+  4: ["i", "ae", "a"],
+};

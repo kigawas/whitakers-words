@@ -52,7 +52,9 @@ const PART_ENTRY_WIDTH = 23;
 
 function parsePartEntry(s: string): PartEntry {
   const pofs = parsePofs(s.slice(0, POS_WIDTH));
-  const r = new FixedReader(s.slice(POS_WIDTH + 1));
+  // Ada's Get skips blanks before the fields, so a line with an extra one
+  // (diptot "N       2 2 N T") still reads as N 2 2.
+  const r = new FixedReader(s.slice(POS_WIDTH).trimStart());
 
   switch (pofs) {
     case "N": {

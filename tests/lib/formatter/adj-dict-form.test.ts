@@ -58,11 +58,6 @@ describe("dictionaryForm: adjective co=X (all comparison forms)", () => {
     expect(form).toContain("pulchra -um");
   });
 
-  it("which=1, var=4", () => {
-    const form = dictionaryForm(makeAdj(["miser", "miser", "miser", "miserrim"], 1, 4, "X"));
-    expect(form).toContain("miser");
-  });
-
   it("which=3, var=1", () => {
     const form = dictionaryForm(makeAdj(["acer", "acr", "acri", "acerrim"], 3, 1, "X"));
     expect(form).toContain("acer");
@@ -81,10 +76,8 @@ describe("dictionaryForm: adjective co=X (all comparison forms)", () => {
     expect(form).toContain("felicis -e");
   });
 
-  it("which not 1 or 3 (default path)", () => {
-    const form = dictionaryForm(makeAdj(["bon", "bon", "mel", "optim"], 2, 1, "X"));
-    expect(form).toContain("bonus");
-    expect(form).toContain("bona -um");
+  it("which not 1, 3 or 9: no form, as Ada's Not_Found", () => {
+    expect(dictionaryForm(makeAdj(["bon", "bon", "mel", "optim"], 2, 1, "X"))).toBe("");
   });
 });
 
@@ -129,19 +122,19 @@ describe("dictionaryForm: adjective co=POS (positive only)", () => {
     expect(form).toBe("bonus, bona, bonum  ADJ");
   });
 
-  it("which=3, var=5 (other 3rd decl falls through to default)", () => {
-    const form = dictionaryForm(makeAdj(["test", "test", "", ""], 3, 5, "POS"));
-    expect(form).toBe("testus, testa, testum  ADJ");
+  it("which=2 (Greek): -, stem+e, -", () => {
+    const form = dictionaryForm(makeAdj(["arctic", "arctic", "", ""], 2, 1, "POS"));
+    expect(form).toBe("-, arctice, -  ADJ");
   });
 
-  it("which=2 (non-3, falls through to 1st/2nd logic)", () => {
-    const form = dictionaryForm(makeAdj(["bon", "bon", "", ""], 2, 1, "POS"));
-    expect(form).toBe("bonus, bona, bonum  ADJ");
+  it("variant=5: neuter -ud", () => {
+    const form = dictionaryForm(makeAdj(["ali", "ali", "", ""], 1, 5, "POS"));
+    expect(form).toBe("alius, alia, aliud  ADJ");
   });
 
-  it("POS with missing stem2 uses stem1 as fallback", () => {
-    const form = dictionaryForm(makeAdj(["bon", "", "", ""], 1, 1, "POS"));
-    expect(form).toBe("bonus, bona, bonum  ADJ");
+  it("undeclined", () => {
+    const form = dictionaryForm(makeAdj(["nequam", "", "", ""], 9, 9, "POS"));
+    expect(form).toBe("nequam, undeclined  ADJ");
   });
 });
 
@@ -158,29 +151,8 @@ describe("dictionaryForm: adjective co=X stem presence combos", () => {
     expect(form).toContain("optimus -a -um");
   });
 
-  it("co=X with missing stem2 uses stem1 as fallback", () => {
-    const form = dictionaryForm(makeAdj(["bon", "", "meli", "opti"], 1, 1, "X"));
-    expect(form).toContain("bona -um"); // stem2 || stem1 → "bon"
-  });
-
-  it("co=X which=3 var=1 with missing stem2", () => {
-    const form = dictionaryForm(makeAdj(["acer", "", "acri", "acerrim"], 3, 1, "X"));
-    expect(form).toContain("aceris (gen.)"); // stem2 || stem1
-  });
-
-  it("co=X which=3 var=2 with missing stem2", () => {
-    const form = dictionaryForm(makeAdj(["fort", "", "forti", "fortissim"], 3, 2, "X"));
-    expect(form).toContain("forte"); // stem2 || stem1
-  });
-
-  it("co=X which=3 var=3 (other branch)", () => {
-    const form = dictionaryForm(makeAdj(["felix", "", "felici", "felicissim"], 3, 3, "X"));
-    expect(form).toContain("felixis -e"); // stem2 || stem1 = "felix"
-  });
-
-  it("co=X which=2 (default branch, not 1 or 3)", () => {
-    const form = dictionaryForm(makeAdj(["bon", "", "meli", "opti"], 2, 1, "X"));
-    expect(form).toContain("bonus");
-    expect(form).toContain("bona -um");
+  it("co=X with zzz positive stems prints - for both (ulterior, ultimus)", () => {
+    const form = dictionaryForm(makeAdj(["zzz", "zzz", "ulteri", "ulti"], 3, 1, "X"));
+    expect(form).toBe("-, -, ulterior -or -us, ultimus -a -um  ADJ");
   });
 });
