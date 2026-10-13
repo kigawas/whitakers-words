@@ -13,11 +13,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [20, 22, 24]
+        node: [20, 22, 24, 26]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
@@ -27,7 +27,7 @@ jobs:
       - run: pnpm check
       - run: pnpm run build && npm publish --dry-run
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         if: matrix.os == 'ubuntu-latest' && matrix.node == 24
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -58,9 +58,9 @@ jobs:
   check-runtimes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
