@@ -834,6 +834,71 @@ describe("ada-compat: packon and tackon readings together", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Ada's Enclitic tries -que on a word that already parses, and analyses what
+// is left as a whole word, packons included.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: -que on a word that already parses", () => {
+  const QUE = "que                  TACKON";
+  const AND = "-que = and (enclitic, translated before attached word); completes plerus/uter;";
+
+  it("atque, namque: -que and the conjunction before it (expected:6515, 32515)", () => {
+    expect(block("atque", QUE, 5)).toEqual([
+      QUE,
+      AND,
+      "at                   CONJ",
+      "at  CONJ   [XXXAO]",
+      "but, but on the other hand; on the contrary; while, whereas; but yet; at least;",
+    ]);
+    expect(block("namque", QUE, 5)).toEqual([
+      QUE,
+      AND,
+      "nam                  CONJ",
+      "nam  CONJ   [XXXAX]",
+      "for, on the other hand; for instance;",
+    ]);
+  });
+
+  it("neque: -que and the readings of ne (expected:8499)", () => {
+    const afterQue = block("neque", QUE, 13);
+    for (const line of [
+      "n.e                  V      2 1 PRES ACTIVE  IMP 2 S",
+      "neo, nere, nevi, netus  V (2nd)   [XXXDX]    lesser",
+      "ne  ADV   [XXXAX]",
+      "ne  CONJ   [XXXAX]",
+    ]) {
+      expect(afterQue).toContainEqual(line);
+    }
+  });
+
+  it("sine: no -ne, though si parses (expected:28116)", () => {
+    expect(outputLines("sine")).not.toContainEqual(expect.stringMatching(/^ne +TACKON/));
+  });
+
+  // Ada's Word tries the other tackons only when nothing, packons included,
+  // has parsed (words_engine-word_package.adb:1862).
+  it("quocum: a packon hit is a parse, so no cum tackon (PRON 5 0) as well", () => {
+    expect(outputLines("quocum")).not.toContainEqual(
+      expect.stringContaining("TACKON with (enclitic with PRON 5 0)"),
+    );
+  });
+
+  it("quocumque: -que and the cum packon on quocum (expected:32218)", () => {
+    expect(block("quocumque", "que                  TACKON", 9)).toEqual([
+      "que                  TACKON",
+      "-que = and (enclitic, translated before attached word); completes plerus/uter;",
+      "cum                  TACKON",
+      "PACKON w/qui pron with ABL => with what, with whom;",
+      "qu.o                 PRON   1 0 ABL S M",
+      "qu.o                 PRON   1 0 ABL S N",
+      "qu  PACK   [XXXAX]",
+      "(w/-cumque) who/whatever, no matter who/what, in any time/way, however small;",
+      "(w/-cum) only ABL with whom?, with which?;",
+    ]);
+  });
+});
+
 describe("ada-compat: continuation meanings", () => {
   it("potior: the COMP adjective with its three meanings, apart from the verb", () => {
     expect(block("potior", "poti.or              ADJ", 6)).toEqual([

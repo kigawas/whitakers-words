@@ -9,7 +9,7 @@ import type { DictionaryEntry } from "../types/dictionary.js";
 import type { InflectionRecord } from "../types/inflections.js";
 import {
   type AddonResult,
-  tryPackons,
+  quPackons,
   tryPrefixes,
   trySuffixes,
   tryTackons,
@@ -74,6 +74,7 @@ export class WordsEngine {
   readonly #englishIndex: EnglishIndex;
   // Pre-computed combined addon arrays (avoid re-spreading on every parseWord call)
   readonly #allTackons: AddonsData["tackons"];
+  readonly #que: AddonsData["tackons"];
   readonly #allPackons: AddonsData["packons"];
   readonly #allPrefixes: AddonsData["prefixes"];
   readonly #suffixTrie: SuffixTrieNode;
@@ -96,6 +97,7 @@ export class WordsEngine {
     this.#uniquesByFirstChar = buildUniquesIndex(uniques);
     this.#englishIndex = englishIndex;
     this.#allTackons = addons.tackons;
+    this.#que = addons.tackons.filter((t) => t.word === "que");
     this.#allPackons = addons.packons;
     this.#allPrefixes = [...addons.prefixes, ...addons.tickons];
     this.#suffixTrie = buildSuffixTrie(addons.suffixes);
@@ -165,32 +167,30 @@ export class WordsEngine {
     const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex);
     const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex);
 
-    // 5. Packons: Ada reads a qu-/cu- word as a qu- pronoun plus packon
-    // ("quidam" = qui + dam) whenever it is not a plain qu- pronoun, alongside
-    // any other readings ("quiddam" is also an indeclinable noun).
-    const addonResults: AddonResult[] = [];
-    const isQuPronoun = (r: ParseResult) =>
-      r.de.part.pofs === "PRON" && r.de.part.pron.decl.which === 1;
-    if (/^(qu|cu)/.test(lowerWord) && !results.some(isQuPronoun)) {
-      addonResults.push(
-        ...tryPackons(lowerWord, this.#allPackons, this.#inflIndex, this.#dictIndex),
-      );
-    }
+    // 5. Packons ("quidam" = qui + dam).
+    const addonResults: AddonResult[] = quPackons(
+      lowerWord,
+      results,
+      this.#allPackons,
+      this.#inflIndex,
+      this.#dictIndex,
+    );
 
-    // 5a. Try tackons (enclitics like -que, -ne, -ve) when no direct results found,
-    // packon hits or not: "quibusque" is both "each" (packon) and "and" (tackon).
-    // Ada tries tackons BEFORE tricks.
+    // 5a. Try tackons (enclitics like -que, -ne, -ve). As in Ada's Enclitic, a
+    // word that already parses, packons included, still gets -que, but no other
+    // tackon: "atque" is also at + -que, "quibusque" both "each" (packon) and
+    // "and" (tackon). Ada tries tackons BEFORE tricks.
     const noResults = () =>
       results.length === 0 &&
       uniqueResults.length === 0 &&
       trickResults.length === 0 &&
       addonResults.length === 0;
 
-    if (results.length === 0 && uniqueResults.length === 0) {
-      addonResults.push(
-        ...tryTackons(lowerWord, this.#allTackons, this.#inflIndex, this.#dictIndex),
-      );
-    }
+    const parsed = results.length > 0 || uniqueResults.length > 0 || addonResults.length > 0;
+    const tackons = parsed ? this.#que : this.#allTackons;
+    addonResults.push(
+      ...tryTackons(lowerWord, tackons, this.#allPackons, this.#inflIndex, this.#dictIndex),
+    );
 
     // 6. If no results, try tricks (spelling variations)
     let trickAnnotations: string[] = [];

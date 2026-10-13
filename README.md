@@ -216,7 +216,7 @@ The analysis pipeline mirrors Whitaker's original Ada implementation:
 4. **Verify** part-of-speech compatibility, declension/conjugation match, and stem key match
 5. **Deduplicate** and rank by dictionary frequency
 6. If no matches, try **spelling tricks** (ae/e interchange, ph/f, medieval Latin variants, etc.)
-7. If still no matches, try **addon stripping** (enclitics like *-que*, *-ne*, *-ve*; prefixes; suffixes)
+7. If still no matches, try **addon stripping** (enclitics like *-que*, *-ne*, *-ve*; prefixes; suffixes). A word that does match is still tried with *-que*, as in Ada: *atque* is also *at* + *-que*
 
 Dictionary stems and inflection endings use indexed lookup structures for fast retrieval. Latin u/v and i/j equivalence is handled throughout.
 

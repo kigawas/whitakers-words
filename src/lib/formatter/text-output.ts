@@ -170,18 +170,22 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   }
 
   // Addon results
-  if (analysis.addonResults) {
-    for (const ar of analysis.addonResults) {
-      const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
-      lines.push(`${addonName.padEnd(STEM_DOT_WIDTH)}${ar.type.toUpperCase()}`);
-      lines.push(truncateMeaning(ar.addon.mean));
-      for (const block of mergeByMeaning(groupAndMerge(ar.baseResults))) {
-        lines.push(...block);
-      }
-    }
-  }
+  for (const ar of analysis.addonResults ?? []) pushAddon(lines, ar);
 
   return lines.join("\n");
+}
+
+/** An addon line and its meaning, then the base's packons and readings. */
+function pushAddon(lines: string[], ar: AddonResult): void {
+  const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
+  lines.push(`${addonName.padEnd(STEM_DOT_WIDTH)}${ar.type.toUpperCase()}`);
+  lines.push(truncateMeaning(ar.addon.mean));
+  if (ar.type === "tackon") {
+    for (const packon of ar.basePackons ?? []) pushAddon(lines, packon);
+  }
+  for (const block of mergeByMeaning(groupAndMerge(ar.baseResults))) {
+    lines.push(...block);
+  }
 }
 
 export interface MergedGroup {

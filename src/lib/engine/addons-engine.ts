@@ -20,6 +20,8 @@ export type AddonResult =
       readonly type: "tackon";
       readonly addon: TackonItem;
       readonly baseResults: readonly ParseResult[];
+      /** Packon readings of the base: "quocumque" = quo + cum + -que. */
+      readonly basePackons?: readonly AddonResult[];
     }
   | {
       readonly type: "prefix";
@@ -40,6 +42,24 @@ function subtractTackon(word: string, tack: string): string | undefined {
   if (word.length <= tack.length) return undefined;
   const base = word.slice(0, word.length - tack.length);
   return equStr(word.slice(base.length), tack) ? base : undefined;
+}
+
+/**
+ * Packon readings of a word: Ada reads a qu-/cu- word as a qu- pronoun plus
+ * packon ("quidam" = qui + dam) whenever it is not a plain qu- pronoun,
+ * alongside any other readings ("quiddam" is also an indeclinable noun).
+ */
+export function quPackons(
+  word: string,
+  results: readonly ParseResult[],
+  packons: readonly TackonItem[],
+  inflIndex: InflectionIndex,
+  dictIndex: DictionaryIndex,
+): AddonResult[] {
+  const isQuPronoun = (r: ParseResult) =>
+    r.de.part.pofs === "PRON" && r.de.part.pron.decl.which === 1;
+  if (!/^(qu|cu)/.test(word) || results.some(isQuPronoun)) return [];
+  return tryPackons(word, packons, inflIndex, dictIndex);
 }
 
 /**
@@ -87,22 +107,25 @@ export function tryPackons(
 
 /**
  * Try stripping tackons (enclitics) from the end of a word.
- * E.g., "aquamque" → strip "que" → analyze "aquam"
+ * E.g., "aquamque" → strip "que" → analyze "aquam". As in Ada, the base is
+ * read as a whole word, packons included: "quocumque" → quo + cum + -que.
  */
 export function tryTackons(
   word: string,
   tackons: readonly TackonItem[],
+  packons: readonly TackonItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
 ): AddonResult[] {
   const results: AddonResult[] = [];
   // Cache base-word analysis results to avoid redundant work.
-  const baseCache = new Map<string, ParseResult[]>();
+  const baseCache = new Map<string, { parses: ParseResult[]; basePackons: AddonResult[] }>();
 
-  function getBase(base: string): ParseResult[] {
+  function getBase(base: string) {
     let r = baseCache.get(base);
     if (r === undefined) {
-      r = analyzeWord(base, inflIndex, dictIndex);
+      const parses = analyzeWord(base, inflIndex, dictIndex);
+      r = { parses, basePackons: quPackons(base, parses, packons, inflIndex, dictIndex) };
       baseCache.set(base, r);
     }
     return r;
@@ -112,13 +135,19 @@ export function tryTackons(
   for (const tackon of tackons) {
     const base = subtractTackon(word, tackon.word.toLowerCase());
     if (base !== undefined) {
-      let baseResults = getBase(base);
+      const { parses, basePackons } = getBase(base);
       // Filter by tackon's base POS when it's not X (any)
-      if (tackon.base.pofs !== "X") {
-        baseResults = baseResults.filter((r) => r.ir.qual.pofs === tackon.base.pofs);
-      }
-      if (baseResults.length > 0) {
-        results.push({ type: "tackon", addon: tackon, baseResults: listSweep(baseResults) });
+      const baseResults =
+        tackon.base.pofs === "X"
+          ? parses
+          : parses.filter((r) => r.ir.qual.pofs === tackon.base.pofs);
+      if (baseResults.length > 0 || basePackons.length > 0) {
+        results.push({
+          type: "tackon",
+          addon: tackon,
+          baseResults: listSweep(baseResults),
+          basePackons,
+        });
       }
     }
   }
@@ -265,7 +294,7 @@ export function tryAddons(
 
   // Packons and tackons (enclitics) — most common, try first
   results.push(...tryPackons(word, addons.packons, inflIndex, dictIndex));
-  results.push(...tryTackons(word, addons.tackons, inflIndex, dictIndex));
+  results.push(...tryTackons(word, addons.tackons, addons.packons, inflIndex, dictIndex));
 
   // Prefixes (including tickons)
   results.push(...tryPrefixes(word, [...addons.prefixes, ...addons.tickons], inflIndex, dictIndex));
