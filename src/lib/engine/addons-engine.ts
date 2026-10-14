@@ -1,5 +1,6 @@
 import { equStr } from "../support/latin-string.js";
 import type { AddonsData, PrefixItem, SuffixItem, TackonItem } from "../types/addons.js";
+import type { QualityRecord } from "../types/inflections.js";
 import { matchesDecn } from "../types/matching.js";
 import type { DictionaryIndex } from "./dictionary-index.js";
 import { lookupStems } from "./dictionary-index.js";
@@ -105,6 +106,24 @@ export function tryPackons(
   return results;
 }
 
+/** The tackons Ada tries in its Enclitic, which takes any base reading. */
+const ENCLITICS: ReadonlySet<string> = new Set(["que", "ne", "ve", "est"]);
+
+/**
+ * Whether a base reading fits the tackon, as Ada's Try_Tackons sweeps them
+ * (words_engine-word_package.adb:1645): a base of X takes anything, N and PRON
+ * must match the declension too, and ADJ (-cumque) only the part of speech.
+ */
+function fitsTackonBase(qual: QualityRecord, tackon: TackonItem): boolean {
+  const base = tackon.base;
+  if (base.pofs === "X" || ENCLITICS.has(tackon.word)) return true;
+  if (qual.pofs === "N" && base.pofs === "N") return matchesDecn(qual.noun.decl, base.n.decl);
+  if (qual.pofs === "PRON" && base.pofs === "PRON") {
+    return matchesDecn(qual.pron.decl, base.pron.decl);
+  }
+  return qual.pofs === "ADJ" && base.pofs === "ADJ";
+}
+
 /**
  * Try stripping tackons (enclitics) from the end of a word.
  * E.g., "aquamque" → strip "que" → analyze "aquam". As in Ada, the base is
@@ -131,16 +150,13 @@ export function tryTackons(
     return r;
   }
 
-  // Regular tackons — filter base results by tackon's base POS when specified.
   for (const tackon of tackons) {
     const base = subtractTackon(word, tackon.word.toLowerCase());
     if (base !== undefined) {
-      const { parses, basePackons } = getBase(base);
-      // Filter by tackon's base POS when it's not X (any)
-      const baseResults =
-        tackon.base.pofs === "X"
-          ? parses
-          : parses.filter((r) => r.ir.qual.pofs === tackon.base.pofs);
+      const { parses, basePackons: packonsOfBase } = getBase(base);
+      const fits = (r: ParseResult) => fitsTackonBase(r.ir.qual, tackon);
+      const baseResults = parses.filter(fits);
+      const basePackons = packonsOfBase.filter((p) => p.baseResults.some(fits));
       if (baseResults.length > 0 || basePackons.length > 0) {
         results.push({
           type: "tackon",

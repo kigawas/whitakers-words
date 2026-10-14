@@ -897,6 +897,55 @@ describe("ada-compat: -que on a word that already parses", () => {
       "(w/-cum) only ABL with whom?, with which?;",
     ]);
   });
+
+  // Ada's Try_Tackons keeps only base readings that fit the tackon's base
+  // (words_engine-word_package.adb:1645-1720). A qu- packon reading is PRON
+  // 1 x, which fits no tackon's base. Ada's lines here are from latin-words.com.
+  it("quivispte, quidamcumque: no tackon on a packon reading that does not fit", () => {
+    expect(outputLines("quivispte")).not.toContainEqual(expect.stringMatching(/^pte +TACKON/));
+    expect(outputLines("quidamcumque")).not.toContainEqual(
+      expect.stringMatching(/^cumque +TACKON/),
+    );
+  });
+
+  it("mepte, huiusmodi: only the tackon whose base declension fits", () => {
+    const tackons = (word: string) => outputLines(word).filter((l) => / TACKON$/.test(l));
+    // -pte has ADJ 1 0, PRON 4 0 and PRON 5 0 bases; me is PRON 5 1
+    expect(tackons("mepte")).toEqual(["pte                  TACKON"]);
+    expect(block("mepte", "pte                  TACKON", 3)).toEqual([
+      "pte                  TACKON",
+      "TACKON ! (emphatic particle w/personal PRON); (usually with ABL, mepte);",
+      "m.e                  PRON   5 1 ABL S C",
+    ]);
+    // -modi has PRON 3 1 (huius) and PRON 4 1 (eius) bases
+    expect(tackons("huiusmodi")).toEqual(["modi                 TACKON"]);
+    expect(block("huiusmodi", "modi                 TACKON", 3)).toEqual([
+      "modi                 TACKON",
+      "TACKON w/GEN of ~ kind, sort, nature; (w/hic); [huiusmodi => of this sort];",
+      "hu.ius               PRON   3 1 GEN S X",
+    ]);
+  });
+
+  it("meopte, materfamilias: an ADJ base takes any adjective, an N base its declension", () => {
+    expect(block("meopte", "pte                  TACKON", 3)).toEqual([
+      "pte                  TACKON",
+      "TACKON ! (emphatic particle w/personal ADJ); (usually with ABL, suapte);",
+      "me.o                 ADJ    1 1 DAT S M POS",
+    ]);
+    // -familias has an N 3 0 base; mater is N 3 1
+    expect(block("materfamilias", "familias             TACKON", 3)).toEqual([
+      "familias             TACKON",
+      "TACKON of the family/household; (archaic GEN); [pater~ => head of household];",
+      "mater                N      3 1 NOM S F",
+    ]);
+  });
+
+  // -est has a PRON 4 1 base, but Ada's Enclitic checks no base
+  it("idest: -est on every reading of id", () => {
+    const afterEst = block("idest", "est                  TACKON", 9);
+    expect(afterEst).toContainEqual("i.d                  PRON   4 1 NOM S N");
+    expect(afterEst).toContainEqual("id                   N      9 8 X   X M");
+  });
 });
 
 describe("ada-compat: continuation meanings", () => {
