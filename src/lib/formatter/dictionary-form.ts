@@ -21,7 +21,7 @@ export function dictionaryForm(de: DictionaryEntry): string {
   if (part.pofs === "PREP") return `${s1}  PREP  ${part.prep.obj}`;
   if (isBareStem(de)) return `${s1}  ${part.pofs}`;
   const parts = principalParts(de);
-  if (!parts) return part.pofs === "PRON" ? pronounHeadword(de) : "";
+  if (!parts) return part.pofs === "PRON" ? pronounHeadword(s1, part.pron.kind, de.mean) : "";
   return `${joinParts(parts)}  ${part.pofs}${formSuffix(part)}`.trim();
 }
 
@@ -52,11 +52,9 @@ const PRONOUN_HEADWORDS: readonly {
   { stem: NULL_STEM, kind: "REFLEX", form: "sui" },
 ];
 
-function pronounHeadword(de: DictionaryEntry): string {
-  if (de.part.pofs !== "PRON") return "";
-  const kind = de.part.pron.kind;
+function pronounHeadword(stem: string, kind: string, mean: string): string {
   const headword = PRONOUN_HEADWORDS.find(
-    (h) => h.stem === de.stems[0] && h.kind === kind && (!h.mean || de.mean.startsWith(h.mean)),
+    (h) => h.stem === stem && h.kind === kind && (!h.mean || mean.startsWith(h.mean)),
   );
   return headword ? `${headword.form}  PRON` : "";
 }
@@ -127,13 +125,11 @@ function formSuffix(part: PartEntry): string {
   if (part.pofs !== "N") return "";
   const { which, var: variant } = part.n.decl;
   const decl = which >= 1 && which <= 5 && variant >= 1 && variant <= 5;
-  return `${decl ? ` (${ordinal(which)})` : ""} ${part.n.gender}`;
+  return `${decl ? ` (${ORDINALS[which]})` : ""} ${part.n.gender}`;
 }
 
+/** Ada's Fst, for a declension or conjugation known to be 1 to 5. */
 const ORDINALS: Record<number, string> = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th" };
-function ordinal(which: number): string {
-  return ORDINALS[which] ?? "";
-}
 
 function nounParts([s1, s2]: DictionaryEntry["stems"], n: NounEntry): Parts | undefined {
   const { which, var: variant } = n.decl;
@@ -404,8 +400,8 @@ const SHOWN_VERB_KINDS: ReadonlySet<string> = new Set([
 /** " (2nd) IMPERS": the conjugation for var 1 (3 4 is the 4th), then the kind. */
 function verbSuffix({ con: { which, var: variant }, kind }: VerbEntry): string {
   let suffix = "";
-  if (which >= 1 && which <= 3 && variant === 1) suffix = ` (${ordinal(which)})`;
-  else if (which === 3 && variant === 4) suffix = ` (${ordinal(4)})`;
+  if (which >= 1 && which <= 3 && variant === 1) suffix = ` (${ORDINALS[which]})`;
+  else if (which === 3 && variant === 4) suffix = ` (${ORDINALS[4]})`;
   return SHOWN_VERB_KINDS.has(kind) ? `${suffix} ${kind}` : suffix;
 }
 

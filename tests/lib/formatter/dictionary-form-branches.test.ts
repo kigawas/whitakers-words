@@ -67,6 +67,44 @@ function adj(
   };
 }
 
+function pron(s: [string, string, string, string], w: number, v: number): DictionaryEntry {
+  return {
+    stems: s,
+    part: { pofs: "PRON" as const, pron: { decl: { which: w as 1, var: v as 1 }, kind: "DEMONS" } },
+    tran: {
+      age: "X" as const,
+      area: "X" as const,
+      geo: "X" as const,
+      freq: "X" as const,
+      source: "X" as const,
+    },
+    mean: "test",
+  };
+}
+
+function num(
+  s: [string, string, string, string],
+  w: number,
+  v: number,
+  sort: string,
+): DictionaryEntry {
+  return {
+    stems: s,
+    part: {
+      pofs: "NUM" as const,
+      num: { decl: { which: w as 1, var: v as 1 }, sort: sort as "X", value: 0 },
+    },
+    tran: {
+      age: "X" as const,
+      area: "X" as const,
+      geo: "X" as const,
+      freq: "X" as const,
+      source: "X" as const,
+    },
+    mean: "test",
+  };
+}
+
 // ===========================================================================
 // ADV co=X: stems 1-3, a blank one left out
 // ===========================================================================
@@ -477,5 +515,168 @@ describe("dictionaryForm: ADJ POS which=3 all variants", () => {
     expect(dictionaryForm(adj(["bon", "bon", "", ""], 1, 1, "POS"))).toBe(
       "bonus, bona, bonum  ADJ",
     );
+  });
+});
+
+// ===========================================================================
+// Ada's remaining branches. A variant Ada has no case for sets no part, so
+// only the part of speech prints; a declension it has no case for raises
+// Not_Found, which prints nothing.
+// ===========================================================================
+describe("dictionaryForm: Greek and abbreviated adjectives", () => {
+  it("ADJ 2 2, 2 3, 2 6, 2 7, 2 8: Greek forms, - for a missing one", () => {
+    expect(dictionaryForm(adj(["agi", "agi", "", ""], 2, 2, "POS"))).toBe("-, a, -  ADJ");
+    expect(dictionaryForm(adj(["aeroid", "aeroid", "", ""], 2, 3, "POS"))).toBe(
+      "aeroides, aeroides, aeroides  ADJ",
+    );
+    expect(dictionaryForm(adj(["acanthic", "acanthic", "", ""], 2, 6, "POS"))).toBe(
+      "acanthicos, acanthicos, -  ADJ",
+    );
+    expect(dictionaryForm(adj(["agi", "agi", "", ""], 2, 7, "POS"))).toBe("agios, -, -  ADJ");
+    expect(dictionaryForm(adj(["acanthic", "acanthic", "", ""], 2, 8, "POS"))).toBe(
+      "-, -, acanthicon  ADJ",
+    );
+  });
+
+  it("ADJ 9 8: the abbreviation, from its one stem", () => {
+    expect(dictionaryForm(adj(["Apr", "", "", ""], 9, 8, "POS"))).toBe("Apr., abb.  ADJ");
+  });
+
+  it("ADJ POS: a variant of 2 or 3 with no case prints ADJ, another declension nothing", () => {
+    expect(dictionaryForm(adj(["x", "x", "", ""], 2, 4, "POS"))).toBe("ADJ");
+    expect(dictionaryForm(adj(["x", "x", "", ""], 3, 4, "POS"))).toBe("ADJ");
+    expect(dictionaryForm(adj(["x", "x", "", ""], 1, 6, "POS"))).toBe("");
+    expect(dictionaryForm(adj(["x", "x", "", ""], 4, 1, "POS"))).toBe("");
+  });
+
+  it("ADJ X 9: undeclined, then the comparative and superlative", () => {
+    expect(dictionaryForm(adj(["nequam", "", "nequi", "nequissi"], 9, 9, "X"))).toBe(
+      "nequam, undeclined, nequior -or -us, nequissimus -a -um  ADJ",
+    );
+  });
+
+  it("ADJ X: a variant of 1 or 3 with no case prints ADJ, another declension nothing", () => {
+    expect(dictionaryForm(adj(["x", "x", "x", "x"], 1, 3, "X"))).toBe("ADJ");
+    expect(dictionaryForm(adj(["x", "x", "x", "x"], 3, 4, "X"))).toBe("ADJ");
+    expect(dictionaryForm(adj(["x", "x", "x", "x"], 2, 1, "X"))).toBe("");
+  });
+});
+
+describe("dictionaryForm: noun and adverb variants with no case", () => {
+  it("N 1, 2 or 4 with no endings for the variant: only the part and gender", () => {
+    expect(dictionaryForm(noun("aqu", "aqu", 1, 3, "F"))).toBe("N (1st) F");
+  });
+
+  it("N 9 other than 8 and 9: no form and no declension", () => {
+    expect(dictionaryForm(noun("fas", "fas", 9, 1, "N"))).toBe("N N");
+  });
+
+  it("ADV not X: stem 1 only, whatever the other stems", () => {
+    const de: DictionaryEntry = {
+      stems: ["bene", "melius", "", ""],
+      part: { pofs: "ADV", adv: { co: "POS" } },
+      tran: { age: "X", area: "X", geo: "X", freq: "X", source: "X" },
+      mean: "well",
+    };
+    expect(dictionaryForm(de)).toBe("bene  ADV");
+  });
+});
+
+describe("dictionaryForm: demonstrative pronoun variants", () => {
+  it("PRON 3: var 2 ends in -uc, another variant has no neuter", () => {
+    expect(dictionaryForm(pron(["h", "h", "", ""], 3, 2))).toBe("hic, haec, huc  PRON");
+    expect(dictionaryForm(pron(["h", "h", "", ""], 3, 3))).toBe("hic, haec  PRON");
+  });
+
+  it("PRON 4 other than 1 and 2: PRON alone", () => {
+    expect(dictionaryForm(pron(["i", "e", "", ""], 4, 3))).toBe("PRON");
+  });
+
+  it("PRON 6: var 2 ends in -um, another variant has no neuter", () => {
+    expect(dictionaryForm(pron(["ips", "ips", "", ""], 6, 2))).toBe("ipse, ipsa, ipsum  PRON");
+    expect(dictionaryForm(pron(["ill", "ill", "", ""], 6, 3))).toBe("ille, illa  PRON");
+  });
+
+  it("PRON 9: abbreviated, undeclined, or PRON alone", () => {
+    expect(dictionaryForm(pron(["q", "q", "", ""], 9, 8))).toBe("q., abb.  PRON");
+    expect(dictionaryForm(pron(["x", "y", "", ""], 9, 9))).toBe("x, undeclined  PRON");
+    expect(dictionaryForm(pron(["x", "y", "", ""], 9, 1))).toBe("PRON");
+  });
+});
+
+describe("dictionaryForm: verb branches", () => {
+  it("V 9 9: undeclined, from its one stem", () => {
+    expect(dictionaryForm(verb(["cumi", "", "", ""], 9, 9, "X"))).toBe("cumi, undeclined  V");
+    expect(dictionaryForm(verb(["effatha", "", "", ""], 9, 9, "TRANS"))).toBe(
+      "effatha, undeclined  V TRANS",
+    );
+  });
+
+  it("V 9 other than 8 and 9: the present only", () => {
+    expect(dictionaryForm(verb(["x", "x", "", ""], 9, 1, "X"))).toBe("xo  V");
+  });
+
+  it("V 4, and 5 or 6 other than var 1 and 2: no infinitive", () => {
+    expect(dictionaryForm(verb(["x", "x", "xu", "xt"], 4, 1, "X"))).toBe("xo, xui, xtus  V");
+    expect(dictionaryForm(verb(["x", "y", "z", "w"], 5, 3, "X"))).toBe("xum, zi, wus  V");
+    expect(dictionaryForm(verb(["x", "y", "z", "w"], 6, 3, "X"))).toBe("xo, zi, wus  V");
+  });
+
+  it("IMPERS with zzz stems 1 and 2: the perfect only (collibuit)", () => {
+    expect(dictionaryForm(verb(["zzz", "zzz", "collibu", "collibit"], 2, 1, "IMPERS"))).toBe(
+      "collibuit, collibuisse, collibitus est  V (2nd) IMPERS",
+    );
+  });
+
+  // Ada's Add_Up gives the next part its comma even when no part 1 was set
+  it("IMPERS with no present rule: the form starts with a comma, as Ada's", () => {
+    expect(dictionaryForm(verb(["x", "y", "z", "w"], 5, 2, "IMPERS"))).toBe(
+      ", xe, zit, wus est  V IMPERS",
+    );
+    expect(dictionaryForm(verb(["x", "y", "z", "w"], 7, 3, "IMPERS"))).toBe(
+      ", yse, zit, wus est  V IMPERS",
+    );
+    expect(dictionaryForm(verb(["x", "y", "z", "w"], 4, 1, "IMPERS"))).toBe(
+      ", zit, wus est  V IMPERS",
+    );
+  });
+
+  it("V 6 1: part 3 gets (ii), even where it is otherwise blank", () => {
+    expect(dictionaryForm(verb(["x", "y", "z", "w"], 6, 1, "IMPERS"))).toBe(
+      ", yre, zit(ii), wus est  V IMPERS",
+    );
+    expect(dictionaryForm(verb(["x", "y", "z", "w"], 6, 1, "SEMIDEP"))).toBe(
+      "xo, yre, (ii), wus sum  V SEMIDEP",
+    );
+  });
+});
+
+describe("dictionaryForm: numeral branches", () => {
+  it("NUM 1 4 X: -i -ae -a and the -ie(n)s adverb (ducenti)", () => {
+    expect(dictionaryForm(num(["ducent", "ducentesim", "ducen", "ducent"], 1, 4, "X"))).toBe(
+      "ducenti -ae -a, ducentesimus -a -um, duceni -ae -a, ducentie (n)s  NUM",
+    );
+  });
+
+  it("NUM X: a variant or declension with no case prints NUM alone", () => {
+    expect(dictionaryForm(num(["x", "x", "x", "x"], 1, 5, "X"))).toBe("NUM");
+    expect(dictionaryForm(num(["x", "x", "x", "x"], 3, 1, "X"))).toBe("NUM");
+  });
+
+  it("CARD, ORD, DIST with a second stem decline stem 1", () => {
+    expect(dictionaryForm(num(["un", "x", "", ""], 1, 1, "CARD"))).toBe("unus, una, unum  NUM");
+    expect(dictionaryForm(num(["x", "x", "", ""], 1, 5, "CARD"))).toBe("NUM");
+    expect(dictionaryForm(num(["mille", "x", "", ""], 2, 0, "CARD"))).toBe("mille  NUM");
+    expect(dictionaryForm(num(["x", "x", "", ""], 3, 1, "CARD"))).toBe("NUM");
+    expect(dictionaryForm(num(["terti", "x", "", ""], 1, 3, "ORD"))).toBe(
+      "tertius, tertia, tertium  NUM",
+    );
+    expect(dictionaryForm(num(["tern", "x", "", ""], 1, 3, "DIST"))).toBe(
+      "terni, ternae, terna  NUM",
+    );
+  });
+
+  it("ADVERB with a second stem: stem 1 alone", () => {
+    expect(dictionaryForm(num(["ter", "x", "", ""], 1, 3, "ADVERB"))).toBe("ter  NUM");
   });
 });
