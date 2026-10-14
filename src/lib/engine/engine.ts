@@ -30,7 +30,7 @@ import { buildSuffixTrie, type SuffixTrieNode } from "./suffix-trie.js";
 import { type SyncopeResult, trySyncope } from "./syncope.js";
 import { applyTricks, trickAnnotation } from "./tricks.js";
 import { type TwoWordResult, tryTwoWords } from "./two-words.js";
-import { analyzeWord, type ParseResult } from "./word-analysis.js";
+import { analyzeWord, isIdemReading, type ParseResult } from "./word-analysis.js";
 
 // ---------------------------------------------------------------------------
 // WordsEngine — top-level API
@@ -148,19 +148,9 @@ export class WordsEngine {
     // 3. Deduplicate and rank
     results = listSweep(results);
 
-    // 3a. Filter PRON 4 2 DEMONS (idem) from standalone results.
-    // This entry shares stems with PRON 4 1 (is/ea/id) and should only appear
-    // via the -dem tackon, not as a standalone parse of "i", "is", "eius", etc.
-    results = results.filter(
-      (r) =>
-        !(
-          r.ir.qual.pofs === "PRON" &&
-          r.de.part.pofs === "PRON" &&
-          r.de.part.pron.decl.which === 4 &&
-          r.de.part.pron.decl.var === 2 &&
-          r.de.part.pron.kind === "DEMONS"
-        ),
-    );
+    // 3a. idem (PRON 4 2 DEMONS) appears only via the -dem tackon, not as a
+    // standalone parse of "i", "is", "eius", etc.
+    results = results.filter((r) => !isIdemReading(r));
 
     // 4. Always try slury (prefix assimilation detection) and syncope.
     // Ada runs these alongside standard results (shown as additional info).

@@ -920,6 +920,16 @@ describe("ada-compat: -que on a word that already parses", () => {
     ]);
   });
 
+  // is reaches idem (PRON 4 2) only by a frequency-C ending, which Ada's
+  // List_Sweep trims; on its own, the port filters idem out (engine.ts)
+  it("isque: the base has no idem readings (expected:10286)", () => {
+    const lines = outputLines("isque");
+    expect(lines).toContainEqual("i.s                  PRON   4 1 NOM S M");
+    expect(lines).toContainEqual("i.s                  V      6 1 PRES ACTIVE  IND 2 S");
+    expect(lines).not.toContainEqual(expect.stringMatching(/PRON +4 2 /));
+    expect(lines).not.toContainEqual("idem, eadem, idem  PRON   [XXXAX]");
+  });
+
   // Ada's Try_Tackons keeps only base readings that fit the tackon's base
   // (words_engine-word_package.adb:1645-1720). A qu- packon reading is PRON
   // 1 x, which fits no tackon's base. Ada's lines here are from latin-words.com.
@@ -1030,6 +1040,17 @@ describe("ada-compat: a part field with an extra space", () => {
     expect(outputLines("militariis")).toContainEqual(
       "militarium, militarii  N (2nd) N   [FWXEM]    Medieval  uncommon",
     );
+  });
+
+  // DICTLINE.GEN:38666 has "N      2 2  N T": the extra blank is before the gender
+  it("verenda: an extra blank between fields (latin-words.com)", () => {
+    expect(block("verenda", "verend.a             N", 5)).toEqual([
+      "verend.a             N      2 2 NOM P N",
+      "verend.a             N      2 2 VOC P N",
+      "verend.a             N      2 2 ACC P N",
+      "verendum, verendi  N (2nd) N   [XBXEO]    uncommon",
+      "external sexual organs, private parts (pl.); [partes ~ae => private parts];",
+    ]);
   });
 });
 

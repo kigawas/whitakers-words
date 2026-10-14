@@ -1,16 +1,10 @@
 import type {
-  AdjectiveEntry,
-  AdverbEntry,
   DictionaryEntry,
   NounEntry,
   NumeralEntry,
   PartEntry,
-  PrepositionEntry,
-  PronounEntry,
-  PropackEntry,
   Stems,
   TranslationRecord,
-  VerbEntry,
 } from "../types/dictionary.js";
 import type {
   Age,
@@ -25,11 +19,9 @@ import type {
   NumeralValue,
   PronounKind,
   Source,
-  Variant,
   VerbKind,
-  Which,
 } from "../types/enums.js";
-import { FixedReader } from "./parse-utils.js";
+import { FixedReader, TokenReader } from "./parse-utils.js";
 import { parsePofs } from "./pofs-map.js";
 
 // ---------------------------------------------------------------------------
@@ -52,106 +44,35 @@ const PART_ENTRY_WIDTH = 23;
 
 function parsePartEntry(s: string): PartEntry {
   const pofs = parsePofs(s.slice(0, POS_WIDTH));
-  // Ada's Get skips blanks before the fields, so a line with an extra one
-  // (diptot "N       2 2 N T") still reads as N 2 2.
-  const r = new FixedReader(s.slice(POS_WIDTH).trimStart());
+  // Ada's Get skips blanks before each field, so extra ones shift nothing:
+  // diptot "N       2 2 N T", verend "N      2 2  N T".
+  const t = new TokenReader(s.slice(POS_WIDTH).trim().split(/\s+/));
 
   switch (pofs) {
     case "N": {
-      const which = r.field(1);
-      r.skip();
-      const variant = r.field(1);
-      r.skip();
-      const gender = r.field(1) as Gender;
-      r.skip();
-      const kind = r.field(1) as NounKind;
-      return {
-        pofs: "N",
-        n: {
-          decl: { which: +which as Which, var: +variant as Variant },
-          gender,
-          kind,
-        } satisfies NounEntry,
-      };
+      const decl = t.decn();
+      const gender = t.str() as Gender;
+      const kind = t.str() as NounKind;
+      return { pofs: "N", n: { decl, gender, kind } satisfies NounEntry };
     }
-    case "PRON": {
-      const which = r.field(1);
-      r.skip();
-      const variant = r.field(1);
-      r.skip();
-      const kind = r.rest() as PronounKind;
-      return {
-        pofs: "PRON",
-        pron: {
-          decl: { which: +which as Which, var: +variant as Variant },
-          kind,
-        } satisfies PronounEntry,
-      };
-    }
-    case "PACK": {
-      const which = r.field(1);
-      r.skip();
-      const variant = r.field(1);
-      r.skip();
-      const kind = r.rest() as PronounKind;
-      return {
-        pofs: "PACK",
-        pack: {
-          decl: { which: +which as Which, var: +variant as Variant },
-          kind,
-        } satisfies PropackEntry,
-      };
-    }
-    case "ADJ": {
-      const which = r.field(1);
-      r.skip();
-      const variant = r.field(1);
-      r.skip();
-      const co = r.rest() as Comparison;
-      return {
-        pofs: "ADJ",
-        adj: {
-          decl: { which: +which as Which, var: +variant as Variant },
-          co,
-        } satisfies AdjectiveEntry,
-      };
-    }
-    case "ADV": {
-      const co = r.rest() as Comparison;
-      return { pofs: "ADV", adv: { co } satisfies AdverbEntry };
-    }
-    case "V": {
-      const which = r.field(1);
-      r.skip();
-      const variant = r.field(1);
-      r.skip();
-      const kind = r.rest() as VerbKind;
-      return {
-        pofs: "V",
-        v: { con: { which: +which as Which, var: +variant as Variant }, kind } satisfies VerbEntry,
-      };
-    }
+    case "PRON":
+      return { pofs: "PRON", pron: { decl: t.decn(), kind: t.str() as PronounKind } };
+    case "PACK":
+      return { pofs: "PACK", pack: { decl: t.decn(), kind: t.str() as PronounKind } };
+    case "ADJ":
+      return { pofs: "ADJ", adj: { decl: t.decn(), co: t.str() as Comparison } };
+    case "ADV":
+      return { pofs: "ADV", adv: { co: t.str() as Comparison } };
+    case "V":
+      return { pofs: "V", v: { con: t.decn(), kind: t.str() as VerbKind } };
     case "NUM": {
-      const which = r.field(1);
-      r.skip();
-      const variant = r.field(1);
-      r.skip();
-      const sort = r.field(6) as NumeralSort;
-      r.skip();
-      const value = Number.parseInt(r.rest(), 10) as NumeralValue;
-      return {
-        pofs: "NUM",
-        num: {
-          decl: { which: +which as Which, var: +variant as Variant },
-          sort,
-          value: Number.isNaN(value) ? 0 : value,
-        } satisfies NumeralEntry,
-      };
+      const decl = t.decn();
+      const sort = t.str() as NumeralSort;
+      const value = t.int() as NumeralValue;
+      return { pofs: "NUM", num: { decl, sort, value } satisfies NumeralEntry };
     }
-    case "PREP": {
-      const obj = r.rest() as Case;
-      return { pofs: "PREP", prep: { obj } satisfies PrepositionEntry };
-    }
+    case "PREP":
+      return { pofs: "PREP", prep: { obj: t.str() as Case } };
     case "CONJ":
       return { pofs: "CONJ" };
     case "INTERJ":

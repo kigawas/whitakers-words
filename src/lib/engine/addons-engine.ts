@@ -10,7 +10,7 @@ import { listSweep } from "./list-sweep.js";
 import type { SuffixTrieNode } from "./suffix-trie.js";
 import { findMatchingSuffixes } from "./suffix-trie.js";
 import type { ParseResult } from "./word-analysis.js";
-import { analyzeWord, matchAndResolve, runInflections } from "./word-analysis.js";
+import { analyzeWord, isIdemReading, matchAndResolve, runInflections } from "./word-analysis.js";
 
 // ---------------------------------------------------------------------------
 // Addon stripping — try removing tackons, prefixes, suffixes from a word
@@ -166,7 +166,10 @@ export function tryTackons(
     const base = subtractTackon(word, tackon.word.toLowerCase());
     if (base !== undefined) {
       const analysis = getBase(base);
-      const fits = (r: ParseResult) => fitsTackonBase(r.ir.qual, tackon);
+      // As on its own, the base has no idem reading, except before -dem
+      const takesIdem = tackon.word === "dem";
+      const fits = (r: ParseResult) =>
+        fitsTackonBase(r.ir.qual, tackon) && (takesIdem || !isIdemReading(r));
       const baseResults = analysis.parses.filter(fits);
       const baseUniques = analysis.uniques.filter((u) => fitsTackonBase(u.qual, tackon));
       const basePackons = analysis.packons.filter((p) => p.baseResults.some(fits));
