@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { tryAddons, tryPrefixes, trySuffixes } from "../../../src/lib/engine/addons-engine.js";
+import { tryPrefixes, trySuffixes } from "../../../src/lib/engine/addons-engine.js";
 import { buildDictionaryIndex } from "../../../src/lib/engine/dictionary-index.js";
 import { buildInflectionIndex } from "../../../src/lib/engine/inflection-index.js";
 import { buildSuffixTrie } from "../../../src/lib/engine/suffix-trie.js";
@@ -261,19 +261,6 @@ describe("trySuffixes", () => {
 
   it("returns empty for nonsense word", () => {
     const results = trySuffixes("xz", suffixTrie, inflIndex, dictIndex);
-    expect(results).toHaveLength(0);
-  });
-});
-
-describe("tryAddons", () => {
-  it("tries all addon types on unknown word", () => {
-    const results = tryAddons("aquamque", addonsData, suffixTrie, inflIndex, dictIndex);
-    expect(results.length).toBeGreaterThan(0);
-    expect(results.some((r) => r.type === "tackon")).toBe(true);
-  });
-
-  it("returns empty for a word with no addon matches", () => {
-    const results = tryAddons("xyzzy", addonsData, suffixTrie, inflIndex, dictIndex);
     expect(results).toHaveLength(0);
   });
 });

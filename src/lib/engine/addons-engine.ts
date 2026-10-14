@@ -1,6 +1,6 @@
 import type { UniqueEntry } from "../parsers/uniques.js";
 import { equStr } from "../support/latin-string.js";
-import type { AddonsData, PrefixItem, SuffixItem, TackonItem } from "../types/addons.js";
+import type { PrefixItem, SuffixItem, TackonItem } from "../types/addons.js";
 import type { QualityRecord } from "../types/inflections.js";
 import { matchesDecn } from "../types/matching.js";
 import type { DictionaryIndex } from "./dictionary-index.js";
@@ -17,16 +17,22 @@ import { analyzeWord, isIdemReading, matchAndResolve, runInflections } from "./w
 // that didn't parse directly, then re-analyze the remainder.
 // ---------------------------------------------------------------------------
 
+/** A tackon or packon reading: the addon, then the readings of its base. */
+export interface TackonResult {
+  readonly type: "tackon";
+  readonly addon: TackonItem;
+  readonly baseResults: readonly ParseResult[];
+  /** Unique readings of the base: "cetteque" = cette + -que. */
+  readonly baseUniques?: readonly UniqueEntry[];
+  /**
+   * Packon and tackon readings of the base: "quocumque" = quo + cum + -que,
+   * "huiusmodique" = huius + modi + -que.
+   */
+  readonly baseAddons?: readonly TackonResult[];
+}
+
 export type AddonResult =
-  | {
-      readonly type: "tackon";
-      readonly addon: TackonItem;
-      readonly baseResults: readonly ParseResult[];
-      /** Unique readings of the base: "cetteque" = cette + -que. */
-      readonly baseUniques?: readonly UniqueEntry[];
-      /** Packon readings of the base: "quocumque" = quo + cum + -que. */
-      readonly basePackons?: readonly AddonResult[];
-    }
+  | TackonResult
   | {
       readonly type: "prefix";
       readonly addon: PrefixItem;
@@ -59,7 +65,7 @@ export function quPackons(
   packons: readonly TackonItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
-): AddonResult[] {
+): TackonResult[] {
   const isQuPronoun = (r: ParseResult) =>
     r.de.part.pofs === "PRON" && r.de.part.pron.decl.which === 1;
   if (!/^(qu|cu)/.test(word) || results.some(isQuPronoun)) return [];
@@ -77,8 +83,8 @@ export function tryPackons(
   packons: readonly TackonItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
-): AddonResult[] {
-  const results: AddonResult[] = [];
+): TackonResult[] {
+  const results: TackonResult[] = [];
   for (const packon of packons) {
     const tack = packon.word.toLowerCase();
     let base = subtractTackon(word, tack);
@@ -109,8 +115,25 @@ export function tryPackons(
   return results;
 }
 
-/** The tackons Ada tries in its Enclitic, which takes any base reading. */
-const ENCLITICS: ReadonlySet<string> = new Set(["que", "ne", "ve", "est"]);
+/**
+ * A word as Ada's Word reads it (words_engine-word_package.adb), which is how
+ * a tackon's base is read too: its dictionary readings, uniques and packons,
+ * or when none of those parse, its tackon readings. Results are unswept, and
+ * still include idem.
+ */
+export interface WordReading {
+  readonly results: readonly ParseResult[];
+  readonly uniques: readonly UniqueEntry[];
+  readonly addons: readonly TackonResult[];
+}
+
+/**
+ * The four tackons Ada tries in its Enclitic, after Word, on any base reading;
+ * Word itself tries the others, in Try_Tackons.
+ */
+export function isEnclitic(tackon: TackonItem): boolean {
+  return ["que", "ne", "ve", "est"].includes(tackon.word);
+}
 
 /**
  * Whether a base reading fits the tackon, as Ada's Try_Tackons sweeps them
@@ -119,7 +142,7 @@ const ENCLITICS: ReadonlySet<string> = new Set(["que", "ne", "ve", "est"]);
  */
 function fitsTackonBase(qual: QualityRecord, tackon: TackonItem): boolean {
   const base = tackon.base;
-  if (base.pofs === "X" || ENCLITICS.has(tackon.word)) return true;
+  if (base.pofs === "X" || isEnclitic(tackon)) return true;
   if (qual.pofs === "N" && base.pofs === "N") return matchesDecn(qual.noun.decl, base.n.decl);
   if (qual.pofs === "PRON" && base.pofs === "PRON") {
     return matchesDecn(qual.pron.decl, base.pron.decl);
@@ -128,60 +151,67 @@ function fitsTackonBase(qual: QualityRecord, tackon: TackonItem): boolean {
 }
 
 /**
- * Try stripping tackons (enclitics) from the end of a word.
- * E.g., "aquamque" → strip "que" → analyze "aquam". As in Ada, the base is
- * read as a whole word, uniques and packons included: "cetteque" → cette +
- * -que, "quocumque" → quo + cum + -que.
+ * A word's readings with its addons' readings spliced in and the addons gone,
+ * as Ada's Try_Tackons sweeps a base: an inner tackon's own line never has the
+ * part of speech the tackon wants, but the readings under it may.
+ */
+function sweep(reading: WordReading): WordReading {
+  const results = [...reading.results];
+  const uniques = [...reading.uniques];
+  for (const addon of reading.addons) {
+    const inner = sweep({
+      results: addon.baseResults,
+      uniques: addon.baseUniques ?? [],
+      addons: addon.baseAddons ?? [],
+    });
+    results.push(...inner.results);
+    uniques.push(...inner.uniques);
+  }
+  return { results, uniques, addons: [] };
+}
+
+/**
+ * Try stripping tackons from the end of a word: "aquamque" → aquam + -que.
+ * As in Ada, readWord reads the base as a whole word, so it may be a unique, a
+ * packon or a tackon reading itself: "cetteque" → cette + -que, "quocumque" →
+ * quo + cum + -que, "huiusmodique" → huius + modi + -que.
  */
 export function tryTackons(
   word: string,
   tackons: readonly TackonItem[],
-  packons: readonly TackonItem[],
-  inflIndex: InflectionIndex,
-  dictIndex: DictionaryIndex,
-  lookupUniques: (word: string) => readonly UniqueEntry[],
-): AddonResult[] {
-  const results: AddonResult[] = [];
-  // Cache base-word analysis results to avoid redundant work.
-  const baseCache = new Map<
-    string,
-    { parses: ParseResult[]; uniques: readonly UniqueEntry[]; packons: AddonResult[] }
-  >();
-
-  function getBase(base: string) {
-    let r = baseCache.get(base);
-    if (r === undefined) {
-      const parses = analyzeWord(base, inflIndex, dictIndex);
-      r = {
-        parses,
-        uniques: lookupUniques(base),
-        packons: quPackons(base, parses, packons, inflIndex, dictIndex),
-      };
-      baseCache.set(base, r);
-    }
-    return r;
-  }
+  readWord: (word: string) => WordReading,
+): TackonResult[] {
+  const results: TackonResult[] = [];
+  // Tackons with the same word (-pte, -modi) share a base
+  const bases = new Map<string, WordReading>();
 
   for (const tackon of tackons) {
     const base = subtractTackon(word, tackon.word.toLowerCase());
-    if (base !== undefined) {
-      const analysis = getBase(base);
-      // As on its own, the base has no idem reading, except before -dem
-      const takesIdem = tackon.word === "dem";
-      const fits = (r: ParseResult) =>
-        fitsTackonBase(r.ir.qual, tackon) && (takesIdem || !isIdemReading(r));
-      const baseResults = analysis.parses.filter(fits);
-      const baseUniques = analysis.uniques.filter((u) => fitsTackonBase(u.qual, tackon));
-      const basePackons = analysis.packons.filter((p) => p.baseResults.some(fits));
-      if (baseResults.length > 0 || baseUniques.length > 0 || basePackons.length > 0) {
-        results.push({
-          type: "tackon",
-          addon: tackon,
-          baseResults: listSweep(baseResults),
-          baseUniques,
-          basePackons,
-        });
-      }
+    if (base === undefined) continue;
+    let reading = bases.get(base);
+    if (reading === undefined) {
+      reading = readWord(base);
+      bases.set(base, reading);
+    }
+    // Ada's Enclitic keeps the base as Word reads it; Try_Tackons sweeps it
+    // ("huiuscemodi" = huius + modi, without -ce's line)
+    const swept = isEnclitic(tackon) ? reading : sweep(reading);
+    const fits = (qual: QualityRecord) => fitsTackonBase(qual, tackon);
+    // As on its own, the base has no idem reading, except before -dem
+    const takesIdem = tackon.word === "dem";
+    const baseResults = swept.results.filter(
+      (r) => fits(r.ir.qual) && (takesIdem || !isIdemReading(r)),
+    );
+    const baseUniques = swept.uniques.filter((u) => fits(u.qual));
+    const baseAddons = swept.addons;
+    if (baseResults.length > 0 || baseUniques.length > 0 || baseAddons.length > 0) {
+      results.push({
+        type: "tackon",
+        addon: tackon,
+        baseResults: listSweep(baseResults),
+        baseUniques,
+        baseAddons,
+      });
     }
   }
   return results;
@@ -308,33 +338,6 @@ export function trySuffixes(
       }
     }
   }
-
-  return results;
-}
-
-/**
- * Try all addons on a word that didn't parse directly.
- * Order: tackons first, then prefixes, then suffixes. A tackon's base is read
- * without the uniques, which only WordsEngine holds.
- */
-export function tryAddons(
-  word: string,
-  addons: AddonsData,
-  suffixTrie: SuffixTrieNode,
-  inflIndex: InflectionIndex,
-  dictIndex: DictionaryIndex,
-): AddonResult[] {
-  const results: AddonResult[] = [];
-
-  // Packons and tackons (enclitics) — most common, try first
-  results.push(...tryPackons(word, addons.packons, inflIndex, dictIndex));
-  results.push(...tryTackons(word, addons.tackons, addons.packons, inflIndex, dictIndex, () => []));
-
-  // Prefixes (including tickons)
-  results.push(...tryPrefixes(word, [...addons.prefixes, ...addons.tickons], inflIndex, dictIndex));
-
-  // Suffixes
-  results.push(...trySuffixes(word, suffixTrie, inflIndex, dictIndex));
 
   return results;
 }

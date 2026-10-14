@@ -920,6 +920,51 @@ describe("ada-compat: -que on a word that already parses", () => {
     ]);
   });
 
+  // Word tries the tackons after the four enclitics when nothing else parses,
+  // so the base of -que can be a tackon reading itself (latin-words.com)
+  it("huiusmodique, mecumque: -que on a base that is itself a tackon reading", () => {
+    expect(block("huiusmodique", QUE, 7)).toEqual([
+      QUE,
+      AND,
+      "modi                 TACKON",
+      "TACKON w/GEN of ~ kind, sort, nature; (w/hic); [huiusmodi => of this sort];",
+      "hu.ius               PRON   3 1 GEN S X",
+      "hic, haec, hoc  PRON   [XXXAX]",
+      "this; these (pl.); (also DEMONST);",
+    ]);
+    const mecumque = outputLines("mecumque");
+    expect(mecumque).not.toContainEqual(expect.stringMatching(/^Two words/));
+    expect(block("mecumque", QUE, 8)).toEqual([
+      QUE,
+      AND,
+      "cum                  TACKON",
+      "TACKON with (enclitic with PRON 5 0); [w/ABL  mecum => at my house/with me];",
+      "m.e                  PRON   5 1 ABL S C",
+      "m.e                  PRON   5 1 ACC S C",
+      "ego  PRON   [XXXAX]",
+      "I, me (PERS); myself (REFLEX);",
+    ]);
+    // Try_Tackons, unlike Enclitic, sweeps the base: -ce's own line goes, huius stays
+    expect(outputLines("huiuscemodi")).toEqual([
+      "modi                 TACKON",
+      "TACKON w/GEN of ~ kind, sort, nature; (w/hic); [huiusmodi => of this sort];",
+      "hu.ius               PRON   3 1 GEN S X",
+      "hic, haec, hoc  PRON   [XXXAX]",
+      "this; these (pl.); (also DEMONST);",
+    ]);
+    // -dem keeps idem, even under -que
+    expect(block("idemque", QUE, 8)).toEqual([
+      QUE,
+      AND,
+      "dem                  TACKON",
+      "TACKON w/i-ea-id   idem => same;",
+      "i                    PRON   4 2 NOM S M",
+      "i                    PRON   4 2 NOM S N",
+      "i                    PRON   4 2 ACC S N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+    ]);
+  });
+
   // is reaches idem (PRON 4 2) only by a frequency-C ending, which Ada's
   // List_Sweep trims; on its own, the port filters idem out (engine.ts)
   it("isque: the base has no idem readings (expected:10286)", () => {

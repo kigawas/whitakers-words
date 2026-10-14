@@ -180,14 +180,17 @@ function pushUniques(lines: string[], uniques: readonly UniqueEntry[]): void {
   });
 }
 
-/** An addon, then its base's readings in Ada's Word order: uniques, packons, the rest. */
+/**
+ * An addon, then its base's readings in Ada's Word order: uniques, packons
+ * and tackons, the rest.
+ */
 function pushAddon(lines: string[], ar: AddonResult): void {
   const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
   lines.push(`${addonName.padEnd(STEM_DOT_WIDTH)}${ar.type.toUpperCase()}`);
   lines.push(truncateMeaning(ar.addon.mean));
   if (ar.type === "tackon") {
     pushUniques(lines, ar.baseUniques ?? []);
-    for (const packon of ar.basePackons ?? []) pushAddon(lines, packon);
+    for (const inner of ar.baseAddons ?? []) pushAddon(lines, inner);
   }
   for (const block of mergeByMeaning(groupAndMerge(ar.baseResults))) {
     lines.push(...block);
