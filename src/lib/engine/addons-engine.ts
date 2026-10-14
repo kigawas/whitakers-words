@@ -193,15 +193,17 @@ export function tryTackons(
       reading = readWord(base);
       bases.set(base, reading);
     }
+    // As on its own, the base has no idem reading, except before -dem. Only its
+    // own readings: idem that came through an inner -dem stays ("idempte").
+    const own =
+      tackon.word === "dem"
+        ? reading
+        : { ...reading, results: reading.results.filter((r) => !isIdemReading(r)) };
     // Ada's Enclitic keeps the base as Word reads it; Try_Tackons sweeps it
     // ("huiuscemodi" = huius + modi, without -ce's line)
-    const swept = isEnclitic(tackon) ? reading : sweep(reading);
+    const swept = isEnclitic(tackon) ? own : sweep(own);
     const fits = (qual: QualityRecord) => fitsTackonBase(qual, tackon);
-    // As on its own, the base has no idem reading, except before -dem
-    const takesIdem = tackon.word === "dem";
-    const baseResults = swept.results.filter(
-      (r) => fits(r.ir.qual) && (takesIdem || !isIdemReading(r)),
-    );
+    const baseResults = swept.results.filter((r) => fits(r.ir.qual));
     const baseUniques = swept.uniques.filter((u) => fits(u.qual));
     const baseAddons = swept.addons;
     if (baseResults.length > 0 || baseUniques.length > 0 || baseAddons.length > 0) {

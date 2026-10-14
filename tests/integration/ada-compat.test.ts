@@ -952,6 +952,17 @@ describe("ada-compat: -que on a word that already parses", () => {
       "hic, haec, hoc  PRON   [XXXAX]",
       "this; these (pl.); (also DEMONST);",
     ]);
+    // idem that came through -dem stays for the outer tackon: -pte's PRON 4 0
+    // base takes PRON 4 2, and the sweep drops only -dem's own line
+    expect(outputLines("idempte")).toEqual([
+      "pte                  TACKON",
+      "TACKON ! (emphatic particle w/personal PRON); (usually with ABL, mepte);",
+      "i                    PRON   4 2 NOM S M",
+      "i                    PRON   4 2 NOM S N",
+      "i                    PRON   4 2 ACC S N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
     // -dem keeps idem, even under -que
     expect(block("idemque", QUE, 8)).toEqual([
       QUE,
