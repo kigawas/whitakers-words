@@ -898,6 +898,28 @@ describe("ada-compat: -que on a word that already parses", () => {
     ]);
   });
 
+  // Ada's Enclitic reads the base with Word, which runs the uniques first
+  it("cetteque, deusque: the base's uniques, then its other readings", () => {
+    // cette is only in UNIQUES.LAT (latin-words.com)
+    expect(block("cetteque", QUE, 5)).toEqual([
+      QUE,
+      AND,
+      "cette                V      3 1 PRES ACTIVE  IMP 2 P",
+      "cette  X   [XXXBO]",
+      "give/bring here!/hand over, come (now/here); tell/show us, out with it! behold!",
+    ]);
+    expect(block("deusque", QUE, 8)).toEqual([
+      QUE,
+      AND,
+      "deus                 N      2 1 VOC S M",
+      "deus  X   [XEXCX]",
+      "god; God!: Oh God;",
+      "de.us                N      2 1 NOM S M",
+      "Deus, Dei  N (2nd) M   [XEXAO]",
+      "God (Christian text); god; divine essence/being, supreme being; statue of god;",
+    ]);
+  });
+
   // Ada's Try_Tackons keeps only base readings that fit the tackon's base
   // (words_engine-word_package.adb:1645-1720). A qu- packon reading is PRON
   // 1 x, which fits no tackon's base. Ada's lines here are from latin-words.com.

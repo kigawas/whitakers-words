@@ -1,3 +1,4 @@
+import type { UniqueEntry } from "../parsers/uniques.js";
 import { equStr } from "../support/latin-string.js";
 import type { AddonsData, PrefixItem, SuffixItem, TackonItem } from "../types/addons.js";
 import type { QualityRecord } from "../types/inflections.js";
@@ -21,6 +22,8 @@ export type AddonResult =
       readonly type: "tackon";
       readonly addon: TackonItem;
       readonly baseResults: readonly ParseResult[];
+      /** Unique readings of the base: "cetteque" = cette + -que. */
+      readonly baseUniques?: readonly UniqueEntry[];
       /** Packon readings of the base: "quocumque" = quo + cum + -que. */
       readonly basePackons?: readonly AddonResult[];
     }
@@ -127,7 +130,8 @@ function fitsTackonBase(qual: QualityRecord, tackon: TackonItem): boolean {
 /**
  * Try stripping tackons (enclitics) from the end of a word.
  * E.g., "aquamque" → strip "que" → analyze "aquam". As in Ada, the base is
- * read as a whole word, packons included: "quocumque" → quo + cum + -que.
+ * read as a whole word, uniques and packons included: "cetteque" → cette +
+ * -que, "quocumque" → quo + cum + -que.
  */
 export function tryTackons(
   word: string,
@@ -135,16 +139,24 @@ export function tryTackons(
   packons: readonly TackonItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  lookupUniques: (word: string) => readonly UniqueEntry[],
 ): AddonResult[] {
   const results: AddonResult[] = [];
   // Cache base-word analysis results to avoid redundant work.
-  const baseCache = new Map<string, { parses: ParseResult[]; basePackons: AddonResult[] }>();
+  const baseCache = new Map<
+    string,
+    { parses: ParseResult[]; uniques: readonly UniqueEntry[]; packons: AddonResult[] }
+  >();
 
   function getBase(base: string) {
     let r = baseCache.get(base);
     if (r === undefined) {
       const parses = analyzeWord(base, inflIndex, dictIndex);
-      r = { parses, basePackons: quPackons(base, parses, packons, inflIndex, dictIndex) };
+      r = {
+        parses,
+        uniques: lookupUniques(base),
+        packons: quPackons(base, parses, packons, inflIndex, dictIndex),
+      };
       baseCache.set(base, r);
     }
     return r;
@@ -153,15 +165,17 @@ export function tryTackons(
   for (const tackon of tackons) {
     const base = subtractTackon(word, tackon.word.toLowerCase());
     if (base !== undefined) {
-      const { parses, basePackons: packonsOfBase } = getBase(base);
+      const analysis = getBase(base);
       const fits = (r: ParseResult) => fitsTackonBase(r.ir.qual, tackon);
-      const baseResults = parses.filter(fits);
-      const basePackons = packonsOfBase.filter((p) => p.baseResults.some(fits));
-      if (baseResults.length > 0 || basePackons.length > 0) {
+      const baseResults = analysis.parses.filter(fits);
+      const baseUniques = analysis.uniques.filter((u) => fitsTackonBase(u.qual, tackon));
+      const basePackons = analysis.packons.filter((p) => p.baseResults.some(fits));
+      if (baseResults.length > 0 || baseUniques.length > 0 || basePackons.length > 0) {
         results.push({
           type: "tackon",
           addon: tackon,
           baseResults: listSweep(baseResults),
+          baseUniques,
           basePackons,
         });
       }
@@ -297,7 +311,8 @@ export function trySuffixes(
 
 /**
  * Try all addons on a word that didn't parse directly.
- * Order: tackons first, then prefixes, then suffixes.
+ * Order: tackons first, then prefixes, then suffixes. A tackon's base is read
+ * without the uniques, which only WordsEngine holds.
  */
 export function tryAddons(
   word: string,
@@ -310,7 +325,7 @@ export function tryAddons(
 
   // Packons and tackons (enclitics) — most common, try first
   results.push(...tryPackons(word, addons.packons, inflIndex, dictIndex));
-  results.push(...tryTackons(word, addons.tackons, addons.packons, inflIndex, dictIndex));
+  results.push(...tryTackons(word, addons.tackons, addons.packons, inflIndex, dictIndex, () => []));
 
   // Prefixes (including tickons)
   results.push(...tryPrefixes(word, [...addons.prefixes, ...addons.tickons], inflIndex, dictIndex));

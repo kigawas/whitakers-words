@@ -189,7 +189,9 @@ export class WordsEngine {
     const parsed = results.length > 0 || uniqueResults.length > 0 || addonResults.length > 0;
     const tackons = parsed ? this.#que : this.#allTackons;
     addonResults.push(
-      ...tryTackons(lowerWord, tackons, this.#allPackons, this.#inflIndex, this.#dictIndex),
+      ...tryTackons(lowerWord, tackons, this.#allPackons, this.#inflIndex, this.#dictIndex, (w) =>
+        this.#lookupUniques(w),
+      ),
     );
 
     // 6. If no results, try tricks (spelling variations)
