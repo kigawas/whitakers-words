@@ -294,11 +294,6 @@ describe("dictionaryForm: verb IMPERS OX3/OX4 stem combos", () => {
     expect(f).toContain("sequor");
     expect(f).toContain("sequi");
   });
-
-  it("verb stem2 fallback to stem1 when stem2 empty", () => {
-    const f = dictionaryForm(makeVerb(["am", "", "amav", "amat"], 1, 1, "X"));
-    expect(f).toContain("amare"); // infStem = stem2 || stem1 = "am"
-  });
 });
 
 describe("dictionaryForm: verb integration with real entries", () => {

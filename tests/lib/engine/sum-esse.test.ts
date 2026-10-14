@@ -177,9 +177,9 @@ describe("sum/esse: dictionary form", () => {
     expect(output).toContain("sum, esse, fui, futurus");
   });
 
-  it("shows V (5th) TO_BE", () => {
+  it("names no conjugation or kind, as Ada (aeneid-expected.txt:655)", () => {
     const output = engine.formatWord("est");
-    expect(output).toContain("V (5th) TO_BE");
+    expect(output).toContain("sum, esse, fui, futurus  V   [XXXAX]");
   });
 });
 

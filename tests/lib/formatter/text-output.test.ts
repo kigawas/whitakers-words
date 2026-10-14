@@ -684,7 +684,7 @@ describe("dictionaryForm: remaining POS types", () => {
       tran: { age: "X", area: "X", geo: "X", freq: "X", source: "X" },
       mean: "test",
     };
-    expect(dictionaryForm(de)).toBe("test");
+    expect(dictionaryForm(de)).toBe("test  X");
   });
 });
 

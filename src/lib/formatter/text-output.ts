@@ -49,13 +49,7 @@ export interface WordAnalysisOutput {
  */
 export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   const lines: string[] = [];
-
-  // Format unique results
-  for (const u of analysis.uniqueResults) {
-    lines.push(formatQualityLine(u.word, "", u.qual));
-    lines.push(`${dictionaryForm(u.de)}   ${formatFlags(u.de)}`);
-    lines.push(truncateMeaning(u.de.mean));
-  }
+  pushUniques(lines, analysis.uniqueResults);
 
   // Group standard results by entryIndex, merge | continuations,
   // then merge groups with identical meanings (variant dictionary entries).
@@ -163,18 +157,44 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   }
 
   // Addon results
-  if (analysis.addonResults) {
-    for (const ar of analysis.addonResults) {
-      const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
-      lines.push(`${addonName.padEnd(STEM_DOT_WIDTH)}${ar.type.toUpperCase()}`);
-      lines.push(truncateMeaning(ar.addon.mean));
-      for (const block of mergeByMeaning(groupAndMerge(ar.baseResults))) {
-        lines.push(...block);
-      }
-    }
-  }
+  for (const ar of analysis.addonResults ?? []) pushAddon(lines, ar);
 
   return lines.join("\n");
+}
+
+/** An addon line and its meaning, then the base's packons and readings. */
+/**
+ * Unique readings. Ada's Load_Uniques switches on the blank part it is filling
+ * (line_stuff.adb:527), so every unique entry has part X and its dictionary
+ * form is the stem alone: "eodem  X". As in Put_Parse_Details, a form is
+ * skipped when it repeats the one before, and a meaning waits until the next
+ * entry's differs (eadem: three entries, one form, one meaning).
+ */
+function pushUniques(lines: string[], uniques: readonly UniqueEntry[]): void {
+  uniques.forEach((u, i) => {
+    lines.push(formatQualityLine(u.word, "", u.qual));
+    if (u.de.stems[0] !== uniques[i - 1]?.de.stems[0]) {
+      lines.push(`${u.de.stems[0]}  X   ${formatFlags(u.de)}`);
+    }
+    if (u.de.mean !== uniques[i + 1]?.de.mean) lines.push(truncateMeaning(u.de.mean));
+  });
+}
+
+/**
+ * An addon, then its base's readings in Ada's Word order: uniques, packons
+ * and tackons, the rest.
+ */
+function pushAddon(lines: string[], ar: AddonResult): void {
+  const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
+  lines.push(`${addonName.padEnd(STEM_DOT_WIDTH)}${ar.type.toUpperCase()}`);
+  lines.push(truncateMeaning(ar.addon.mean));
+  if (ar.type === "tackon") {
+    pushUniques(lines, ar.baseUniques ?? []);
+    for (const inner of ar.baseAddons ?? []) pushAddon(lines, inner);
+  }
+  for (const block of mergeByMeaning(groupAndMerge(ar.baseResults))) {
+    lines.push(...block);
+  }
 }
 
 export interface MergedGroup {
@@ -222,8 +242,8 @@ export function groupAndMerge(results: readonly ParseResult[]): MergedGroup[] {
 /**
  * Prints a dictionary line only when its form differs from the previous
  * entry's, as Ada's Put_Parse_Details does ("put at first chance, skip
- * duplicates"). The qu- pronoun entries all read "qu  PRON", so their meanings
- * follow a single dictionary line.
+ * duplicates"). The qu- pronoun entries of one headword ("qui, quae, quod")
+ * share a single dictionary line.
  */
 class DictionaryLines {
   #lastForm: string | undefined;
@@ -254,8 +274,9 @@ function renderGroup(group: MergedGroup, dictLines: DictionaryLines): string[] {
 
 /**
  * Move entries that print the same dictionary form next to the first of them,
- * in dictionary order. They are one lemma (jus "gravy" and jus "law"; the kinds
- * of qu- pronoun), which Ada lists in dictionary order under one form line.
+ * in dictionary order. They are one lemma (jus "gravy" and jus "law"; the qu-
+ * pronouns of one headword), which Ada lists in dictionary order under one form
+ * line. Ada prints no form for any qu- pronoun, so it keeps them all together.
  */
 function clusterByForm(entryGroups: readonly ParseResult[][]): ParseResult[][] {
   const byForm = new Map<string, ParseResult[][]>();

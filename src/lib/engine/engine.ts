@@ -9,10 +9,12 @@ import type { DictionaryEntry } from "../types/dictionary.js";
 import type { InflectionRecord } from "../types/inflections.js";
 import {
   type AddonResult,
-  tryPackons,
+  isEnclitic,
+  quPackons,
   tryPrefixes,
   trySuffixes,
   tryTackons,
+  type WordReading,
 } from "./addons-engine.js";
 import { type CompoundResult, tryCompound } from "./compounds.js";
 import { buildDictionaryIndex, type DictionaryIndex } from "./dictionary-index.js";
@@ -30,7 +32,7 @@ import { buildSuffixTrie, type SuffixTrieNode } from "./suffix-trie.js";
 import { type SyncopeResult, trySyncope } from "./syncope.js";
 import { applyTricks, trickAnnotation } from "./tricks.js";
 import { type TwoWordResult, tryTwoWords } from "./two-words.js";
-import { analyzeWord, type ParseResult } from "./word-analysis.js";
+import { analyzeWord, isIdemReading, type ParseResult } from "./word-analysis.js";
 
 // ---------------------------------------------------------------------------
 // WordsEngine — top-level API
@@ -73,7 +75,9 @@ export class WordsEngine {
   readonly #uniquesByFirstChar: ReadonlyMap<string, readonly UniqueEntry[]>;
   readonly #englishIndex: EnglishIndex;
   // Pre-computed combined addon arrays (avoid re-spreading on every parseWord call)
-  readonly #allTackons: AddonsData["tackons"];
+  readonly #enclitics: AddonsData["tackons"];
+  readonly #que: AddonsData["tackons"];
+  readonly #wordTackons: AddonsData["tackons"];
   readonly #allPackons: AddonsData["packons"];
   readonly #allPrefixes: AddonsData["prefixes"];
   readonly #suffixTrie: SuffixTrieNode;
@@ -95,7 +99,9 @@ export class WordsEngine {
     this.#uniques = uniques;
     this.#uniquesByFirstChar = buildUniquesIndex(uniques);
     this.#englishIndex = englishIndex;
-    this.#allTackons = addons.tackons;
+    this.#enclitics = addons.tackons.filter(isEnclitic);
+    this.#que = addons.tackons.filter((t) => t.word === "que");
+    this.#wordTackons = addons.tackons.filter((t) => !isEnclitic(t));
     this.#allPackons = addons.packons;
     this.#allPrefixes = [...addons.prefixes, ...addons.tickons];
     this.#suffixTrie = buildSuffixTrie(addons.suffixes);
@@ -137,62 +143,39 @@ export class WordsEngine {
   parseWord(word: string, nextWord = ""): WordAnalysis {
     const lowerWord = word.toLowerCase();
 
-    // 1. Check uniques first
-    const uniqueResults = this.#lookupUniques(lowerWord);
+    // 1. The word as Ada's Word reads it: uniques, dictionary readings, packons
+    // ("quidam" = qui + dam), and only if none of those parse, the tackons
+    // other than the enclitics ("huiusmodi" = huius + modi).
+    const reading = this.#readWord(lowerWord);
+    const uniqueResults = reading.uniques;
 
-    // 2. Standard dictionary + inflection analysis
-    let results = analyzeWord(lowerWord, this.#inflIndex, this.#dictIndex);
+    // 2. Deduplicate and rank. idem (PRON 4 2 DEMONS) appears only via the
+    // -dem tackon, not as a standalone parse of "i", "is", "eius", etc.
+    let results = listSweep([...reading.results]).filter((r) => !isIdemReading(r));
 
-    // 3. Deduplicate and rank
-    results = listSweep(results);
-
-    // 3a. Filter PRON 4 2 DEMONS (idem) from standalone results.
-    // This entry shares stems with PRON 4 1 (is/ea/id) and should only appear
-    // via the -dem tackon, not as a standalone parse of "i", "is", "eius", etc.
-    results = results.filter(
-      (r) =>
-        !(
-          r.ir.qual.pofs === "PRON" &&
-          r.de.part.pofs === "PRON" &&
-          r.de.part.pron.decl.which === 4 &&
-          r.de.part.pron.decl.var === 2 &&
-          r.de.part.pron.kind === "DEMONS"
-        ),
-    );
-
-    // 4. Always try slury (prefix assimilation detection) and syncope.
+    // 3. Always try slury (prefix assimilation detection) and syncope.
     // Ada runs these alongside standard results (shown as additional info).
     const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex);
     const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex);
 
-    // 5. Packons: Ada reads a qu-/cu- word as a qu- pronoun plus packon
-    // ("quidam" = qui + dam) whenever it is not a plain qu- pronoun, alongside
-    // any other readings ("quiddam" is also an indeclinable noun).
-    const addonResults: AddonResult[] = [];
-    const isQuPronoun = (r: ParseResult) =>
-      r.de.part.pofs === "PRON" && r.de.part.pron.decl.which === 1;
-    if (/^(qu|cu)/.test(lowerWord) && !results.some(isQuPronoun)) {
-      addonResults.push(
-        ...tryPackons(lowerWord, this.#allPackons, this.#inflIndex, this.#dictIndex),
-      );
-    }
-
-    // 5a. Try tackons (enclitics like -que, -ne, -ve) when no direct results found,
-    // packon hits or not: "quibusque" is both "each" (packon) and "and" (tackon).
+    // 4. The enclitics, as Ada's Enclitic tries them after Word: a word that
+    // already parses still gets -que, but not -ne, -ve or -est. "atque" is
+    // also at + -que, "quibusque" both "each" (packon) and "and" (tackon).
     // Ada tries tackons BEFORE tricks.
+    const addonResults: AddonResult[] = [...reading.addons];
     const noResults = () =>
       results.length === 0 &&
       uniqueResults.length === 0 &&
       trickResults.length === 0 &&
       addonResults.length === 0;
 
-    if (results.length === 0 && uniqueResults.length === 0) {
-      addonResults.push(
-        ...tryTackons(lowerWord, this.#allTackons, this.#inflIndex, this.#dictIndex),
-      );
-    }
+    const parsed =
+      reading.results.length > 0 || reading.uniques.length > 0 || reading.addons.length > 0;
+    addonResults.push(
+      ...tryTackons(lowerWord, parsed ? this.#que : this.#enclitics, (w) => this.#readWord(w)),
+    );
 
-    // 6. If no results, try tricks (spelling variations)
+    // 5. If no results, try tricks (spelling variations)
     let trickAnnotations: string[] = [];
     let trickResults: ParseResult[] = [];
     if (noResults()) {
@@ -207,14 +190,14 @@ export class WordsEngine {
       }
     }
 
-    // 7. Try prefixes — Ada tries prefix stripping before suffixes.
+    // 6. Try prefixes — Ada tries prefix stripping before suffixes.
     if (noResults()) {
       addonResults.push(
         ...tryPrefixes(lowerWord, this.#allPrefixes, this.#inflIndex, this.#dictIndex),
       );
     }
 
-    // 8. Try suffixes.
+    // 7. Try suffixes.
     if (noResults()) {
       addonResults.push(
         ...trySuffixes(lowerWord, this.#suffixTrie, this.#inflIndex, this.#dictIndex),
@@ -232,13 +215,13 @@ export class WordsEngine {
       addonResults.sort((a, b) => freqOf(a) - freqOf(b));
     }
 
-    // 9. Two-word splitting — last resort fallback.
+    // 8. Two-word splitting — last resort fallback.
     let twoWordResult: TwoWordResult | null = null;
     if (noResults() && !syncopeResult) {
       twoWordResult = tryTwoWords(lowerWord, this.#inflIndex, this.#dictIndex);
     }
 
-    // 10. Roman numeral detection — runs alongside other results (not fallback).
+    // 9. Roman numeral detection — runs alongside other results (not fallback).
     let romanNumeralResult: RomanNumeralResult | null = null;
     const romanValue = parseRomanNumeral(word.toUpperCase());
     if (romanValue !== null) {
@@ -348,6 +331,23 @@ export class WordsEngine {
   /** Get the number of unique entries. */
   get uniqueCount(): number {
     return this.#uniques.length;
+  }
+
+  /**
+   * A word as Ada's Word reads it (words_engine-word_package.adb), for the
+   * whole word and for every tackon's base: uniques, dictionary readings and
+   * packons, then only if none of those parse, Try_Tackons with the tackons
+   * other than the enclitics, each base read the same way. A base is always
+   * shorter than its word, so the recursion ends.
+   */
+  #readWord(word: string): WordReading {
+    const uniques = this.#lookupUniques(word);
+    const results = analyzeWord(word, this.#inflIndex, this.#dictIndex);
+    const addons = quPackons(word, results, this.#allPackons, this.#inflIndex, this.#dictIndex);
+    if (uniques.length === 0 && results.length === 0 && addons.length === 0) {
+      addons.push(...tryTackons(word, this.#wordTackons, (w) => this.#readWord(w)));
+    }
+    return { results, uniques, addons };
   }
 
   #lookupUniques(word: string): UniqueEntry[] {
