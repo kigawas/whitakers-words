@@ -4,6 +4,10 @@
  * Ada compatibility check — compares our CLI output against the original
  * Ada Whitaker's Words expected output for Aeneid Book IV.
  *
+ * The match rate compares unique lines across the whole text. The per-word
+ * recall then lists words that lack some of their Ada lines, including lines
+ * the match rate counts because another word prints them.
+ *
  * Usage:
  *   node scripts/ada-compat-check.mjs              # run CLI and compare
  *   node scripts/ada-compat-check.mjs --verbose    # show samples per category
@@ -12,7 +16,7 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -130,7 +134,87 @@ for (const line of extra) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Print report
+// 6. Per-word recall
+// ---------------------------------------------------------------------------
+
+/**
+ * Ada's output as one block per word. Ada ends each word with a blank or `*`
+ * line, and prompts `=>` before each input line. When a line's first word is
+ * unknown, its UNKNOWN line follows the prompt on the same line.
+ */
+function adaWordBlocks(text) {
+  const blocks = [];
+  let block = [];
+  for (const raw of text.split("\n")) {
+    let line = raw.trimEnd();
+    if (line === "" || line === "*" || line.startsWith("=>")) {
+      if (block.length > 0) blocks.push(block);
+      block = [];
+      line = line.replace(/^=>(Blank exits =>)?/, "");
+      if (line === "" || line === "*") continue;
+    }
+    block.push(line);
+  }
+  if (block.length > 0) blocks.push(block);
+  return blocks;
+}
+
+/**
+ * Our output as one block per word, from the engine calls the CLI makes. Each
+ * input line is cut at "--", as Ada's String_Before_Dash does
+ * (words_engine-parse.adb), so the words pair with Ada's in order.
+ */
+async function ourWordBlocks(input) {
+  const { createEngine, formatWordAnalysis } = await import(
+    pathToFileURL(resolve(root, "dist/node/index.js")).href
+  );
+  const engine = createEngine();
+  const blocks = [];
+  for (const raw of input.split(/\r?\n/)) {
+    const dash = raw.indexOf("--");
+    const line = dash > 0 ? raw.slice(0, dash) : raw;
+    for (const analysis of engine.parseLine(line)) {
+      const lines = formatWordAnalysis(analysis).split("\n").map((l) => l.trimEnd());
+      blocks.push({ word: analysis.word, lines: new Set(lines) });
+    }
+  }
+  return blocks;
+}
+
+const UNKNOWN = /========\s+UNKNOWN$/;
+
+const adaWords = adaWordBlocks(adaText);
+const ourWords = await ourWordBlocks(aeneidInput);
+const wordsPaired = adaWords.length === ourWords.length;
+
+// Words that lack Ada lines, grouped by word and the lines they lack.
+const wordGaps = new Map();
+let adaUnknown = 0;
+if (wordsPaired) {
+  for (const [k, ada] of adaWords.entries()) {
+    if (UNKNOWN.test(ada[0])) {
+      adaUnknown++;
+      continue;
+    }
+    const ours = ourWords[k];
+    const lost = [...new Set(ada)].filter((l) => !ours.lines.has(l));
+    if (lost.length === 0) continue;
+    const key = `${ours.word}\n${lost.join("\n")}`;
+    const gap = wordGaps.get(key) ?? { word: ours.word, lost, count: 0 };
+    gap.count++;
+    wordGaps.set(key, gap);
+  }
+}
+
+// A gap is hidden when the match rate counts its lines: another word prints them.
+const gaps = [...wordGaps.values()]
+  .map((g) => ({ ...g, hidden: g.lost.filter((l) => ourLines.has(l)) }))
+  .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word));
+const hiddenGaps = gaps.filter((g) => g.hidden.length > 0);
+const countWords = (list) => list.reduce((n, g) => n + g.count, 0);
+
+// ---------------------------------------------------------------------------
+// 7. Print report
 // ---------------------------------------------------------------------------
 
 const HR = "=".repeat(80);
@@ -179,6 +263,36 @@ for (const [cat, lines] of sortedExtra) {
   }
 }
 
+// Per-word recall
+console.log();
+console.log(HR);
+console.log("PER-WORD RECALL (each word's Ada lines, against our lines for that word)");
+console.log(HR);
+if (!wordsPaired) {
+  console.log(
+    `Skipped: Ada prints ${adaWords.length} words, we print ${ourWords.length}, so they don't pair in order.`,
+  );
+} else {
+  console.log(`Words compared:     ${(adaWords.length - adaUnknown).toLocaleString()}`);
+  console.log(`Ada UNKNOWN:        ${adaUnknown} (not compared)`);
+  console.log(`Missing Ada lines:  ${countWords(gaps)} words (${gaps.length} distinct)`);
+  console.log(`  hidden by the match rate: ${countWords(hiddenGaps)} words`);
+
+  console.log("\n  Hidden: Ada lines we print only under other words");
+  for (const g of hiddenGaps) {
+    const more = g.hidden.length > 1 ? ` (+${g.hidden.length - 1})` : "";
+    console.log(`    ${`${g.word} ×${g.count}`.padEnd(18)} ${g.hidden[0].slice(0, 55)}${more}`);
+  }
+
+  if (verbose) {
+    console.log("\n  All words missing Ada lines (~ = we print it under another word)");
+    for (const g of gaps) {
+      console.log(`    ${g.word} ×${g.count}`);
+      for (const l of g.lost) console.log(`      ${ourLines.has(l) ? "~" : " "} ${l.slice(0, 75)}`);
+    }
+  }
+}
+
 // Summary table
 console.log();
 console.log(HR);
@@ -189,6 +303,11 @@ console.log(
   `Missing:    ${missing.size} lines (${((missing.size / adaLines.size) * 100).toFixed(1)}% of Ada)`,
 );
 console.log(`Extra:      ${extra.size} lines (our improvements over Ada)`);
+if (wordsPaired) {
+  console.log(
+    `Per word:   ${countWords(gaps)} words miss Ada lines, ${countWords(hiddenGaps)} of them hidden by the match rate`,
+  );
+}
 
 console.log();
 console.log("Missing by category:");
