@@ -6,7 +6,7 @@ import { matchesDecn } from "../types/matching.js";
 import type { DictionaryIndex } from "./dictionary-index.js";
 import { lookupStems } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
-import { listSweep } from "./list-sweep.js";
+import { listSweep, type SweepOptions } from "./list-sweep.js";
 import type { SuffixTrieNode } from "./suffix-trie.js";
 import { findMatchingSuffixes } from "./suffix-trie.js";
 import type { ParseResult } from "./word-analysis.js";
@@ -65,11 +65,12 @@ export function quPackons(
   packons: readonly TackonItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions = {},
 ): TackonResult[] {
   const isQuPronoun = (r: ParseResult) =>
     r.de.part.pofs === "PRON" && r.de.part.pron.decl.which === 1;
   if (!/^(qu|cu)/.test(word) || results.some(isQuPronoun)) return [];
-  return tryPackons(word, packons, inflIndex, dictIndex);
+  return tryPackons(word, packons, inflIndex, dictIndex, options);
 }
 
 /**
@@ -83,6 +84,7 @@ export function tryPackons(
   packons: readonly TackonItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions = {},
 ): TackonResult[] {
   const results: TackonResult[] = [];
   for (const packon of packons) {
@@ -109,7 +111,11 @@ export function tryPackons(
       }
     }
     if (baseResults.length > 0) {
-      results.push({ type: "tackon", addon: packon, baseResults: listSweep(baseResults) });
+      results.push({
+        type: "tackon",
+        addon: packon,
+        baseResults: listSweep(baseResults, options),
+      });
     }
   }
   return results;
@@ -179,6 +185,7 @@ export function tryTackons(
   word: string,
   tackons: readonly TackonItem[],
   readWord: (word: string) => WordReading,
+  options: SweepOptions = {},
 ): TackonResult[] {
   const results: TackonResult[] = [];
   // Tackons with the same word (-pte, -modi) share a base
@@ -203,7 +210,7 @@ export function tryTackons(
       results.push({
         type: "tackon",
         addon: tackon,
-        baseResults: listSweep(baseResults),
+        baseResults: listSweep(baseResults, options),
         baseUniques,
         baseAddons,
       });
@@ -222,6 +229,7 @@ export function tryPrefixes(
   prefixes: readonly PrefixItem[],
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions = {},
 ): AddonResult[] {
   const results: AddonResult[] = [];
   for (const prefix of prefixes) {
@@ -235,13 +243,21 @@ export function tryPrefixes(
         if (rest.length > 0 && rest.charAt(0) === prefix.connect.toLowerCase()) {
           const baseResults = analyzeWord(rest, inflIndex, dictIndex);
           if (baseResults.length > 0) {
-            results.push({ type: "prefix", addon: prefix, baseResults: listSweep(baseResults) });
+            results.push({
+              type: "prefix",
+              addon: prefix,
+              baseResults: listSweep(baseResults, options),
+            });
           }
         }
       } else {
         const baseResults = analyzeWord(rest, inflIndex, dictIndex);
         if (baseResults.length > 0) {
-          results.push({ type: "prefix", addon: prefix, baseResults: listSweep(baseResults) });
+          results.push({
+            type: "prefix",
+            addon: prefix,
+            baseResults: listSweep(baseResults, options),
+          });
         }
       }
     }
@@ -268,6 +284,7 @@ export function trySuffixes(
   suffixTrie: SuffixTrieNode,
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions = {},
 ): AddonResult[] {
   const results: AddonResult[] = [];
 
@@ -329,7 +346,11 @@ export function trySuffixes(
         }
       }
       if (baseResults.length > 0) {
-        results.push({ type: "suffix", addon: suffix, baseResults: listSweep(baseResults) });
+        results.push({
+          type: "suffix",
+          addon: suffix,
+          baseResults: listSweep(baseResults, options),
+        });
       }
     }
   }

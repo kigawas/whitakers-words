@@ -11,7 +11,7 @@
 
 import type { DictionaryIndex } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
-import { listSweep } from "./list-sweep.js";
+import { listSweep, type SweepOptions } from "./list-sweep.js";
 import { analyzeWord, type ParseResult } from "./word-analysis.js";
 
 export interface SluryResult {
@@ -89,14 +89,8 @@ const SLUR_TABLE: Record<string, SluryOp[]> = {
 // Core slury logic
 // ---------------------------------------------------------------------------
 
-function tword(
-  word: string,
-  inflIndex: InflectionIndex,
-  dictIndex: DictionaryIndex,
-): ParseResult[] {
-  const results = analyzeWord(word, inflIndex, dictIndex);
-  return results.length > 0 ? listSweep(results) : [];
-}
+/** Ada's Tword: a transformed word's swept readings, empty if it has none. */
+type Tword = (word: string) => ParseResult[];
 
 /**
  * Ada's Slur procedure — bidirectional prefix assimilation.
@@ -105,12 +99,7 @@ function tword(
  * Direction 2: vowel + doubled consonant → prefix + consonant
  *   "ammoveo" → "admoveo" (a + mm → ad + m)
  */
-function trySlurOp(
-  word: string,
-  prefix: string,
-  inflIndex: InflectionIndex,
-  dictIndex: DictionaryIndex,
-): SluryResult | null {
+function trySlurOp(word: string, prefix: string, tword: Tword): SluryResult | null {
   const pl = prefix.length;
   const vowelPart = prefix.slice(0, pl - 1); // e.g., "a" for "ad", "su" for "sub"
 
@@ -119,7 +108,7 @@ function trySlurOp(
     const c = word[pl];
     if (c && !VOWELS.has(c)) {
       const transformed = vowelPart + c + word.slice(pl);
-      const results = tword(transformed, inflIndex, dictIndex);
+      const results = tword(transformed);
       if (results.length > 0) {
         return {
           label: `Slur ${prefix}/${vowelPart}~`,
@@ -139,7 +128,7 @@ function trySlurOp(
     !VOWELS.has(word[pl])
   ) {
     const transformed = prefix + word.slice(pl);
-    const results = tword(transformed, inflIndex, dictIndex);
+    const results = tword(transformed);
     if (results.length > 0) {
       return {
         label: `Slur ${vowelPart}~/${prefix}`,
@@ -159,12 +148,11 @@ function tryFlipOp(
   word: string,
   old: string,
   replacement: string,
-  inflIndex: InflectionIndex,
-  dictIndex: DictionaryIndex,
+  tword: Tword,
 ): SluryResult | null {
   if (word.length >= old.length + 2 && word.startsWith(old)) {
     const transformed = replacement + word.slice(old.length);
-    const results = tword(transformed, inflIndex, dictIndex);
+    const results = tword(transformed);
     if (results.length > 0) {
       return {
         label: `Word mod ${old}/${replacement}`,
@@ -179,17 +167,11 @@ function tryFlipOp(
 /**
  * Ada's Flip_Flop procedure — bidirectional replacement at word start.
  */
-function tryFlipFlopOp(
-  word: string,
-  x1: string,
-  x2: string,
-  inflIndex: InflectionIndex,
-  dictIndex: DictionaryIndex,
-): SluryResult | null {
+function tryFlipFlopOp(word: string, x1: string, x2: string, tword: Tword): SluryResult | null {
   // x1 → x2
   if (word.length >= x1.length + 2 && word.startsWith(x1)) {
     const transformed = x2 + word.slice(x1.length);
-    const results = tword(transformed, inflIndex, dictIndex);
+    const results = tword(transformed);
     if (results.length > 0) {
       return {
         label: `Word mod ${x1}/${x2}`,
@@ -201,7 +183,7 @@ function tryFlipFlopOp(
   // x2 → x1
   if (word.length >= x2.length + 2 && word.startsWith(x2)) {
     const transformed = x1 + word.slice(x2.length);
-    const results = tword(transformed, inflIndex, dictIndex);
+    const results = tword(transformed);
     if (results.length > 0) {
       return {
         label: `Word mod ${x2}/${x1}`,
@@ -221,6 +203,7 @@ export function trySlury(
   word: string,
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions = {},
 ): SluryResult | null {
   if (word.length < 4) return null;
 
@@ -229,17 +212,21 @@ export function trySlury(
   const ops = SLUR_TABLE[firstChar];
   if (!ops) return null;
 
+  const tword: Tword = (w) => {
+    const results = analyzeWord(w, inflIndex, dictIndex);
+    return results.length > 0 ? listSweep(results, options) : [];
+  };
   for (const op of ops) {
     let result: SluryResult | null = null;
     switch (op.type) {
       case "slur":
-        result = trySlurOp(word, op.prefix, inflIndex, dictIndex);
+        result = trySlurOp(word, op.prefix, tword);
         break;
       case "flip":
-        result = tryFlipOp(word, op.old, op.new, inflIndex, dictIndex);
+        result = tryFlipOp(word, op.old, op.new, tword);
         break;
       case "flip_flop":
-        result = tryFlipFlopOp(word, op.x1, op.x2, inflIndex, dictIndex);
+        result = tryFlipFlopOp(word, op.x1, op.x2, tword);
         break;
     }
     if (result) return result;

@@ -9,7 +9,7 @@
 
 import type { DictionaryIndex } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
-import { listSweep } from "./list-sweep.js";
+import { listSweep, type SweepOptions } from "./list-sweep.js";
 import { analyzeWord, type ParseResult } from "./word-analysis.js";
 
 export interface TwoWordResult {
@@ -36,6 +36,7 @@ export function tryTwoWords(
   word: string,
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions = {},
 ): TwoWordResult | null {
   // Minimum 2 characters per part (Ada splits at positions allowing 2-char parts)
   const minLen = 2;
@@ -57,8 +58,8 @@ export function tryTwoWords(
       explanation: `May be 2 words combined (${left}+${right}) If not obvious, probably incorrect`,
       left,
       right,
-      leftResults: listSweep(leftResults),
-      rightResults: listSweep(rightResults),
+      leftResults: listSweep(leftResults, options),
+      rightResults: listSweep(rightResults, options),
     };
   }
 

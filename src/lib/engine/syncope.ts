@@ -17,7 +17,7 @@
 
 import type { DictionaryIndex } from "./dictionary-index.js";
 import type { InflectionIndex } from "./inflection-index.js";
-import { listSweep } from "./list-sweep.js";
+import { listSweep, type SweepOptions } from "./list-sweep.js";
 import { analyzeWord, type ParseResult } from "./word-analysis.js";
 
 export interface SyncopeResult {
@@ -93,9 +93,10 @@ export function trySyncope(
   word: string,
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions = {},
 ): SyncopeResult | null {
   for (const rule of SYNCOPE_RULES) {
-    const result = tryRule(word, rule, inflIndex, dictIndex);
+    const result = tryRule(word, rule, inflIndex, dictIndex, options);
     if (result) return result;
   }
   return null;
@@ -106,6 +107,7 @@ function tryRule(
   rule: SyncopeRule,
   inflIndex: InflectionIndex,
   dictIndex: DictionaryIndex,
+  options: SweepOptions,
 ): SyncopeResult | null {
   const patterns = typeof rule.pattern === "string" ? [rule.pattern] : rule.pattern;
 
@@ -128,7 +130,7 @@ function tryRule(
         return {
           label: rule.label,
           explanation: rule.explanation,
-          results: listSweep(perfects),
+          results: listSweep(perfects, options),
         };
       }
     }
