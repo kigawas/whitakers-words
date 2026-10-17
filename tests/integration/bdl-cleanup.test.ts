@@ -276,35 +276,19 @@ describe("BDL: pronouns with zzz stem3/4", () => {
 });
 
 // ---------------------------------------------------------------------------
-// PRON 4 2 DEMONS (idem): filtered from standalone results, only via tackon
+// PRON 4 2 DEMONS (idem): a standalone form reads as idem only where one of its
+// endings fits and List_Sweep keeps it (ea, eo, i, eius: ada-compat.test.ts)
 // ---------------------------------------------------------------------------
 
-describe("BDL: PRON 4 2 idem filtering", () => {
-  // Standalone forms should NOT show idem (PRON 4 2)
-  it("'i' does not show idem PRON 4 2", () => {
-    const a = allResults("i");
-    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
-    expect(idem.length).toBe(0);
-  });
-
+describe("BDL: PRON 4 2 idem readings", () => {
+  // is reaches idem only by the frequency-C ending -s, which List_Sweep trims
   it("'is' does not show idem PRON 4 2", () => {
     const a = allResults("is");
     const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
     expect(idem.length).toBe(0);
   });
 
-  it("'eius' does not show idem PRON 4 2", () => {
-    const a = allResults("eius");
-    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
-    expect(idem.length).toBe(0);
-  });
-
-  it("'ea' does not show idem PRON 4 2", () => {
-    const a = allResults("ea");
-    const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));
-    expect(idem.length).toBe(0);
-  });
-
+  // idem's ACC S M ending is -un (eundem), so eum has none
   it("'eum' does not show idem PRON 4 2", () => {
     const a = allResults("eum");
     const idem = a.results.filter((r) => r.ir.qual.pofs === "PRON" && r.de.mean.includes("same"));

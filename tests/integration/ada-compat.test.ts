@@ -977,7 +977,7 @@ describe("ada-compat: -que on a word that already parses", () => {
   });
 
   // is reaches idem (PRON 4 2) only by a frequency-C ending, which Ada's
-  // List_Sweep trims; on its own, the port filters idem out (engine.ts)
+  // List_Sweep trims
   it("isque: the base has no idem readings (expected:10286)", () => {
     const lines = outputLines("isque");
     expect(lines).toContainEqual("i.s                  PRON   4 1 NOM S M");
@@ -1278,6 +1278,45 @@ describe("ada-compat: List_Sweep trims archaic and uncommon inflections", () => 
       "man.is               N      3 3 GEN S M",
       "man.is               N      3 3 NOM P M                   Early     uncommon",
       "man.is               N      3 3 ACC P M                   Early",
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// idem (PRON 4 2, "w/-dem ONLY") shares its stems with is, ea, id. Ada prints
+// it wherever one of its endings fits and List_Sweep keeps it.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: idem readings of is, ea, id forms", () => {
+  it("ea, eo, i (expected:19387, 24500, 19495)", () => {
+    expect(block("ea", "e.a                  PRON   4 2", 6)).toEqual([
+      "e.a                  PRON   4 2 NOM S F",
+      "e.a                  PRON   4 2 ABL S F",
+      "e.a                  PRON   4 2 NOM P N",
+      "e.a                  PRON   4 2 ACC P N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+    expect(block("eo", "e.o                  PRON   4 2", 4)).toEqual([
+      "e.o                  PRON   4 2 ABL S M",
+      "e.o                  PRON   4 2 ABL S N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+    expect(block("i", "i                    PRON   4 2", 5)).toEqual([
+      "i                    PRON   4 2 NOM S M",
+      "i                    PRON   4 2 NOM S N",
+      "i                    PRON   4 2 ACC S N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+  });
+
+  it("eius: GEN S (latin-words.com)", () => {
+    expect(block("eius", "e.ius                PRON   4 2", 3)).toEqual([
+      "e.ius                PRON   4 2 GEN S X",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
     ]);
   });
 });
