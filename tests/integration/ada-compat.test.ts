@@ -1256,6 +1256,32 @@ describe("pronoun headwords where Ada prints no form", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Ada's List_Sweep trims archaic and uncommon inflections when the same set of
+// readings also has a common one. Ada expected from tests/original.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: List_Sweep trims archaic and uncommon inflections", () => {
+  it("coniugis, genitoris: only GEN S of the 3rd declension", () => {
+    expect(outputLines("coniugis").filter((l) => l.includes("N      3 1"))).toEqual([
+      "coniug.is            N      3 1 GEN S C",
+    ]);
+    expect(outputLines("genitoris").filter((l) => l.startsWith("genitor.is"))).toEqual([
+      "genitor.is           N      3 1 GEN S M",
+    ]);
+  });
+
+  // NOM P -is is both N 3 0 (Archaic) and N 3 3 (Early, uncommon). Ada trims
+  // before it drops duplicates, so the N 3 3 line survives.
+  it("manis: the uncommon NOM P outlives the archaic one (expected:1785)", () => {
+    expect(outputLines("manis").filter((l) => l.startsWith("man.is"))).toEqual([
+      "man.is               N      3 3 GEN S M",
+      "man.is               N      3 3 NOM P M                   Early     uncommon",
+      "man.is               N      3 3 ACC P M                   Early",
+    ]);
+  });
+});
+
 describe("ada-compat: inflection age and frequency tags", () => {
   it("pads the age to 8 characters before the frequency", () => {
     expect(outputLines("iungere")).toContainEqual(
