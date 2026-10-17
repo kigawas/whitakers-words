@@ -256,8 +256,9 @@ describe("concietur (cieo compound) surfaces 2nd-conjugation conciere", () => {
 
   it("compound drops the redundant 6,1 byform — only 2nd + 4th conjugation remain", () => {
     // The simplex keeps its own 6,1 byform (we only touch the compound):
-    // original Ada displays it as the e-less "cio, cire".
-    expect(verbForms("cietur").some((f) => f.startsWith("cio, cire"))).toBe(true);
+    // original Ada displays it as the e-less "cio, cire" under "citi"
+    // (aeneid-expected.txt:29439).
+    expect(verbForms("citi").some((f) => f.startsWith("cio, cire"))).toBe(true);
 
     // The compound's byform is now the single, clean 4th-conjugation entry.
     const forms = verbForms("conciet");

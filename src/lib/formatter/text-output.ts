@@ -394,10 +394,10 @@ export function formatInflectionLine(r: ParseResult): string {
   let line = padRight(stemDot, STEM_DOT_WIDTH) + formatQualityRecord(r.ir.qual, verbKind);
   // Append inflection age and/or frequency tags (Ada behavior).
   // Age is shown for non-default values; frequency is shown for freq >= C
-  // (uncommon or rarer) as a warning.
+  // (uncommon or rarer) as a warning. Ada's labels are 8 characters wide.
   const age = formatAge(r.ir.age);
   const freq = formatInflFreq(r.ir.freq);
-  const tag = [age, freq].filter(Boolean).join("  ");
+  const tag = (age ? `${age.padEnd(8)}  ${freq}` : freq).trimEnd();
   if (tag) {
     line = `${line.padEnd(AGE_TAG_COLUMN)}  ${tag}`;
   }
@@ -506,6 +506,7 @@ const DICT_AGE: Record<string, string> = {
 const INFL_AGE: Record<string, string> = {
   A: "Archaic",
   B: "Early",
+  C: "Classic",
   D: "Late",
   E: "Later",
   F: "Medieval",

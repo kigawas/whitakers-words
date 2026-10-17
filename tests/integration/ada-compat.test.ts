@@ -977,7 +977,7 @@ describe("ada-compat: -que on a word that already parses", () => {
   });
 
   // is reaches idem (PRON 4 2) only by a frequency-C ending, which Ada's
-  // List_Sweep trims; on its own, the port filters idem out (engine.ts)
+  // List_Sweep trims
   it("isque: the base has no idem readings (expected:10286)", () => {
     const lines = outputLines("isque");
     expect(lines).toContainEqual("i.s                  PRON   4 1 NOM S M");
@@ -1253,5 +1253,87 @@ describe("pronoun headwords where Ada prints no form", () => {
     expect(outputLines("nos")).toContainEqual("nos  PRON   [XXXAX]");
     expect(outputLines("vos")).toContainEqual("vos  PRON   [XXXBO]");
     expect(outputLines("sibi")).toContainEqual("sui  PRON   [XXXAX]");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ada's List_Sweep trims archaic and uncommon inflections when the same set of
+// readings also has a common one. Ada expected from tests/original.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: List_Sweep trims archaic and uncommon inflections", () => {
+  it("coniugis, genitoris: only GEN S of the 3rd declension", () => {
+    expect(outputLines("coniugis").filter((l) => l.includes("N      3 1"))).toEqual([
+      "coniug.is            N      3 1 GEN S C",
+    ]);
+    expect(outputLines("genitoris").filter((l) => l.startsWith("genitor.is"))).toEqual([
+      "genitor.is           N      3 1 GEN S M",
+    ]);
+  });
+
+  // NOM P -is is both N 3 0 (Archaic) and N 3 3 (Early, uncommon). Ada trims
+  // before it drops duplicates, so the N 3 3 line survives.
+  it("manis: the uncommon NOM P outlives the archaic one (expected:1785)", () => {
+    expect(outputLines("manis").filter((l) => l.startsWith("man.is"))).toEqual([
+      "man.is               N      3 3 GEN S M",
+      "man.is               N      3 3 NOM P M                   Early     uncommon",
+      "man.is               N      3 3 ACC P M                   Early",
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// idem (PRON 4 2, "w/-dem ONLY") shares its stems with is, ea, id. Ada prints
+// it wherever one of its endings fits and List_Sweep keeps it.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: idem readings of is, ea, id forms", () => {
+  it("ea, eo, i (expected:19387, 24500, 19495)", () => {
+    expect(block("ea", "e.a                  PRON   4 2", 6)).toEqual([
+      "e.a                  PRON   4 2 NOM S F",
+      "e.a                  PRON   4 2 ABL S F",
+      "e.a                  PRON   4 2 NOM P N",
+      "e.a                  PRON   4 2 ACC P N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+    expect(block("eo", "e.o                  PRON   4 2", 4)).toEqual([
+      "e.o                  PRON   4 2 ABL S M",
+      "e.o                  PRON   4 2 ABL S N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+    expect(block("i", "i                    PRON   4 2", 5)).toEqual([
+      "i                    PRON   4 2 NOM S M",
+      "i                    PRON   4 2 NOM S N",
+      "i                    PRON   4 2 ACC S N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+  });
+
+  it("eius: GEN S (latin-words.com)", () => {
+    expect(block("eius", "e.ius                PRON   4 2", 3)).toEqual([
+      "e.ius                PRON   4 2 GEN S X",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+  });
+});
+
+describe("ada-compat: inflection age and frequency tags", () => {
+  it("pads the age to 8 characters before the frequency", () => {
+    expect(outputLines("iungere")).toContainEqual(
+      "iung.ere             V      3 1 PRES PASSIVE IND 2 S      Early     uncommon",
+    );
+    expect(outputLines("tonitru")).toContainEqual(
+      "tonitr.u             N      4 1 DAT S M                   Late      uncommon",
+    );
+  });
+
+  it("labels age C as Classic", () => {
+    expect(outputLines("bum")).toContainEqual(
+      "b.um                 N      4 1 GEN P C                   Classic   uncommon",
+    );
   });
 });

@@ -73,21 +73,6 @@ export interface ParseResult {
 }
 
 /**
- * A reading of the idem entry (PRON 4 2 DEMONS, "w/-dem ONLY"), which shares
- * its stems with is, ea, id. Ada reaches it from "is" or "eius" only by rare
- * endings that its List_Sweep trims, so the port keeps it only before -dem.
- */
-export function isIdemReading(r: ParseResult): boolean {
-  return (
-    r.ir.qual.pofs === "PRON" &&
-    r.de.part.pofs === "PRON" &&
-    r.de.part.pron.decl.which === 4 &&
-    r.de.part.pron.decl.var === 2 &&
-    r.de.part.pron.kind === "DEMONS"
-  );
-}
-
-/**
  * For each stem/ending pair from runInflections, look up the stem in the
  * dictionary and verify the match is grammatically valid.
  *
