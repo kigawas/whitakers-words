@@ -311,6 +311,21 @@ h1 {
   font-style: normal;
 }
 
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--ink-light);
+  cursor: pointer;
+}
+
+.option input {
+  margin: 0;
+  accent-color: var(--terracotta);
+}
+
 /* ---- Loading animation ---- */
 
 @keyframes pulse-dot {

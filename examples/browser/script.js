@@ -8,6 +8,7 @@ const input = document.getElementById("word-input");
 const btn = document.getElementById("parse-btn");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
+const rareToggle = document.getElementById("rare-toggle");
 
 // ---------------------------------------------------------------------------
 // Engine loading
@@ -51,6 +52,7 @@ async function init() {
   await new Promise((r) => requestAnimationFrame(r));
 
   engine = WordsEngine.create({ dictline, inflects, addons, uniques });
+  engine.trimOutput = !rareToggle.checked;
   const elapsed = (performance.now() - t0).toFixed(0);
 
   statusEl.classList.remove("loading");
@@ -229,7 +231,7 @@ function flags(de) {
 
 /** Inflection age labels (non-default ages shown as tags on inflection lines) */
 const INFL_AGE_LABELS = {
-  A: "Archaic", B: "Early", D: "Late", E: "Later",
+  A: "Archaic", B: "Early", C: "Classic", D: "Late", E: "Later",
   F: "Medieval", G: "Scholar", H: "Modern",
 };
 
@@ -437,6 +439,16 @@ input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") parseInput();
 });
 btn.addEventListener("click", parseInput);
+
+// Ada's Trim_Output hides archaic and uncommon inflections when a word also
+// has a common reading; the checkbox turns it off.
+rareToggle.checked = localStorage.getItem("showRare") === "true";
+rareToggle.addEventListener("change", () => {
+  localStorage.setItem("showRare", String(rareToggle.checked));
+  if (!engine) return;
+  engine.trimOutput = !rareToggle.checked;
+  parseInput();
+});
 
 // ---------------------------------------------------------------------------
 // Theme toggle
