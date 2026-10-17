@@ -9,14 +9,23 @@ import type { ParseResult } from "./word-analysis.js";
 // The main `listSweep` function composes them in the correct order.
 // ---------------------------------------------------------------------------
 
+export interface SweepOptions {
+  /** Ada's Trim_Output: trim archaic and uncommon inflections (default true). */
+  readonly trim?: boolean;
+}
+
 /**
  * Full list sweep pipeline: filter → trim → deduplicate → normalize → rank.
  * Order matters: filter uses pre-normalization values (e.g., V 3,4 not 4,1),
  * and as in Ada, trimming comes before deduplication, so of two inflections
  * with the same quality the one the trim keeps survives (manis NOM P).
  */
-export function listSweep(results: ParseResult[]): ParseResult[] {
-  return rank(normalizeDisplay(deduplicate(trimRare(filterByPOS(results)))));
+export function listSweep(
+  results: ParseResult[],
+  { trim = true }: SweepOptions = {},
+): ParseResult[] {
+  const filtered = filterByPOS(results);
+  return rank(normalizeDisplay(deduplicate(trim ? trimRare(filtered) : filtered)));
 }
 
 // ---------------------------------------------------------------------------

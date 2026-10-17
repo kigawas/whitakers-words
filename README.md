@@ -116,6 +116,7 @@ The main class. Created via `WordsEngine.create(data)` or the convenience `creat
 | `inflectionCount: number`                                                 | Number of inflection rules (expect ~1,800)                        |
 | `uniqueCount: number`                                                     | Number of unique/irregular entries (expect ~76)                   |
 | `addons: AddonsData`                                                      | The parsed addons (prefixes, suffixes, tackons)                   |
+| `trimOutput: boolean`                                                     | Ada's Trim_Output (default `true`); `false` keeps archaic and uncommon inflections |
 
 ### `WordAnalysis`
 
