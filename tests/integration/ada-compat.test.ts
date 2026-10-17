@@ -1255,3 +1255,20 @@ describe("pronoun headwords where Ada prints no form", () => {
     expect(outputLines("sibi")).toContainEqual("sui  PRON   [XXXAX]");
   });
 });
+
+describe("ada-compat: inflection age and frequency tags", () => {
+  it("pads the age to 8 characters before the frequency", () => {
+    expect(outputLines("iungere")).toContainEqual(
+      "iung.ere             V      3 1 PRES PASSIVE IND 2 S      Early     uncommon",
+    );
+    expect(outputLines("tonitru")).toContainEqual(
+      "tonitr.u             N      4 1 DAT S M                   Late      uncommon",
+    );
+  });
+
+  it("labels age C as Classic", () => {
+    expect(outputLines("bum")).toContainEqual(
+      "b.um                 N      4 1 GEN P C                   Classic   uncommon",
+    );
+  });
+});
