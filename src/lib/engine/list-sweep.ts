@@ -3,42 +3,24 @@ import { extractQuality, qualityDedupeKey } from "../types/quality-extract.js";
 import type { ParseResult } from "./word-analysis.js";
 
 // ---------------------------------------------------------------------------
-// List sweep pipeline — deduplicate, filter, normalize, rank.
+// List sweep pipeline — filter, trim, deduplicate, normalize, rank.
 //
 // Each step is independently exported for testing and composability.
 // The main `listSweep` function composes them in the correct order.
 // ---------------------------------------------------------------------------
 
 /**
- * Full list sweep pipeline: deduplicate → filter → normalize → rank.
- * Order matters: filter uses pre-normalization values (e.g., V 3,4 not 4,1).
+ * Full list sweep pipeline: filter → trim → deduplicate → normalize → rank.
+ * Order matters: filter uses pre-normalization values (e.g., V 3,4 not 4,1),
+ * and as in Ada, trimming comes before deduplication, so of two inflections
+ * with the same quality the one the trim keeps survives (manis NOM P).
  */
 export function listSweep(results: ParseResult[]): ParseResult[] {
-  return rank(normalizeDisplay(filterByPOS(deduplicate(results))));
+  return rank(normalizeDisplay(deduplicate(trimRare(filterByPOS(results)))));
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: Deduplication
-// ---------------------------------------------------------------------------
-
-/** Remove exact duplicates (same entryIndex + same inflection quality). */
-export function deduplicate(results: ParseResult[]): ParseResult[] {
-  const seen = new Set<string>();
-  const out: ParseResult[] = [];
-
-  for (const r of results) {
-    const key = qualityDedupeKey(r.entryIndex, extractQuality(r.ir.qual));
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(r);
-    }
-  }
-
-  return out;
-}
-
-// ---------------------------------------------------------------------------
-// Step 2: POS-specific filtering
+// Step 1: POS-specific filtering
 // ---------------------------------------------------------------------------
 
 /**
@@ -146,7 +128,55 @@ export function filterByPOS(results: ParseResult[]): ParseResult[] {
 }
 
 // ---------------------------------------------------------------------------
-// Step 3: Display normalization
+// Step 2: Trimming rare inflections
+// ---------------------------------------------------------------------------
+
+/** Inflection frequencies more common than C (Ada orders X first). */
+const COMMON_INFLECTION: ReadonlySet<Frequency> = new Set(["X", "A", "B"]);
+
+/** Entry frequencies more common than D. */
+const COMMON_ENTRY: ReadonlySet<Frequency> = new Set(["X", "A", "B", "C"]);
+
+/**
+ * Ada's Trim_Output (Order_Parse_Array in words_engine-list_sweep.adb), with
+ * Omit_Archaic and Omit_Uncommon on by default: drop archaic inflections if
+ * some reading has neither an archaic inflection nor an archaic entry, and
+ * uncommon inflections if some reading has a common inflection and entry.
+ */
+export function trimRare(results: ParseResult[]): ParseResult[] {
+  const notOnlyArchaic = results.some((r) => r.ir.age !== "A" && r.de.tran.age !== "A");
+  const notOnlyUncommon = results.some(
+    (r) => COMMON_INFLECTION.has(r.ir.freq) && COMMON_ENTRY.has(r.de.tran.freq),
+  );
+  return results.filter(
+    (r) =>
+      !(notOnlyArchaic && r.ir.age === "A") &&
+      !(notOnlyUncommon && !COMMON_INFLECTION.has(r.ir.freq)),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Step 3: Deduplication
+// ---------------------------------------------------------------------------
+
+/** Remove exact duplicates (same entryIndex + same inflection quality). */
+export function deduplicate(results: ParseResult[]): ParseResult[] {
+  const seen = new Set<string>();
+  const out: ParseResult[] = [];
+
+  for (const r of results) {
+    const key = qualityDedupeKey(r.entryIndex, extractQuality(r.ir.qual));
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(r);
+    }
+  }
+
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Step 4: Display normalization
 // ---------------------------------------------------------------------------
 
 /**
@@ -197,7 +227,7 @@ function normalizeDisplayValues(r: ParseResult): ParseResult {
 }
 
 // ---------------------------------------------------------------------------
-// Step 4: Ranking
+// Step 5: Ranking
 // ---------------------------------------------------------------------------
 
 /** Sort results by dictionary frequency (most common first) then POS priority,

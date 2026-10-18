@@ -10,7 +10,7 @@ import { listSweep } from "./list-sweep.js";
 import type { SuffixTrieNode } from "./suffix-trie.js";
 import { findMatchingSuffixes } from "./suffix-trie.js";
 import type { ParseResult } from "./word-analysis.js";
-import { analyzeWord, isIdemReading, matchAndResolve, runInflections } from "./word-analysis.js";
+import { analyzeWord, matchAndResolve, runInflections } from "./word-analysis.js";
 
 // ---------------------------------------------------------------------------
 // Addon stripping — try removing tackons, prefixes, suffixes from a word
@@ -118,8 +118,7 @@ export function tryPackons(
 /**
  * A word as Ada's Word reads it (words_engine-word_package.adb), which is how
  * a tackon's base is read too: its dictionary readings, uniques and packons,
- * or when none of those parse, its tackon readings. Results are unswept, and
- * still include idem.
+ * or when none of those parse, its tackon readings. Results are unswept.
  */
 export interface WordReading {
   readonly results: readonly ParseResult[];
@@ -193,15 +192,9 @@ export function tryTackons(
       reading = readWord(base);
       bases.set(base, reading);
     }
-    // As on its own, the base has no idem reading, except before -dem. Only its
-    // own readings: idem that came through an inner -dem stays ("idempte").
-    const own =
-      tackon.word === "dem"
-        ? reading
-        : { ...reading, results: reading.results.filter((r) => !isIdemReading(r)) };
     // Ada's Enclitic keeps the base as Word reads it; Try_Tackons sweeps it
     // ("huiuscemodi" = huius + modi, without -ce's line)
-    const swept = isEnclitic(tackon) ? own : sweep(own);
+    const swept = isEnclitic(tackon) ? reading : sweep(reading);
     const fits = (qual: QualityRecord) => fitsTackonBase(qual, tackon);
     const baseResults = swept.results.filter((r) => fits(r.ir.qual));
     const baseUniques = swept.uniques.filter((u) => fits(u.qual));

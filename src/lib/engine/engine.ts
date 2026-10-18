@@ -32,7 +32,7 @@ import { buildSuffixTrie, type SuffixTrieNode } from "./suffix-trie.js";
 import { type SyncopeResult, trySyncope } from "./syncope.js";
 import { applyTricks, trickAnnotation } from "./tricks.js";
 import { type TwoWordResult, tryTwoWords } from "./two-words.js";
-import { analyzeWord, isIdemReading, type ParseResult } from "./word-analysis.js";
+import { analyzeWord, type ParseResult } from "./word-analysis.js";
 
 // ---------------------------------------------------------------------------
 // WordsEngine — top-level API
@@ -149,9 +149,8 @@ export class WordsEngine {
     const reading = this.#readWord(lowerWord);
     const uniqueResults = reading.uniques;
 
-    // 2. Deduplicate and rank. idem (PRON 4 2 DEMONS) appears only via the
-    // -dem tackon, not as a standalone parse of "i", "is", "eius", etc.
-    let results = listSweep([...reading.results]).filter((r) => !isIdemReading(r));
+    // 2. Deduplicate, filter, trim and rank.
+    let results = listSweep([...reading.results]);
 
     // 3. Always try slury (prefix assimilation detection) and syncope.
     // Ada runs these alongside standard results (shown as additional info).
