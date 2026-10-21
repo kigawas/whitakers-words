@@ -82,6 +82,12 @@ export class WordsEngine {
   readonly #allPrefixes: AddonsData["prefixes"];
   readonly #suffixTrie: SuffixTrieNode;
 
+  /**
+   * Ada's Trim_Output: drop archaic and uncommon inflections when the same set
+   * of readings also has a common one. On by default, as in Ada.
+   */
+  trimOutput = true;
+
   private constructor(
     dictEntries: readonly DictionaryEntry[],
     inflRecords: readonly InflectionRecord[],
@@ -149,13 +155,14 @@ export class WordsEngine {
     const reading = this.#readWord(lowerWord);
     const uniqueResults = reading.uniques;
 
-    // 2. Deduplicate, filter, trim and rank.
-    let results = listSweep([...reading.results]);
+    // 2. Filter, trim, deduplicate and rank.
+    const sweep = { trim: this.trimOutput };
+    let results = listSweep([...reading.results], sweep);
 
     // 3. Always try slury (prefix assimilation detection) and syncope.
     // Ada runs these alongside standard results (shown as additional info).
-    const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex);
-    const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex);
+    const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
+    const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
 
     // 4. The enclitics, as Ada's Enclitic tries them after Word: a word that
     // already parses still gets -que, but not -ne, -ve or -est. "atque" is
@@ -171,7 +178,12 @@ export class WordsEngine {
     const parsed =
       reading.results.length > 0 || reading.uniques.length > 0 || reading.addons.length > 0;
     addonResults.push(
-      ...tryTackons(lowerWord, parsed ? this.#que : this.#enclitics, (w) => this.#readWord(w)),
+      ...tryTackons(
+        lowerWord,
+        parsed ? this.#que : this.#enclitics,
+        (w) => this.#readWord(w),
+        sweep,
+      ),
     );
 
     // 5. If no results, try tricks (spelling variations)
@@ -183,7 +195,7 @@ export class WordsEngine {
         const trickParses = analyzeWord(tw.word, this.#inflIndex, this.#dictIndex);
         if (trickParses.length > 0) {
           trickAnnotations = trickAnnotation(tw.trick);
-          trickResults = listSweep(trickParses);
+          trickResults = listSweep(trickParses, sweep);
           break; // take first successful trick
         }
       }
@@ -192,14 +204,14 @@ export class WordsEngine {
     // 6. Try prefixes — Ada tries prefix stripping before suffixes.
     if (noResults()) {
       addonResults.push(
-        ...tryPrefixes(lowerWord, this.#allPrefixes, this.#inflIndex, this.#dictIndex),
+        ...tryPrefixes(lowerWord, this.#allPrefixes, this.#inflIndex, this.#dictIndex, sweep),
       );
     }
 
     // 7. Try suffixes.
     if (noResults()) {
       addonResults.push(
-        ...trySuffixes(lowerWord, this.#suffixTrie, this.#inflIndex, this.#dictIndex),
+        ...trySuffixes(lowerWord, this.#suffixTrie, this.#inflIndex, this.#dictIndex, sweep),
       );
     }
 
@@ -217,7 +229,7 @@ export class WordsEngine {
     // 8. Two-word splitting — last resort fallback.
     let twoWordResult: TwoWordResult | null = null;
     if (noResults() && !syncopeResult) {
-      twoWordResult = tryTwoWords(lowerWord, this.#inflIndex, this.#dictIndex);
+      twoWordResult = tryTwoWords(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
     }
 
     // 9. Roman numeral detection — runs alongside other results (not fallback).
@@ -342,9 +354,17 @@ export class WordsEngine {
   #readWord(word: string): WordReading {
     const uniques = this.#lookupUniques(word);
     const results = analyzeWord(word, this.#inflIndex, this.#dictIndex);
-    const addons = quPackons(word, results, this.#allPackons, this.#inflIndex, this.#dictIndex);
+    const sweep = { trim: this.trimOutput };
+    const addons = quPackons(
+      word,
+      results,
+      this.#allPackons,
+      this.#inflIndex,
+      this.#dictIndex,
+      sweep,
+    );
     if (uniques.length === 0 && results.length === 0 && addons.length === 0) {
-      addons.push(...tryTackons(word, this.#wordTackons, (w) => this.#readWord(w)));
+      addons.push(...tryTackons(word, this.#wordTackons, (w) => this.#readWord(w), sweep));
     }
     return { results, uniques, addons };
   }

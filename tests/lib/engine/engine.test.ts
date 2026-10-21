@@ -271,3 +271,61 @@ describe("concietur (cieo compound) surfaces 2nd-conjugation conciere", () => {
     expect(forms.some((f) => f.includes("(ii)"))).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// trimOutput: Ada's Trim_Output. On by default; off, the engine keeps the
+// archaic and uncommon inflections that List_Sweep would trim.
+// ---------------------------------------------------------------------------
+describe("trimOutput", () => {
+  const untrimmed = createEngine();
+  untrimmed.trimOutput = false;
+  const lines = (word: string) => untrimmed.formatWord(word).split("\n");
+  // conjunx N 3 1 under coniugis, before the trim
+  const conjunx = (word: string) => lines(word).filter((l) => l.includes("N      3 1"));
+  const CONJUNX = [
+    "coniug.is            N      3 1 GEN S C",
+    "coniug.is            N      3 1 NOM P C                   Archaic",
+    "coniug.is            N      3 1 ACC P C                   uncommon",
+  ];
+
+  it("is on by default", () => {
+    expect(engine.trimOutput).toBe(true);
+  });
+
+  it("off: a word keeps its archaic and uncommon readings", () => {
+    expect(conjunx("coniugis")).toEqual(CONJUNX);
+  });
+
+  it("off: so does a tackon's base", () => {
+    expect(lines("caelumque")).toContainEqual(
+      "cael.um              N      1 1 GEN P F                   uncommon",
+    );
+    expect(lines("caelumque")).toContainEqual("caela, caelae  N (1st) F   [XXSES]    uncommon");
+  });
+
+  it("off: so does a slur", () => {
+    expect(lines("adloquere")).toContainEqual(
+      "alloqu.ere           V      3 1 PRES         IND 2 S      Early     uncommon",
+    );
+  });
+
+  it("off: so does a suffix's base", () => {
+    expect(lines("noris").filter((l) => l.startsWith("nor.is"))).toEqual([
+      "nor.is               N      3 1 GEN S M",
+      "nor.is               N      3 1 NOM P M                   Archaic",
+      "nor.is               N      3 1 ACC P M                   uncommon",
+    ]);
+  });
+
+  it("off: so does a prefix's base", () => {
+    expect(conjunx("praeconiugis")).toEqual(CONJUNX);
+  });
+
+  it("off: so does a trick", () => {
+    expect(conjunx("hconiugis")).toEqual(CONJUNX);
+  });
+
+  it("off: so does a two-word split", () => {
+    expect(conjunx("retroconiugis")).toEqual(CONJUNX);
+  });
+});
