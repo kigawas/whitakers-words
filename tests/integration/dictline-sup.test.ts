@@ -412,7 +412,7 @@ describe("DICTLINE.SUP: Greek -eus declension (N 2 9)", () => {
     expect(
       theseumResults.some((r) => r.ir.qual.noun.cs === "ACC" && r.ir.qual.noun.number === "S"),
     ).toBe(true);
-    // GEN P should not appear for a proper name
+    // The uncommon GEN P is trimmed, as the common ACC S also fits
     expect(
       theseumResults.every((r) => r.ir.qual.noun.cs !== "GEN" || r.ir.qual.noun.number !== "P"),
     ).toBe(true);
@@ -451,10 +451,10 @@ describe("DICTLINE.SUP: Greek -eus declension (N 2 9)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Pluralia tantum (kind=M) and proper-name filtering
+// Pluralia tantum (kind=M), place names and peoples
 // ---------------------------------------------------------------------------
 
-describe("DICTLINE.SUP: pluralia tantum and proper-name filtering", () => {
+describe("DICTLINE.SUP: pluralia tantum, place names and peoples", () => {
   it("Athenae: only plural forms (kind=M)", () => {
     const a = engine.parseWord("athenae");
     const athensResults = a.results.filter((r) => r.de.mean.includes("Athens"));
@@ -495,15 +495,6 @@ describe("DICTLINE.SUP: pluralia tantum and proper-name filtering", () => {
       (r) => r.ir.qual.pofs === "N" && r.de.mean.includes("(pl.)"),
     );
     expect(multiResults.length).toBe(0);
-  });
-
-  it("Moses (kind=P from DICTLINE.GEN): no plural forms", () => {
-    const a = engine.parseWord("moses");
-    const mosesResults = a.results.filter(
-      (r) => r.de.mean.includes("Moses") && r.ir.qual.pofs === "N",
-    );
-    expect(mosesResults.length).toBeGreaterThan(0);
-    expect(mosesResults.every((r) => r.ir.qual.noun.number === "S")).toBe(true);
   });
 
   it("place names allow locative", () => {

@@ -537,9 +537,9 @@ describe("word output checks", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Nouns of kind P (a person: homo, soror, rex) keep their plurals. Only
-// capitalized kind-P entries are names (Moses) and lose them.
-// Ada expected from latin-words.com.
+// Nouns of kind P (a person: homo, soror, rex) keep their plurals, as in Ada,
+// including capitalized ones: classes of people (Amazon, Siren) and names
+// (Moses). Ada expected from latin-words.com.
 // ---------------------------------------------------------------------------
 
 describe("ada-compat: person nouns (kind P) have plurals", () => {
@@ -589,15 +589,68 @@ describe("ada-compat: person nouns (kind P) have plurals", () => {
   it("comites: comit.es NOM P C", () => {
     expect(outputLines("comites")).toContainEqual("comit.es             N      3 1 NOM P C");
   });
+
+  it("amazones: amazon.es NOM, VOC and ACC P F, not the -es SUFFIX reading", () => {
+    const lines = outputLines("amazones");
+    expect(lines).toEqual(
+      expect.arrayContaining([
+        "amazon.es            N      3 1 NOM P F",
+        "amazon.es            N      3 1 VOC P F",
+        "amazon.es            N      3 1 ACC P F",
+      ]),
+    );
+    expect(lines).not.toContainEqual(expect.stringContaining("SUFFIX"));
+  });
+
+  it("naiades: naiad.es NOM and VOC P F of Naias", () => {
+    expect(outputLines("naiades")).toEqual([
+      "naiad.es             N      3 7 NOM P F",
+      "naiad.es             N      3 7 VOC P F",
+      "Naias, Naiados/is  N F   [XXXDX]    lesser",
+      "Naiad; water nymph; nymph;",
+    ]);
+  });
+
+  it("sirenes: siren.es NOM and VOC P F, not si PREFIX + ren", () => {
+    expect(outputLines("sirenes")).toEqual([
+      "siren.es             N      3 9 NOM P F",
+      "siren.es             N      3 9 VOC P F",
+      "Siren, Sirenos/is  N F   [XYXCO]",
+      "Siren; (lured sailors with song); type of drone/solitary bee/wasp);",
+    ]);
+  });
+
+  it("luperci: luperc.i LOC S, NOM P and VOC P besides GEN S", () => {
+    expect(outputLines("luperci")).toEqual([
+      "luperc.i             N      2 1 GEN S M",
+      "luperc.i             N      2 1 LOC S M",
+      "luperc.i             N      2 1 NOM P M",
+      "luperc.i             N      2 1 VOC P M",
+      "Lupercus, Luperci  N (2nd) M   [XXXDX]    lesser",
+      "protector against wolves (Pan); priest in Lycean fertility festival (15 Feb);",
+    ]);
+  });
+
+  it("moses: mos.es NOM and VOC P M besides the singulars", () => {
+    expect(outputLines("moses")).toEqual([
+      "moses                N      3 8 NOM S M",
+      "moses                N      3 8 VOC S M",
+      "mos.es               N      3 8 ACC S M",
+      "mos.es               N      3 8 NOM P M",
+      "mos.es               N      3 8 VOC P M",
+      "Moses, Mosis  N M   [EEQEE]    Later  uncommon",
+      "Moses;",
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
-// Deus is entered as a proper name (De De N 2 1 M N, "God; god; ...") but is
-// also the common noun "god", so it is exempt from the proper-name filter.
-// Other kind-N names still lose plural and locative readings.
+// Proper names (kind N) keep their plural and locative readings, as in Ada:
+// Deus (De De N 2 1 M N, "God; god; ..."), Carus, Iuppiter, Diana. The
+// port's own names in DICTLINE.SUP, which Ada lacks, follow the same rule.
 // ---------------------------------------------------------------------------
 
-describe("ada-compat: deus has plurals; other proper names do not", () => {
+describe("ada-compat: proper names have plurals and locatives", () => {
   it("deorum: de.orum GEN P M under Deus, Dei", () => {
     const lines = outputLines("deorum");
     expect(lines).toContainEqual("de.orum              N      2 1 GEN P M");
@@ -614,16 +667,61 @@ describe("ada-compat: deus has plurals; other proper names do not", () => {
     expect(lines).toContainEqual("de.i                 N      2 1 GEN S M");
   });
 
-  it("aeneas, cari, anchise: no plural or locative of the proper name", () => {
-    expect(outputLines("aeneas")).not.toContainEqual(
-      expect.stringContaining("aene.as              N      1 8 ACC P M"),
+  it("cari: car.i LOC S, NOM P and VOC P of Carus (expected:18061)", () => {
+    expect(outputLines("cari")).toEqual(
+      expect.arrayContaining([
+        "car.i                N      2 1 GEN S M",
+        "car.i                N      2 1 LOC S M",
+        "car.i                N      2 1 NOM P M",
+        "car.i                N      2 1 VOC P M",
+        "Carus, Cari  N (2nd) M   [DLIEO]    Late  uncommon",
+      ]),
     );
-    expect(outputLines("cari")).not.toContainEqual(
-      expect.stringContaining("car.i                N      2 1 NOM P M"),
+  });
+
+  it("iovis: iov.is ACC P M (expected:4674)", () => {
+    expect(outputLines("iovis")).toContainEqual(
+      "iov.is               N      3 3 ACC P M                   Early",
     );
-    expect(outputLines("anchise")).not.toContainEqual(
-      expect.stringContaining("anchis.e             N      3 8 LOC S M"),
+  });
+
+  it("dianae: dian.ae LOC S, NOM P and VOC P (expected:26093)", () => {
+    expect(outputLines("dianae")).toEqual(
+      expect.arrayContaining([
+        "dian.ae              N      1 1 LOC S F",
+        "dian.ae              N      1 1 NOM P F",
+        "dian.ae              N      1 1 VOC P F",
+      ]),
     );
+  });
+
+  it("tacitis: Tacitus DAT, ABL and LOC P (expected:18490)", () => {
+    expect(outputLines("tacitis")).toEqual(
+      expect.arrayContaining([
+        "tacit.is             N      2 1 LOC P M",
+        "tacit.is             N      2 1 DAT P M",
+        "tacit.is             N      2 1 ABL P M",
+        "Tacitus, Taciti  N (2nd) M   [DLIDZ]    Late  lesser",
+      ]),
+    );
+  });
+
+  it("mercurium: the uncommon GEN P of Mercuria and Mercurius (expected:11295)", () => {
+    const lines = outputLines("mercurium");
+    expect(lines.filter((l) => l.startsWith("mercuri.um") && l.includes("GEN P"))).toEqual([
+      "mercuri.um           N      1 1 GEN P M                   uncommon",
+      "mercuri.um           N      2 1 GEN P M                   uncommon",
+    ]);
+  });
+
+  it("zephyros: zephyr.os ACC P, which trims the archaic NOM S (expected:11370)", () => {
+    expect(outputLines("zephyros").filter((l) => l.startsWith("zephyr.os"))).toEqual([
+      "zephyr.os            N      2 1 ACC P M",
+    ]);
+  });
+
+  it("aeneas: the port's own names get plurals too (aene.as ACC P)", () => {
+    expect(outputLines("aeneas")).toContainEqual("aene.as              N      1 8 ACC P M");
   });
 });
 

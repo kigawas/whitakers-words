@@ -32,33 +32,12 @@ export function listSweep(
 // Step 1: POS-specific filtering
 // ---------------------------------------------------------------------------
 
-/**
- * Stems of proper-name entries that also serve as common nouns, so they keep
- * their plurals. DICTLINE's only deus is "De De N 2 1 M N" (God; god).
- */
-const COMMON_NOUN_NAMES: ReadonlySet<string> = new Set(["De"]);
-
 /** Filter out grammatically invalid forms based on POS-specific rules. */
 export function filterByPOS(results: ParseResult[]): ParseResult[] {
   return results.filter((r) => {
     // PREP: only keep the inflection matching the dictionary entry's obj case
     if (r.ir.qual.pofs === "PREP" && r.de.part.pofs === "PREP") {
       return r.ir.qual.prep.cs === r.de.part.prep.obj;
-    }
-
-    // Proper names: filter plural and locative. Kind N is a proper name; kind P
-    // is any noun denoting a person (homo, soror, rex), so it only counts as a
-    // name when the stem is capitalized (Moses). The Ada original does not do
-    // this, but generic variant-0 inflections produce nonsensical forms for
-    // proper-name entries.
-    if (
-      r.ir.qual.pofs === "N" &&
-      r.de.part.pofs === "N" &&
-      (r.de.part.n.kind === "N" || (r.de.part.n.kind === "P" && /^[A-Z]/.test(r.de.stems[0]))) &&
-      !COMMON_NOUN_NAMES.has(r.de.stems[0]) &&
-      (r.ir.qual.noun.number === "P" || r.ir.qual.noun.cs === "LOC")
-    ) {
-      return false;
     }
 
     // Pluralia tantum (kind=M): plural-only nouns should not produce singular
