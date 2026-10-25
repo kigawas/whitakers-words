@@ -254,23 +254,11 @@ export class WordsEngine {
       twoWordResult = tryTwoWords(lowerWord, (w) => this.#readWord(w), sweep);
     }
 
-    // 10. Compound perfect passive — PPL + sum/esse/fuisse
-    const compoundResults = nextWord.length > 0 ? tryCompound(results, nextWord) : [];
-
-    // When a compound is detected, filter results to only matching NOM VPAR entries
-    // (Ada's Do_Clear_Pas_Nom_Ppl removes non-VPAR and non-NOM VPAR results)
-    if (compoundResults.length > 0) {
-      const compoundEntryIndices = new Set(compoundResults.map((c) => c.entryIndex));
-      results = results.filter(
-        (r) =>
-          r.ir.qual.pofs === "VPAR" &&
-          r.ir.qual.vpar.tenseVoiceMood.tense === "PERF" &&
-          r.ir.qual.vpar.tenseVoiceMood.voice === "PASSIVE" &&
-          r.ir.qual.vpar.tenseVoiceMood.mood === "PPL" &&
-          r.ir.qual.vpar.cs === "NOM" &&
-          compoundEntryIndices.has(r.entryIndex),
-      );
-    }
+    // 10. Compound verbs — PPL + sum/esse/fuisse. Only the participles that
+    // go with the next word stay (Ada's Do_Clear_Pas_Nom_Ppl, Do_Clear_Pas_Ppl).
+    const compound = tryCompound(results, nextWord);
+    if (compound) results = [...compound.results];
+    const compoundResults = compound ? [compound.compound] : [];
 
     // 11. Adjectives read as adverbs (Ada's Fix_Adverb), after all else.
     addonResults.push(

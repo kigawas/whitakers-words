@@ -72,10 +72,7 @@ describe("isEsse / isFuisse", () => {
 describe("tryCompound", () => {
   it("forms compound from VPAR PERF PASSIVE PPL + est", () => {
     const a = engine.parseWord("visa");
-    const compounds = tryCompound(a.results, "est");
-    expect(compounds.length).toBeGreaterThan(0);
-
-    const c = compounds[0];
+    const c = tryCompound(a.results, "est")?.compound;
     expect(c).toBeDefined();
     if (!c) return;
     expect(c.stem).toBe("PPL+est");
@@ -88,59 +85,71 @@ describe("tryCompound", () => {
 
   it("derives PLUP from IMPF sum form", () => {
     const a = engine.parseWord("visa");
-    const compounds = tryCompound(a.results, "erat");
-    expect(compounds.length).toBeGreaterThan(0);
-    expect(compounds[0]?.tense).toBe("PLUP");
+    expect(tryCompound(a.results, "erat")?.compound.tense).toBe("PLUP");
   });
 
   it("derives FUTP from FUT sum form", () => {
     const a = engine.parseWord("visa");
-    const compounds = tryCompound(a.results, "erit");
-    expect(compounds.length).toBeGreaterThan(0);
-    expect(compounds[0]?.tense).toBe("FUTP");
+    expect(tryCompound(a.results, "erit")?.compound.tense).toBe("FUTP");
   });
 
   it("derives SUB mood from subjunctive sum form", () => {
     const a = engine.parseWord("suscepta");
-    const compounds = tryCompound(a.results, "fuisset");
-    expect(compounds.length).toBeGreaterThan(0);
-    expect(compounds[0]?.tense).toBe("PLUP");
-    expect(compounds[0]?.mood).toBe("SUB");
+    const c = tryCompound(a.results, "fuisset")?.compound;
+    expect(c?.tense).toBe("PLUP");
+    expect(c?.mood).toBe("SUB");
   });
 
-  it("produces blank voice for DEP verbs", () => {
+  it("produces blank voice under a DEP verb's participles", () => {
     const a = engine.parseWord("merita");
-    const compounds = tryCompound(a.results, "es");
-    const depCompound = compounds.find((c) => c.de.part.pofs === "V" && c.de.part.v.kind === "DEP");
-    expect(depCompound).toBeDefined();
-    expect(depCompound?.voice).toBe("");
+    const c = tryCompound(a.results, "es")?.compound;
+    expect(c?.de.part.pofs === "V" && c.de.part.v.kind).toBe("DEP");
+    expect(c?.voice).toBe("");
   });
 
-  it("returns empty when next word is not sum/esse/fuisse", () => {
+  it("keeps only the NOM participles of the sum form's number", () => {
     const a = engine.parseWord("visa");
-    expect(tryCompound(a.results, "aquam")).toHaveLength(0);
-    expect(tryCompound(a.results, "")).toHaveLength(0);
+    const kept = tryCompound(a.results, "est")?.results ?? [];
+    expect(kept.length).toBeGreaterThan(0);
+    for (const r of kept) {
+      expect(r.ir.qual.pofs === "VPAR" && [r.ir.qual.vpar.cs, r.ir.qual.vpar.number]).toEqual([
+        "NOM",
+        "S",
+      ]);
+    }
   });
 
-  it("returns empty when no VPAR PERF PASSIVE PPL in results", () => {
+  it("returns null when next word is not sum/esse/fuisse", () => {
+    const a = engine.parseWord("visa");
+    expect(tryCompound(a.results, "aquam")).toBeNull();
+    expect(tryCompound(a.results, "")).toBeNull();
+  });
+
+  it("returns null when no participle makes a compound", () => {
     const a = engine.parseWord("aquam");
-    expect(tryCompound(a.results, "est")).toHaveLength(0);
+    expect(tryCompound(a.results, "est")).toBeNull();
   });
 
   it("forms compound with esse (infinitive)", () => {
     const a = engine.parseWord("visa");
-    const compounds = tryCompound(a.results, "esse");
-    expect(compounds.length).toBeGreaterThan(0);
-    expect(compounds[0]?.mood).toBe("INF");
-    expect(compounds[0]?.person).toBe(0);
-    expect(compounds[0]?.number).toBe("X");
+    const c = tryCompound(a.results, "esse")?.compound;
+    expect(c?.mood).toBe("INF");
+    expect(c?.person).toBe(0);
+    expect(c?.number).toBe("X");
   });
 
-  it("forms compound with fuisse (perfect infinitive)", () => {
+  it("forms none with fuisse from a perfect participle, as Ada does", () => {
     const a = engine.parseWord("visa");
-    const compounds = tryCompound(a.results, "fuisse");
-    expect(compounds.length).toBeGreaterThan(0);
-    expect(compounds[0]?.mood).toBe("INF");
+    expect(tryCompound(a.results, "fuisse")).toBeNull();
+  });
+
+  it("forms one with fuisse from a future participle (PERF ACTIVE INF)", () => {
+    const a = engine.parseWord("amaturum");
+    const c = tryCompound(a.results, "fuisse")?.compound;
+    expect([c?.tense, c?.voice, c?.mood]).toEqual(["PERF", "ACTIVE", "INF"]);
+    expect(c?.gloss).toBe(
+      "FUT ACT PPL+fuisse => PERF ACT INF Periphrastic - to have been about/going to",
+    );
   });
 });
 
@@ -180,6 +189,70 @@ describe("engine.parseLine: compound detection", () => {
 // ---------------------------------------------------------------------------
 // Formatted output matches Ada
 // ---------------------------------------------------------------------------
+describe("compound: as Ada prints it", () => {
+  const lines = (text: string) =>
+    engine
+      .formatLine(text)
+      .split("\n")
+      .map((l) => l.trimEnd())
+      .filter((l) => l.length > 0);
+
+  it("visa est: one PPL+est, under the last participle, with the first one's conjugation (expected:14690)", () => {
+    expect(lines("visa est")).toEqual([
+      "vis.a                VPAR   2 1 NOM S F PERF PASSIVE PPL",
+      "video, videre, vidi, visus  V (2nd)   [XXXAX]",
+      "see, look at; consider; (PASS) seem, seem good, appear, be seen;",
+      "vis.a                VPAR   3 1 NOM S F PERF PASSIVE PPL",
+      "PPL+est              V      2 1 PERF PASSIVE IND 3 S",
+      "PERF PASSIVE PPL + verb TO_BE => PASSIVE perfect system",
+      "viso, visere, visi, visus  V (3rd)   [XXXBX]",
+      "visit, go to see; look at;",
+    ]);
+  });
+
+  it("visa sunt: only the participles of sunt's number (latin-words.com)", () => {
+    expect(lines("visa sunt")).toEqual([
+      "vis.a                VPAR   2 1 NOM P N PERF PASSIVE PPL",
+      "video, videre, vidi, visus  V (2nd)   [XXXAX]",
+      "see, look at; consider; (PASS) seem, seem good, appear, be seen;",
+      "vis.a                VPAR   3 1 NOM P N PERF PASSIVE PPL",
+      "PPL+sunt             V      2 1 PERF PASSIVE IND 3 P",
+      "PERF PASSIVE PPL + verb TO_BE => PASSIVE perfect system",
+      "viso, visere, visi, visus  V (3rd)   [XXXBX]",
+      "visit, go to see; look at;",
+    ]);
+  });
+
+  it("amaturus est: a future active participle forms the periphrastic (latin-words.com)", () => {
+    expect(lines("amaturus est")).toEqual([
+      "amat.urus            VPAR   1 1 NOM S M FUT  ACTIVE  PPL",
+      "PPL+est              V      1 1 PRES PASSIVE IND 3 S",
+      "FUT ACTIVE PPL + verb TO_BE => ACTIVE Periphrastic - about to, going to",
+      "amo, amare, amavi, amatus  V (1st)   [XXXAO]",
+      "love, like; fall in love with; be fond of; have a tendency to;",
+    ]);
+  });
+
+  it("amandum esse: with esse, a participle of any case (latin-words.com)", () => {
+    expect(lines("amandum esse")).toEqual([
+      "am.andum             VPAR   1 1 NOM S N FUT  PASSIVE PPL",
+      "am.andum             VPAR   1 1 VOC S N FUT  PASSIVE PPL",
+      "am.andum             VPAR   1 1 ACC S M FUT  PASSIVE PPL",
+      "am.andum             VPAR   1 1 ACC S N FUT  PASSIVE PPL",
+      "PPL+esse             V      1 1 PRES PASSIVE INF 0 X",
+      "FUT PASSIVE PPL + esse => PRES PASSIVE INF",
+      "amo, amare, amavi, amatus  V (1st)   [XXXAO]",
+      "love, like; fall in love with; be fond of; have a tendency to;",
+    ]);
+  });
+
+  it("visa fuisse: no compound, as fuisse takes only a future participle (latin-words.com)", () => {
+    const out = lines("visa fuisse");
+    expect(out).not.toContainEqual(expect.stringContaining("PPL+"));
+    expect(out).toContainEqual("fu.isse              V      5 1 PERF ACTIVE  INF 0 X");
+  });
+});
+
 describe("compound: formatted output", () => {
   it("visa est produces PPL+est line matching Ada format", () => {
     const output = engine.formatLine("visa est");
