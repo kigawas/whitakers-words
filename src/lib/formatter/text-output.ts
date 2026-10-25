@@ -442,8 +442,9 @@ function formatQualityFromValues(v: QualityValues, verbKind: string): string {
   }
   // V: POS + con + tense(5) + voice(8) + mood(4) + person(2) + number
   if (v.pofs === "V") {
-    // For DEP/SEMIDEP verbs, voice is implied — blank it out (Ada behavior)
-    const voice = verbKind === "DEP" || verbKind === "SEMIDEP" ? "" : v.voice;
+    // A DEP verb's voice is implied, so Ada's Print_Modified_Qual blanks it;
+    // a SEMIDEP verb keeps it
+    const voice = verbKind === "DEP" ? "" : v.voice;
     return formatFields([
       f("V", POS_WIDTH),
       f(v.decl?.[0] ?? 0, DECL_WIDTH),
@@ -457,7 +458,7 @@ function formatQualityFromValues(v: QualityValues, verbKind: string): string {
   }
   // VPAR: POS + con + case/number/gender + tense(5) + voice(8) + PPL
   if (v.pofs === "VPAR") {
-    const voice = verbKind === "DEP" || verbKind === "SEMIDEP" ? "" : v.voice;
+    const voice = verbKind === "DEP" ? "" : v.voice;
     return formatFields([
       f("VPAR", POS_WIDTH),
       f(v.decl?.[0] ?? 0, DECL_WIDTH),
