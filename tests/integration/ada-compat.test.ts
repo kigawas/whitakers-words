@@ -1683,3 +1683,23 @@ describe("ada-compat: single-stem numerals", () => {
     ]);
   });
 });
+
+describe("ada-compat: semideponent voice", () => {
+  it("gaudens: a semideponent participle keeps its voice (latin-words.com)", () => {
+    expect(outputLines("gaudens")).toEqual([
+      "gaud.ens             VPAR   2 1 NOM S X PRES ACTIVE  PPL",
+      "gaud.ens             VPAR   2 1 VOC S X PRES ACTIVE  PPL",
+      "gaud.ens             VPAR   2 1 ACC S N PRES ACTIVE  PPL",
+      "gaudeo, gaudere, gavisus sum  V (2nd) SEMIDEP   [XXXAX]",
+      "be glad, rejoice;",
+    ]);
+  });
+
+  it("audet: so does a semideponent verb (latin-words.com)", () => {
+    expect(outputLines("audet")).toEqual([
+      "aud.et               V      2 1 PRES ACTIVE  IND 3 S",
+      "audeo, audere, ausus sum  V (2nd) SEMIDEP   [XXXAO]",
+      "intend, be prepared; dare/have courage (to go/do), act boldly, venture, risk;",
+    ]);
+  });
+});
