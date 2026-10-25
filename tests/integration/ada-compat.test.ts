@@ -407,11 +407,25 @@ describe("word output checks", () => {
     expect(lines).toContainEqual(expect.stringContaining("PERF ACTIVE"));
   });
 
-  it("ammoverunt: direct + slur, finds ammoveo and admoveo", () => {
-    const lines = outputLines("ammoverunt");
-    expect(lines).toContainEqual(expect.stringContaining("Slur"));
-    expect(lines).toContainEqual(expect.stringContaining("ammoveo"));
-    expect(lines).toContainEqual(expect.stringContaining("admoveo"));
+  it("ammoverunt: no slur, as the word itself reads (latin-words.com)", () => {
+    expect(outputLines("ammoverunt")).toEqual([
+      "ammov.erunt          V      2 1 PERF ACTIVE  IND 3 P",
+      "ammoveo, ammovere, ammovi, ammotus  V (2nd) TRANS   [XXXAO]",
+      "move up, bring up/near; lean on, conduct; draw near, approach; apply, add;",
+    ]);
+  });
+
+  it("inpure: no prefixes, as the slur reads the word (latin-words.com)", () => {
+    expect(outputLines("inpure")).toEqual([
+      "Word mod inp/imp",
+      "An initial 'inp' may be rendered by 'imp'",
+      "impur.e              ADJ    1 1 VOC S M POS",
+      "impurus, impura, impurum  ADJ   [XXXDX]    lesser",
+      "unclean, filthy, foul; impure; morally foul;",
+      "impure               ADV    POS",
+      "impure, impurius, impurissime  ADV   [XXXDX]    lesser",
+      "basely, shamefully, vilely, infamously; impurely;",
+    ]);
   });
 
   it("ludica: suffix stripping ic, finds ludus", () => {
@@ -1546,10 +1560,32 @@ describe("ada-compat: adjectives converted to adverbs", () => {
     expect(outputLines("inpure")).not.toContainEqual(expect.stringContaining("Converting ADJ"));
   });
 
-  it("improbe: improb.e ADV, but not the slur's inprob.e (expected:19808)", () => {
-    const lines = outputLines("improbe");
-    expect(lines).toContainEqual("improb.e             ADV    POS");
-    expect(lines).not.toContainEqual("inprob.e             ADV    POS");
+  it("improbe: improb.e ADV, and no slur, as the word itself reads (latin-words.com)", () => {
+    expect(outputLines("improbe")).toEqual([
+      "improb.e             ADJ    1 1 VOC S M POS",
+      "improbus, improba, improbum  ADJ   [XXXAO]",
+      "wicked/flagrant; morally unsound; greedy/rude; immoderate; disloyal; shameless;",
+      "e                    SUFFIX",
+      "-ly; -ily;  Converting ADJ to ADV",
+      "improb.e             ADV    POS",
+      "improbus, improba, improbum  ADJ   [XXXAO]",
+      "wicked/flagrant; morally unsound; greedy/rude; immoderate; disloyal; shameless;",
+    ]);
+  });
+
+  it("adcomode: so does a slur's adjective, as only the slur reads it (latin-words.com)", () => {
+    expect(outputLines("adcomode")).toEqual([
+      "Slur ad/a~",
+      "An initial 'ad' may be rendered by a~",
+      "accomod.e            ADJ    1 1 VOC S M POS",
+      "accomodus, accomoda, accomodum  ADJ   [XXXEO]    uncommon",
+      "fitting, convenient, suitable to, adapted to;",
+      "e                    SUFFIX",
+      "-ly; -ily;  Converting ADJ to ADV",
+      "accomod.e            ADV    POS",
+      "accomodus, accomoda, accomodum  ADJ   [XXXEO]    uncommon",
+      "fitting, convenient, suitable to, adapted to;",
+    ]);
   });
 
   it("perfideque: so does the base of a tackon (latin-words.com)", () => {

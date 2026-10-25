@@ -304,9 +304,7 @@ describe("trimOutput", () => {
   });
 
   it("off: so does a slur", () => {
-    expect(lines("adloquere")).toContainEqual(
-      "alloqu.ere           V      3 1 PRES         IND 2 S      Early     uncommon",
-    );
+    expect(conjunx("comiugis")).toEqual(CONJUNX);
   });
 
   it("off: so does a suffix's base", () => {

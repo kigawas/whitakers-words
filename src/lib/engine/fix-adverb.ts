@@ -49,23 +49,20 @@ function addonReadings(ar: AddonResult): ParseResult[] {
 /**
  * The adverb readings Ada adds to a word. Ada converts every reading in its
  * parse array, so a spelling trick's reading counts (perphide), and so do a
- * tackon's base (perfideque) and both halves of a two-word split (magnebone).
- *
- * Ada's array holds slur readings only for a word nothing else reads, but the
- * port tries slurs on every word. So a slur's adverb still stops the
- * conversion (inpure), but its adjectives are not converted (improbe, not
- * inprob.e), even for a word only a slur reads.
+ * slur's (adcomode), a tackon's base (perfideque) and both halves of a
+ * two-word split (magnebone).
  */
 export function fixAdverb(word: WordReadings): AddonResult[] {
   const readings = [
     ...word.results,
+    ...(word.sluryResult?.results ?? []),
     ...word.trickResults,
     ...word.addonResults.flatMap(addonReadings),
     ...(word.twoWordResult?.leftResults ?? []),
     ...(word.twoWordResult?.rightResults ?? []),
   ];
   const isAdverb = (r: ParseResult) => r.ir.qual.pofs === "ADV";
-  if (readings.some(isAdverb) || word.sluryResult?.results.some(isAdverb)) return [];
+  if (readings.some(isAdverb)) return [];
   const out: AddonResult[] = [];
   // Ada builds the adverb from the first ADJ reading of a run, so the stem's
   // later entries repeat it: die gets one dius, not one per entry
