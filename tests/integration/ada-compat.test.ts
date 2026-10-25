@@ -1805,3 +1805,36 @@ describe("ada-compat: supines of V 3 4", () => {
     expect(outputLines("auditum")).toContainEqual("audit.um             SUPINE 3 4 ACC S N");
   });
 });
+
+describe("ada-compat: syncope readings", () => {
+  it("amore: a syncope that reads a perfect keeps every reading (latin-words.com)", () => {
+    // in any order: the port ranks the infinitive after the singular lines
+    expect(block("amore", "Syncope", 8)).toEqual(
+      expect.arrayContaining([
+        "Syncope   r => v.r",
+        "Syncopated perfect often drops the 'v' and contracts vowel",
+        "amov.ere             V      2 1 PRES ACTIVE  INF 0 X",
+        "amov.ere             V      2 1 PRES PASSIVE IND 2 S",
+        "amov.ere             V      2 1 PRES PASSIVE IMP 2 S",
+        "amov.ere             V      2 1 PERF ACTIVE  IND 3 P",
+        "amoveo, amovere, amovi, amotus  V (2nd) TRANS   [XXXAO]",
+        "move/take/put away, remove, steal; banish, cause to go away; withdraw, retire;",
+      ]),
+    );
+  });
+
+  it("paris: so does paveris, with paveo's present (latin-words.com)", () => {
+    expect(outputLines("paris")).toContainEqual(
+      "pav.eris             V      2 1 PRES PASSIVE IND 2 S",
+    );
+  });
+
+  it("dux: no syncope, as the s/x rule stops two letters short of the end (expected:6382)", () => {
+    expect(outputLines("dux")).toEqual([
+      "dux                  N      3 1 NOM S M",
+      "dux                  N      3 1 VOC S M",
+      "dux, ducis  N (3rd) M   [XXXAX]",
+      "leader, guide; commander, general; Duke (medieval, Bee);",
+    ]);
+  });
+});

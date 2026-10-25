@@ -11,7 +11,7 @@
 // cases, if there is a possible syncope it is the correct parse."
 //
 // Each rule scans the word right-to-left for a pattern, inserts the missing
-// characters, and re-analyzes. Only accepted if the result is a verb (V)
+// characters, and re-analyzes. Only accepted if a reading is a verb (V)
 // with key=3 (perfect system).
 // ---------------------------------------------------------------------------
 
@@ -30,12 +30,14 @@ export interface SyncopeResult {
 }
 
 interface SyncopeRule {
-  /** Pattern to search for in the word */
-  pattern: string | string[];
-  /** Characters to insert (inserted AFTER position of first char of pattern) */
+  /** Fragments to search for, all of one length */
+  fragments: string[];
+  /** Characters to insert after the fragment's first character */
   insert: string;
-  /** Where to insert relative to the found pattern */
-  mode: "before-last" | "before-second" | "after-first";
+  /** The first position Ada scans */
+  from: number;
+  /** How many characters must follow the position (Ada's S'Last - n) */
+  after: number;
   /** Annotation label */
   label: string;
   /** Explanation text */
@@ -45,41 +47,46 @@ interface SyncopeRule {
 const SYNCOPE_RULES: SyncopeRule[] = [
   // Rule 1: ii → insert v → ivi (e.g., audii → audivi)
   {
-    pattern: "ii",
+    fragments: ["ii"],
     insert: "v",
-    mode: "after-first",
+    from: 0,
+    after: 1,
     label: "Syncope  ii => ivi",
     explanation: "Syncopated perfect ivi can drop 'v' without contracting vowel",
   },
   // Rule 2: as/es/is/os → insert vi → avis/evis/ivis/ovis (e.g., petisti → petivisti)
   {
-    pattern: ["as", "es", "is", "os"],
+    fragments: ["as", "es", "is", "os"],
     insert: "vi",
-    mode: "after-first",
+    from: 0,
+    after: 2,
     label: "Syncope   s => vis",
     explanation: "Syncopated perfect often drops the 'v' and contracts vowel",
   },
   // Rule 3: ar/er/or → insert ve → aver/ever/over (e.g., noris → noveris)
   {
-    pattern: ["ar", "er", "or"],
+    fragments: ["ar", "er", "or"],
     insert: "ve",
-    mode: "after-first",
+    from: 1,
+    after: 2,
     label: "Syncope   r => v.r",
     explanation: "Syncopated perfect often drops the 'v' and contracts vowel",
   },
   // Rule 4: ier → insert v → iver (e.g., audierint → audiverint)
   {
-    pattern: "ier",
+    fragments: ["ier"],
     insert: "v",
-    mode: "after-first",
+    from: 0,
+    after: 3,
     label: "Syncope  ier=>iver",
     explanation: "Syncopated perfect often drops the 'v' and contracts vowel",
   },
   // Rule 5: s or x → insert is → sis/xis (e.g., dixti → dixisti)
   {
-    pattern: ["s", "x"],
+    fragments: ["s", "x"],
     insert: "is",
-    mode: "after-first",
+    from: 0,
+    after: 2,
     label: "Syncope s/x => +is",
     explanation: "Syncopated perfect sometimes drops the 'is' after 's' or 'x'",
   },
@@ -109,31 +116,22 @@ function tryRule(
   dictIndex: DictionaryIndex,
   options: SweepOptions,
 ): SyncopeResult | null {
-  const patterns = typeof rule.pattern === "string" ? [rule.pattern] : rule.pattern;
-
-  for (const pat of patterns) {
-    // Scan right-to-left for the pattern (Ada scans in reverse)
-    // For rule 3 (ar/er/or), Ada starts from S'First + 1, so skip position 0
-    const startPos = rule.label.includes("r => v.r") ? 1 : 0;
-
-    for (let i = word.length - pat.length; i >= startPos; i--) {
-      if (word.substring(i, i + pat.length) !== pat) continue;
-
-      // Build the expanded form by inserting characters after the first char of the pattern
-      const expanded = word.slice(0, i + 1) + rule.insert + word.slice(i + 1);
-
-      // Analyze the expanded form
-      const results = analyzeWord(expanded, inflIndex, dictIndex);
-      const perfects = results.filter((r) => r.ir.qual.pofs === "V" && r.ir.key === 3);
-
-      if (perfects.length > 0) {
-        return {
-          label: rule.label,
-          explanation: rule.explanation,
-          results: listSweep(perfects, options),
-        };
-      }
-    }
+  // Ada scans right to left and stops at the first expanded form that reads
+  // at all. It keeps every reading when its last one is a perfect (amore:
+  // amovere, the present infinitive with the perfect), and otherwise tries
+  // the next rule; the port takes any perfect reading for the last.
+  const size = rule.fragments[0]?.length ?? 0;
+  for (let i = word.length - 1 - rule.after; i >= rule.from; i--) {
+    if (!rule.fragments.includes(word.substring(i, i + size))) continue;
+    const expanded = word.slice(0, i + 1) + rule.insert + word.slice(i + 1);
+    const results = analyzeWord(expanded, inflIndex, dictIndex);
+    if (results.length === 0) continue;
+    if (!results.some((r) => r.ir.qual.pofs === "V" && r.ir.key === 3)) return null;
+    return {
+      label: rule.label,
+      explanation: rule.explanation,
+      results: listSweep(results, options),
+    };
   }
 
   return null;
