@@ -62,7 +62,7 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   }
 
   const merged = groupAndMerge(analysis.results);
-  const rendered = mergeByMeaning(merged);
+  const rendered = mergeByMeaning(merged, new Set(compoundsByEntry.keys()));
   for (const block of rendered) {
     if (compoundsByEntry.size > 0) {
       // Inject compound line after VPAR inflection lines, before dict form
@@ -295,11 +295,37 @@ function clusterByForm(entryGroups: readonly ParseResult[][]): ParseResult[][] {
   return [...byForm.values()].flatMap((c) => c.sort((a, b) => entryIndex(a) - entryIndex(b)));
 }
 
+const firstEntry = (g: MergedGroup) => g.results[0]?.entryIndex ?? 0;
+
 /**
- * Compute a key representing the set of inflection lines for a group.
+ * The key each group's inflection lines print under. Ada prints a run of
+ * entries with the same lines once, with the first entry, comparing each
+ * entry only with the one just before it in dictionary order, and before it
+ * blanks a DEP verb's voice. So comitor shares comito's comit.abor line, but
+ * miseror, after misereo, keeps its own; so does apiscor, whose VPAR lines
+ * follow apio's SUPINE line, and a participle under a PPL+ compound, which
+ * Ada counts among its lines.
  */
-function inflectionKey(group: MergedGroup): string {
-  return group.results.map(formatInflectionLine).join("\n");
+function lineKeys(
+  groups: readonly MergedGroup[],
+  compoundEntries: ReadonlySet<number>,
+): Map<MergedGroup, string> {
+  const unblanked = (g: MergedGroup) => g.results.map((r) => inflectionLine(r, "")).join("\n");
+  const onePofs = (g: MergedGroup) => new Set(g.results.map((r) => r.ir.qual.pofs)).size === 1;
+  const keys = new Map<MergedGroup, string>();
+  let prev: MergedGroup | undefined;
+  for (const g of [...groups].sort((a, b) => firstEntry(a) - firstEntry(b))) {
+    const prevKey = prev && keys.get(prev);
+    const shares =
+      prev !== undefined &&
+      onePofs(prev) &&
+      onePofs(g) &&
+      !compoundEntries.has(firstEntry(g)) &&
+      unblanked(prev) === unblanked(g);
+    keys.set(g, shares && prevKey ? prevKey : g.results.map(formatInflectionLine).join("\n"));
+    prev = g;
+  }
+  return keys;
 }
 
 /**
@@ -309,14 +335,18 @@ function inflectionKey(group: MergedGroup): string {
  * Ada groups results by inflection pattern, showing each pattern once with all
  * matching dictionary meanings listed below.
  */
-function mergeByMeaning(groups: MergedGroup[]): string[][] {
+function mergeByMeaning(
+  groups: MergedGroup[],
+  compoundEntries: ReadonlySet<number> = new Set(),
+): string[][] {
   // First pass: merge groups with identical inflection line sets.
   // This collapses the many PRON "qu" entries with the same DAT/ABL/NOM pattern
   // into a single block with inflection lines shown once and meanings listed after.
   const byInflection = new Map<string, MergedGroup[]>();
   const inflOrder: string[] = [];
+  const keys = lineKeys(groups, compoundEntries);
   for (const g of groups) {
-    const key = inflectionKey(g);
+    const key = keys.get(g) ?? "";
     let bucket = byInflection.get(key);
     if (!bucket) {
       bucket = [];
@@ -335,7 +365,13 @@ function mergeByMeaning(groups: MergedGroup[]): string[][] {
     if (sameInflection.length === 1 && sameInflection[0]) {
       blocks.push(renderGroup(sameInflection[0], dictLines));
     } else {
-      // Show inflection lines once, then each dict form + meaning
+      // Show inflection lines once, then each dict form + meaning. Ada lists
+      // a verb's entries in dictionary order and prints the lines with the
+      // first, whose kind decides a DEP verb's voice (comito before comitor).
+      const first = sameInflection[0]?.results[0];
+      if (first?.de.part.pofs === "V") {
+        sameInflection.sort((a, b) => firstEntry(a) - firstEntry(b));
+      }
       const out: string[] = [];
       const seenInflections = new Set<string>();
       for (const r of sameInflection[0]?.results ?? []) {
@@ -389,9 +425,13 @@ function formatCompoundLine(cr: CompoundResult): string[] {
 }
 
 export function formatInflectionLine(r: ParseResult): string {
+  return inflectionLine(r, r.de.part.pofs === "V" ? r.de.part.v.kind : "");
+}
+
+/** An inflection line, with the voice blanked for a verbKind of DEP. */
+function inflectionLine(r: ParseResult, verbKind: string): string {
   const ending = r.ir.ending.suf;
   const stemDot = ending ? `${r.stem}.${ending}` : r.stem;
-  const verbKind = r.de.part.pofs === "V" ? r.de.part.v.kind : "";
   let line = padRight(stemDot, STEM_DOT_WIDTH) + formatQualityRecord(r.ir.qual, verbKind);
   // Append inflection age and/or frequency tags (Ada behavior).
   // Age is shown for non-default values; frequency is shown for freq >= C

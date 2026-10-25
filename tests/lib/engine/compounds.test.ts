@@ -201,6 +201,12 @@ describe("compound: formatted output", () => {
     expect(output).toMatch(/PPL\+es\s+V\s+2 1 PERF\s+IND 2 S/);
   });
 
+  it("merita es keeps mereor's own participle line under its compound (expected:27926)", () => {
+    expect(engine.formatLine("merita es")).toContain(
+      "merit.a              VPAR   2 1 NOM S F PERF         PPL",
+    );
+  });
+
   it("ausus est produces PPL+est with PASSIVE for a SEMIDEP verb (latin-words.com)", () => {
     expect(engine.formatLine("ausus est")).toContain(
       "PPL+est              V      2 1 PERF PASSIVE IND 3 S",
