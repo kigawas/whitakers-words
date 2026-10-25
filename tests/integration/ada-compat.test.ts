@@ -1545,3 +1545,16 @@ describe("ada-compat: adjectives converted to adverbs", () => {
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Ada's Two_Words (tricks.adb:512) splits a word only where the right half has
+// at least 3 letters. Ada expected from aeneid-expected.txt unless marked
+// latin-words.com.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: two-word splits", () => {
+  it("barcaei, garamantide: no split before a 2-letter half (expected:2289, 10076)", () => {
+    expect(engine.parseWord("barcaei").twoWordResult).toBeNull();
+    expect(engine.parseWord("garamantide").twoWordResult).toBeNull();
+  });
+});

@@ -38,10 +38,8 @@ export function tryTwoWords(
   dictIndex: DictionaryIndex,
   options: SweepOptions = {},
 ): TwoWordResult | null {
-  // Minimum 2 characters per part (Ada splits at positions allowing 2-char parts)
-  const minLen = 2;
-
-  for (let i = minLen; i <= word.length - minLen; i++) {
+  // As in Ada, the left part has at least 2 characters and the right at least 3
+  for (let i = 2; i <= word.length - 3; i++) {
     const left = word.slice(0, i);
     const right = word.slice(i);
 
