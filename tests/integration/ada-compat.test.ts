@@ -1074,6 +1074,17 @@ describe("ada-compat: -que on a word that already parses", () => {
     ]);
   });
 
+  // Unlike the enclitics (cetteque), Word's tackons take no unique base, so the
+  // word falls through to Ada's other readings (latin-words.com)
+  it("eundempte, eccine: no unique under -pte or -cine", () => {
+    const eundempte = engine.parseWord("eundempte");
+    expect(eundempte.addonResults).toEqual([]);
+    expect(eundempte.twoWordResult?.left).toBe("eun");
+    expect(eundempte.twoWordResult?.right).toBe("dempte");
+    // Ada: UNKNOWN
+    expect(outputLines("eccine")).toEqual([]);
+  });
+
   // is reaches idem (PRON 4 2) only by a frequency-C ending, which Ada's
   // List_Sweep trims
   it("isque: the base has no idem readings (expected:10286)", () => {
