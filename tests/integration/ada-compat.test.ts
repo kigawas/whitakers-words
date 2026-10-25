@@ -1684,7 +1684,7 @@ describe("ada-compat: single-stem numerals", () => {
   });
 });
 
-describe("ada-compat: semideponent voice", () => {
+describe("ada-compat: deponent and semideponent voice", () => {
   it("gaudens: a semideponent participle keeps its voice (latin-words.com)", () => {
     expect(outputLines("gaudens")).toEqual([
       "gaud.ens             VPAR   2 1 NOM S X PRES ACTIVE  PPL",
@@ -1701,5 +1701,62 @@ describe("ada-compat: semideponent voice", () => {
       "audeo, audere, ausus sum  V (2nd) SEMIDEP   [XXXAO]",
       "intend, be prepared; dare/have courage (to go/do), act boldly, venture, risk;",
     ]);
+  });
+
+  it("comitabor: comito and comitor share one line, with comito's voice (latin-words.com)", () => {
+    expect(outputLines("comitabor")).toEqual([
+      "comit.abor           V      1 1 FUT  PASSIVE IND 1 S",
+      "comito, comitare, comitavi, comitatus  V (1st) TRANS   [XXXCO]",
+      "accompany, go along with; attend (funeral); follow (camp); grow alongside;",
+      "comitor, comitari, comitatus sum  V (1st) DEP   [XXXAO]",
+      "join as an attendant, guard/escort; accompany, follow; attend (funeral);",
+      "go/be carried with; be retained/stay/grow/join with; be connected with; occur;",
+    ]);
+  });
+
+  it("insequitur: insequor comes first, so the line has no voice (latin-words.com)", () => {
+    expect(outputLines("insequitur")).toEqual([
+      "insequ.itur          V      3 1 PRES         IND 3 S",
+      "insequor, insequi, insecutus sum  V (3rd) DEP   [XXXBX]",
+      "follow/come after; attack; overtake; pursue (hostile); come after (time);",
+      "insequo, insequere, -, -  V (3rd)   [BXXFO]    Early  veryrare",
+      "tell; tell of; relate (L+S); declare; pursue the narration; tell me about it;",
+    ]);
+  });
+
+  it("dignetur: digno and dignor share the line and the meaning (latin-words.com)", () => {
+    expect(outputLines("dignetur")).toEqual([
+      "dign.etur            V      1 1 PRES PASSIVE SUB 3 S",
+      "digno, dignare, dignavi, dignatus  V (1st) TRANS   [XXXAO]",
+      "dignor, dignari, dignatus sum  V (1st) DEP   [XXXDO]    lesser",
+      "deem/consider/think worthy/becoming/deserving/fit (to); deign, condescend;",
+    ]);
+  });
+
+  it("adversata: so do the participles of adverso and adversor (latin-words.com)", () => {
+    expect(outputLines("adversata")).toEqual([
+      "adversat.a           VPAR   1 1 NOM S F PERF PASSIVE PPL",
+      "adversat.a           VPAR   1 1 VOC S F PERF PASSIVE PPL",
+      "adversat.a           VPAR   1 1 ABL S F PERF PASSIVE PPL",
+      "adversat.a           VPAR   1 1 NOM P N PERF PASSIVE PPL",
+      "adversat.a           VPAR   1 1 VOC P N PERF PASSIVE PPL",
+      "adversat.a           VPAR   1 1 ACC P N PERF PASSIVE PPL",
+      "adverso, adversare, adversavi, adversatus  V (1st) TRANS   [XXXFO]    veryrare",
+      "apply (the mind), direct (the attention);",
+      "adversor, adversari, adversatus sum  V (1st) DEP   [XXXBO]",
+      "be against (w/DAT), oppose, withstand;",
+    ]);
+  });
+
+  it("miserere: miseror keeps its own line, as misereo comes between (expected:16265)", () => {
+    const lines = outputLines("miserere");
+    expect(lines).toContainEqual("miser.ere            V      1 1 PRES PASSIVE SUB 2 S");
+    expect(lines).toContainEqual("miser.ere            V      1 1 PRES         SUB 2 S");
+  });
+
+  it("aptum: so does apiscor, as its participles follow apio's supine (expected:24641)", () => {
+    expect(outputLines("aptum")).toContainEqual(
+      "apt.um               VPAR   3 1 NOM S N PERF         PPL",
+    );
   });
 });
