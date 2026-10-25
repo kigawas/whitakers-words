@@ -1760,3 +1760,38 @@ describe("ada-compat: deponent and semideponent voice", () => {
     );
   });
 });
+
+describe("ada-compat: numeral values", () => {
+  it("uni: a CARD's meaning is its value (latin-words.com)", () => {
+    expect(block("uni", "un.i                 NUM", 3)).toEqual([
+      "un.i                 NUM    1 1 DAT S X CARD",
+      "unus -a -um, primus -a -um, singuli -ae -a, semel  NUM   [XXXAX]",
+      " 1 - (CARD answers 'how many');",
+    ]);
+  });
+
+  it("prima: so is an ORD's (latin-words.com)", () => {
+    expect(block("prima", "prim.a               NUM    1 1 ACC P N ORD", 3)).toEqual([
+      "prim.a               NUM    1 1 ACC P N ORD",
+      "unus -a -um, primus -a -um, singuli -ae -a, semel  NUM   [XXXAX]",
+      " 1th - (ORD, 'in series'); (a/the) 1th (part) (fract w/pars?);",
+    ]);
+  });
+
+  it("bini: and a DIST's (latin-words.com)", () => {
+    expect(block("bini", "bin.i                NUM", 4)).toEqual([
+      "bin.i                NUM    1 2 NOM P M DIST",
+      "bin.i                NUM    1 2 VOC P M DIST",
+      "duo -ae o, secundus -a -um, bini -ae -a, bis  NUM   [XXXAX]",
+      " 2 each/apiece/times/fold/together/at a time - 'how many each'; by  2s;",
+    ]);
+  });
+
+  it("bis: and an ADVERB's (latin-words.com)", () => {
+    expect(outputLines("bis")).toEqual([
+      "bis                  NUM    1 2 X   X X ADVERB",
+      "duo -ae o, secundus -a -um, bini -ae -a, bis  NUM   [XXXAX]",
+      " 2 times, on 2 occasions - (ADVERB answers 'how often');",
+    ]);
+  });
+});
