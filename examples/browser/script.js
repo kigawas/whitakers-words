@@ -355,7 +355,14 @@ function renderWord(word, analysis) {
     parts.push(renderEntryGroup(group, "", cr));
   }
 
-  // Slury (prefix assimilation) results
+  const renderSyncope = (sr) => {
+    parts.push(`<div class="syncope-note"><span class="syncope-label">${esc(sr.label)}</span><span class="syncope-explanation">${esc(sr.explanation)}</span></div>`);
+    for (const group of groupAndMerge(sr.results)) {
+      parts.push(renderEntryGroup(group, "syncope"));
+    }
+  };
+
+  // Slury (prefix assimilation) results, with the slurred form's syncope
   if (analysis.sluryResult) {
     parts.push(`<div class="slury-note"><span class="slury-label">${esc(analysis.sluryResult.label)}</span> &mdash; <span class="slury-explanation">${esc(analysis.sluryResult.explanation)}</span></div>`);
     if (analysis.sluryResult.results.length > 0) {
@@ -363,16 +370,11 @@ function renderWord(word, analysis) {
         parts.push(renderEntryGroup(group, "slury"));
       }
     }
+    if (analysis.sluryResult.syncope) renderSyncope(analysis.sluryResult.syncope);
   }
 
   // Syncope results
-  if (analysis.syncopeResult) {
-    const sr = analysis.syncopeResult;
-    parts.push(`<div class="syncope-note"><span class="syncope-label">${esc(sr.label)}</span><span class="syncope-explanation">${esc(sr.explanation)}</span></div>`);
-    for (const group of groupAndMerge(sr.results)) {
-      parts.push(renderEntryGroup(group, "syncope"));
-    }
-  }
+  if (analysis.syncopeResult) renderSyncope(analysis.syncopeResult);
 
   // Trick results
   if (analysis.trickAnnotations?.length > 0) {

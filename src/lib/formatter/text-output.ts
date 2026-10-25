@@ -82,6 +82,18 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
     lines.push(`${analysis.romanNumeralResult.value}  as a ROMAN NUMERAL;`);
   }
 
+  // Ada prints a syncope's explanation once per word (Put_Word_Meaning's
+  // Used_Meanings), so the word's own syncope leaves it to a slur's
+  let syncopeExplained = false;
+  const pushSyncope = (syncope: SyncopeResult) => {
+    lines.push(padRight(syncope.label, STEM_DOT_WIDTH));
+    if (!syncopeExplained) lines.push(syncope.explanation);
+    syncopeExplained = true;
+    for (const block of mergeByMeaning(groupAndMerge(syncope.results))) {
+      lines.push(...block);
+    }
+  };
+
   // Slury (prefix assimilation) annotations and results
   if (analysis.sluryResult) {
     lines.push(padRight(analysis.sluryResult.label, STEM_DOT_WIDTH));
@@ -91,6 +103,7 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
         lines.push(...block);
       }
     }
+    if (analysis.sluryResult.syncope) pushSyncope(analysis.sluryResult.syncope);
   }
 
   // Trick results with annotations
@@ -106,13 +119,7 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   }
 
   // Syncope results
-  if (analysis.syncopeResult) {
-    lines.push(padRight(analysis.syncopeResult.label, STEM_DOT_WIDTH));
-    lines.push(analysis.syncopeResult.explanation);
-    for (const block of mergeByMeaning(groupAndMerge(analysis.syncopeResult.results))) {
-      lines.push(...block);
-    }
-  }
+  if (analysis.syncopeResult) pushSyncope(analysis.syncopeResult);
 
   // Two-word results — show both left and right word analyses
   if (analysis.twoWordResult) {

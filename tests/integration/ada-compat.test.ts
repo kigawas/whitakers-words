@@ -422,6 +422,22 @@ describe("word output checks", () => {
     ]);
   });
 
+  it("admorunt: the slur tries syncope too, and Ada explains syncope once (latin-words.com)", () => {
+    expect(outputLines("admorunt")).toEqual([
+      "Slur ad/a~",
+      "An initial 'ad' may be rendered by a~",
+      "Syncope   r => v.r",
+      "Syncopated perfect often drops the 'v' and contracts vowel",
+      "ammov.erunt          V      2 1 PERF ACTIVE  IND 3 P",
+      "ammoveo, ammovere, ammovi, ammotus  V (2nd) TRANS   [XXXAO]",
+      "move up, bring up/near; lean on, conduct; draw near, approach; apply, add;",
+      "Syncope   r => v.r",
+      "admov.erunt          V      2 1 PERF ACTIVE  IND 3 P",
+      "admoveo, admovere, admovi, admotus  V (2nd) TRANS   [XXXAO]",
+      "move up, bring up/near; lean on, conduct; draw near, approach; apply, add;",
+    ]);
+  });
+
   it("inpure: no prefixes, as the slur reads the word (latin-words.com)", () => {
     expect(outputLines("inpure")).toEqual([
       "Word mod inp/imp",
