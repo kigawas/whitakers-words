@@ -53,54 +53,26 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
 
   // Group standard results by entryIndex, merge | continuations,
   // then merge groups with identical meanings (variant dictionary entries).
-  // When compounds exist, inject PPL+ lines between VPAR inflections and dict form.
-  const compoundsByEntry = new Map<number, CompoundResult>();
-  if (analysis.compoundResults) {
-    for (const cr of analysis.compoundResults) {
-      compoundsByEntry.set(cr.entryIndex, cr);
+  // A compound's PPL+ line goes after the participles of the entry it is
+  // under, before that entry's dictionary line, as Ada counts it among them.
+  let compound: CompoundResult | undefined = analysis.compoundResults?.[0];
+  const compoundEntries = new Set(compound ? [compound.entryIndex] : []);
+  for (const block of mergeByMeaning(groupAndMerge(analysis.results), compoundEntries)) {
+    const at = compound
+      ? block.indexOf(`${dictionaryForm(compound.de)}   ${formatFlags(compound.de)}`)
+      : -1;
+    if (compound && at >= 0) {
+      block.splice(at, 0, ...formatCompoundLine(compound));
+      compound = undefined;
     }
+    lines.push(...block);
   }
 
-  const merged = groupAndMerge(analysis.results);
-  const rendered = mergeByMeaning(merged, new Set(compoundsByEntry.keys()));
-  for (const block of rendered) {
-    if (compoundsByEntry.size > 0) {
-      // Inject compound line after VPAR inflection lines, before dict form
-      const out: string[] = [];
-      for (const line of block) {
-        out.push(line);
-        // After the last VPAR inflection line, insert compound
-        // Detect: next line is dict form (starts with a letter and contains comma)
-        // or current line is a VPAR inflection line
-      }
-      // Simpler approach: find the first dict form line and insert before it
-      const dictFormIdx = out.findIndex((l) => /^\S+,\s/.test(l) || /\[.{5}\]/.test(l));
-      if (dictFormIdx >= 0) {
-        // Check which entryIndex this group belongs to
-        const groupResults = merged.find((g) =>
-          g.results.some((r) => compoundsByEntry.has(r.entryIndex)),
-        );
-        const firstResult = groupResults?.results[0];
-        if (groupResults && firstResult) {
-          const cr = compoundsByEntry.get(firstResult.entryIndex);
-          if (cr) {
-            const compLine = formatCompoundLine(cr);
-            out.splice(dictFormIdx, 0, ...compLine);
-            compoundsByEntry.delete(cr.entryIndex);
-          }
-        }
-      }
-      lines.push(...out);
-    } else {
-      lines.push(...block);
-    }
-  }
-
-  // Any remaining compounds not matched to a group (shouldn't happen normally)
-  for (const cr of compoundsByEntry.values()) {
-    lines.push(...formatCompoundLine(cr));
-    lines.push(`${dictionaryForm(cr.de)}   ${formatFlags(cr.de)}`);
-    lines.push(truncateMeaning(cr.de.mean));
+  // A compound whose entry printed no dictionary line of its own
+  if (compound) {
+    lines.push(...formatCompoundLine(compound));
+    lines.push(`${dictionaryForm(compound.de)}   ${formatFlags(compound.de)}`);
+    lines.push(truncateMeaning(compound.de.mean));
   }
 
   // Roman numeral result
