@@ -1,5 +1,5 @@
 import type { DictionaryEntry } from "../types/dictionary.js";
-import type { StemKey } from "../types/enums.js";
+import type { NumeralSort, StemKey } from "../types/enums.js";
 
 // ---------------------------------------------------------------------------
 // In-memory dictionary stem lookup.
@@ -98,15 +98,28 @@ export function buildDictionaryIndex(entries: readonly DictionaryEntry[]): Dicti
   return { byStem2, entries, blankStems };
 }
 
+/** The stem key a single-stem numeral of each sort inflects as. */
+const NUMERAL_SORT_KEY: Partial<Record<NumeralSort, StemKey>> = {
+  CARD: 1,
+  ORD: 2,
+  DIST: 3,
+  ADVERB: 4,
+};
+
 /**
  * The inflection key a stem slot matches. A COMP- or SUPER-only ADJ (pessi,
- * sum, propi) lists its one stem first but inflects it as stem 3 or 4, as Ada
- * does in makedict_main.adb and support_utils-line_stuff.adb.
+ * sum, propi) lists its one stem first but inflects it as stem 3 or 4, and a
+ * single-stem ORD, DIST or ADVERB numeral as stem 2, 3 or 4 (tot ADVERB:
+ * totiens), as Ada does in makedict_main.adb and support_utils-line_stuff.adb.
  */
 function adjustStemKey(entry: DictionaryEntry, stemSlot: number): StemKey {
   if (entry.part.pofs === "ADJ" && stemSlot === 0) {
     if (entry.part.adj.co === "COMP") return 3;
     if (entry.part.adj.co === "SUPER") return 4;
+  }
+  if (entry.part.pofs === "NUM" && stemSlot === 0) {
+    const key = NUMERAL_SORT_KEY[entry.part.num.sort];
+    if (key !== undefined) return key;
   }
   return (stemSlot + 1) as StemKey;
 }
