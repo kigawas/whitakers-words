@@ -1548,13 +1548,49 @@ describe("ada-compat: adjectives converted to adverbs", () => {
 
 // ---------------------------------------------------------------------------
 // Ada's Two_Words (tricks.adb:512) splits a word only where the right half has
-// at least 3 letters. Ada expected from aeneid-expected.txt unless marked
-// latin-words.com.
+// at least 3 letters, and reads each half with Word, so a half can be a
+// tackon or packon reading. Ada expected from aeneid-expected.txt unless
+// marked latin-words.com.
 // ---------------------------------------------------------------------------
 
 describe("ada-compat: two-word splits", () => {
   it("barcaei, garamantide: no split before a 2-letter half (expected:2289, 10076)", () => {
     expect(engine.parseWord("barcaei").twoWordResult).toBeNull();
     expect(engine.parseWord("garamantide").twoWordResult).toBeNull();
+  });
+
+  it("idemmet: idem + met, idem read as i + -dem (latin-words.com)", () => {
+    // met parses, but only as an imperative the sweep drops, as in Ada
+    expect(outputLines("idemmet")).toEqual([
+      "Two words",
+      "May be 2 words combined (idem+met) If not obvious, probably incorrect",
+      "dem                  TACKON",
+      "TACKON w/i-ea-id   idem => same;",
+      "i                    PRON   4 2 NOM S M",
+      "i                    PRON   4 2 NOM S N",
+      "i                    PRON   4 2 ACC S N",
+      "idem, eadem, idem  PRON   [XXXAX]",
+      "(w/-dem ONLY, idem, eadem, idem) same, the same, the very same, also;",
+    ]);
+  });
+
+  it("quidamcumque: quidam + cumque, quidam read as qui + -dam (latin-words.com)", () => {
+    expect(outputLines("quidamcumque")).toEqual(
+      expect.arrayContaining([
+        "May be 2 words combined (quidam+cumque) If not obvious, probably incorrect",
+        "dam                  TACKON",
+        "PACKON w/qui => certain; a certain (one); a certain thing;",
+        "qu.i                 PRON   1 0 NOM S M",
+        "cumque               ADV    POS",
+      ]),
+    );
+  });
+
+  it("registecum: regis + tecum, with two readings under -cum (latin-words.com)", () => {
+    expect(engine.parseWord("registecum").twoWordResult?.right).toBe("tecum");
+  });
+
+  it("regishuiusmodi: no split, as the right half ends in -modi over one reading (latin-words.com)", () => {
+    expect(engine.parseWord("regishuiusmodi").twoWordResult).toBeNull();
   });
 });

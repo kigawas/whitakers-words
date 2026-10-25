@@ -7,10 +7,10 @@
 // incorrect."
 // ---------------------------------------------------------------------------
 
-import type { DictionaryIndex } from "./dictionary-index.js";
-import type { InflectionIndex } from "./inflection-index.js";
+import type { UniqueEntry } from "../parsers/uniques.js";
+import type { TackonResult, WordReading } from "./addons-engine.js";
 import { listSweep, type SweepOptions } from "./list-sweep.js";
-import { analyzeWord, type ParseResult } from "./word-analysis.js";
+import type { ParseResult } from "./word-analysis.js";
 
 export interface TwoWordResult {
   /** The two-word annotation line */
@@ -25,17 +25,45 @@ export interface TwoWordResult {
   readonly leftResults: readonly ParseResult[];
   /** Parse results for the right word (the second part) */
   readonly rightResults: readonly ParseResult[];
+  /** Unique readings of the left word */
+  readonly leftUniques: readonly UniqueEntry[];
+  /** Unique readings of the right word */
+  readonly rightUniques: readonly UniqueEntry[];
+  /** Packon and tackon readings of the left word: "idemmet" = i + dem, met */
+  readonly leftAddons: readonly TackonResult[];
+  /** Packon and tackon readings of the right word */
+  readonly rightAddons: readonly TackonResult[];
+}
+
+const parses = (r: WordReading) =>
+  r.results.length > 0 || r.uniques.length > 0 || r.addons.length > 0;
+
+/**
+ * Whether the reading ends in a tackon or packon with one reading under it.
+ * Ada rejects such a right half, as the next-to-last entry of its parse array
+ * is then the tackon: "regishuiusmodi" (huius + modi) is not split, but
+ * "registecum" (te ABL and ACC + cum) is.
+ */
+function endsInLoneTackonReading(r: WordReading): boolean {
+  const last = r.addons.at(-1);
+  if (last === undefined) return false;
+  const base = {
+    results: last.baseResults,
+    uniques: last.baseUniques ?? [],
+    addons: last.baseAddons ?? [],
+  };
+  if (base.addons.length > 0) return endsInLoneTackonReading(base);
+  return base.results.length + base.uniques.length === 1;
 }
 
 /**
- * Try splitting the word into two parts and analyzing each independently.
- * Returns the first successful split where both parts produce valid results.
- * Only the second (right) word's results are shown, following Ada's behavior.
+ * Try splitting the word into two parts, each read as a whole word as Ada's
+ * Word reads it ("idemmet" = idem + met, where idem is i + -dem). Returns the
+ * first split where both parts parse.
  */
 export function tryTwoWords(
   word: string,
-  inflIndex: InflectionIndex,
-  dictIndex: DictionaryIndex,
+  readWord: (word: string) => WordReading,
   options: SweepOptions = {},
 ): TwoWordResult | null {
   // As in Ada, the left part has at least 2 characters and the right at least 3
@@ -43,12 +71,11 @@ export function tryTwoWords(
     const left = word.slice(0, i);
     const right = word.slice(i);
 
-    // Analyze both parts
-    const leftResults = analyzeWord(left, inflIndex, dictIndex);
-    if (leftResults.length === 0) continue;
+    const leftReading = readWord(left);
+    if (!parses(leftReading)) continue;
 
-    const rightResults = analyzeWord(right, inflIndex, dictIndex);
-    if (rightResults.length === 0) continue;
+    const rightReading = readWord(right);
+    if (!parses(rightReading) || endsInLoneTackonReading(rightReading)) continue;
 
     // Both parts parse — this is a valid two-word split
     return {
@@ -56,8 +83,12 @@ export function tryTwoWords(
       explanation: `May be 2 words combined (${left}+${right}) If not obvious, probably incorrect`,
       left,
       right,
-      leftResults: listSweep(leftResults, options),
-      rightResults: listSweep(rightResults, options),
+      leftResults: listSweep([...leftReading.results], options),
+      rightResults: listSweep([...rightReading.results], options),
+      leftUniques: leftReading.uniques,
+      rightUniques: rightReading.uniques,
+      leftAddons: leftReading.addons,
+      rightAddons: rightReading.addons,
     };
   }
 
