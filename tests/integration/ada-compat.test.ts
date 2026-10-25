@@ -1616,3 +1616,27 @@ describe("ada-compat: two-word splits", () => {
     expect(engine.parseWord("regishuiusmodi").twoWordResult).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Ada's makedict files the one stem of a CARD, ORD, DIST or ADVERB numeral
+// under stem key 1, 2, 3 or 4, the key its inflections use
+// (makedict_main.adb:226). Ada expected from aeneid-expected.txt.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: single-stem numerals", () => {
+  it("totiens: tot.iens ADVERB, not two words (expected:27352)", () => {
+    expect(outputLines("totiens")).toEqual([
+      "tot.iens             NUM    2 0 X   X X ADVERB            Early",
+      "tot  NUM   [XXXAO]",
+      "as/so often, so many times, such a great number of times; that number of times;",
+    ]);
+  });
+
+  it("tot: the CARD reading has only the CARD meaning (expected:9098)", () => {
+    expect(outputLines("tot")).toEqual([
+      "tot                  NUM    2 0 X   X X CARD",
+      "tot  NUM   [XXXDX]    lesser",
+      "so many, such a number of; as many, so many; such a great number of;",
+    ]);
+  });
+});
