@@ -113,11 +113,8 @@ describe("trySlury: TC_Flip", () => {
 describe("slury in engine output", () => {
   const engine = createEngine();
 
-  it("ammoverunt shows slur annotation with admoveo results", () => {
-    const output = engine.formatWord("ammoverunt");
-    expect(output).toContain("Slur");
-    expect(output).toContain("ad");
-    expect(output).toContain("admov");
+  it("ammoverunt has no slury, as the word itself reads (latin-words.com)", () => {
+    expect(engine.parseWord("ammoverunt").sluryResult).toBeNull();
   });
 
   it("inritata shows slur annotation with irritata results", () => {
@@ -135,8 +132,13 @@ describe("slury in engine output", () => {
     expect(engine.parseWord("aquam").sluryResult).toBeNull();
   });
 
-  it("colligo shows conl/coll slury", () => {
-    const output = engine.formatWord("colligo");
-    expect(output).toContain("conl");
+  it("colligo has no slury, as the word itself reads (latin-words.com)", () => {
+    expect(engine.parseWord("colligo").sluryResult).toBeNull();
+  });
+
+  it("comiugis shows com/con slury, as only the slur reads it", () => {
+    const output = engine.formatWord("comiugis");
+    expect(output).toContain("Word mod com/con");
+    expect(output).toContain("coniug.is");
   });
 });

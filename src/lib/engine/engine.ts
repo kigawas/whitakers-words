@@ -160,24 +160,40 @@ export class WordsEngine {
     const sweep = { trim: this.trimOutput };
     let results = listSweep([...reading.results], sweep);
 
-    // 3. Always try slury (prefix assimilation detection) and syncope.
-    // Ada runs these alongside standard results (shown as additional info).
-    const sluryResult = trySlury(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
+    // 3. Roman numerals, which Ada reads alongside Word.
+    let romanNumeralResult: RomanNumeralResult | null = null;
+    const romanValue = parseRomanNumeral(word.toUpperCase());
+    if (romanValue !== null) {
+      romanNumeralResult = { value: romanValue };
+    }
+
+    // 4. Slury (prefix assimilation), as Ada's Pass tries it: only for a word
+    // nothing above reads ("inpure" as impure, but not "ammoverunt" as
+    // admoverunt). Syncope always.
+    const readParsed =
+      reading.results.length > 0 ||
+      reading.uniques.length > 0 ||
+      reading.addons.length > 0 ||
+      romanNumeralResult !== null;
+    const sluryResult = readParsed
+      ? null
+      : trySlury(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
     const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
 
-    // 4. The enclitics, as Ada's Enclitic tries them after Word: a word that
+    // 5. The enclitics, as Ada's Enclitic tries them after Word: a word that
     // already parses still gets -que, but not -ne, -ve or -est. "atque" is
     // also at + -que, "quibusque" both "each" (packon) and "and" (tackon).
-    // Ada tries tackons BEFORE tricks.
+    // Ada tries tackons BEFORE tricks, and a slur's reading stops both, as
+    // well as the prefixes and suffixes ("inpure" is not in + pure).
     const addonResults: AddonResult[] = [...reading.addons];
     const noResults = () =>
       results.length === 0 &&
       uniqueResults.length === 0 &&
       trickResults.length === 0 &&
-      addonResults.length === 0;
+      addonResults.length === 0 &&
+      sluryResult === null;
 
-    const parsed =
-      reading.results.length > 0 || reading.uniques.length > 0 || reading.addons.length > 0;
+    const parsed = readParsed || sluryResult !== null;
     addonResults.push(
       ...tryTackons(
         lowerWord,
@@ -187,7 +203,7 @@ export class WordsEngine {
       ),
     );
 
-    // 5. If no results, try tricks (spelling variations)
+    // 6. If no results, try tricks (spelling variations)
     let trickAnnotations: string[] = [];
     let trickResults: ParseResult[] = [];
     if (noResults()) {
@@ -202,14 +218,14 @@ export class WordsEngine {
       }
     }
 
-    // 6. Try prefixes — Ada tries prefix stripping before suffixes.
+    // 7. Try prefixes — Ada tries prefix stripping before suffixes.
     if (noResults()) {
       addonResults.push(
         ...tryPrefixes(lowerWord, this.#allPrefixes, this.#inflIndex, this.#dictIndex, sweep),
       );
     }
 
-    // 7. Try suffixes.
+    // 8. Try suffixes.
     if (noResults()) {
       addonResults.push(
         ...trySuffixes(lowerWord, this.#suffixTrie, this.#inflIndex, this.#dictIndex, sweep),
@@ -227,17 +243,10 @@ export class WordsEngine {
       addonResults.sort((a, b) => freqOf(a) - freqOf(b));
     }
 
-    // 8. Two-word splitting — last resort fallback.
+    // 9. Two-word splitting — last resort fallback.
     let twoWordResult: TwoWordResult | null = null;
     if (noResults() && !syncopeResult) {
       twoWordResult = tryTwoWords(lowerWord, (w) => this.#readWord(w), sweep);
-    }
-
-    // 9. Roman numeral detection — runs alongside other results (not fallback).
-    let romanNumeralResult: RomanNumeralResult | null = null;
-    const romanValue = parseRomanNumeral(word.toUpperCase());
-    if (romanValue !== null) {
-      romanNumeralResult = { value: romanValue };
     }
 
     // 10. Compound perfect passive — PPL + sum/esse/fuisse
