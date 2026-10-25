@@ -455,17 +455,25 @@ describe("DICTLINE.SUP: Greek -eus declension (N 2 9)", () => {
 // ---------------------------------------------------------------------------
 
 describe("DICTLINE.SUP: pluralia tantum, place names and peoples", () => {
-  it("Athenae: only plural forms (kind=M)", () => {
+  // Ada has no plural-only filter: Athens (pl.) reads as any oblique case
+  it("Athenae: Athens as GEN, DAT and LOC S besides NOM and VOC P", () => {
     const a = engine.parseWord("athenae");
     const athensResults = a.results.filter((r) => r.de.mean.includes("Athens"));
-    expect(athensResults.length).toBeGreaterThan(0);
-    expect(athensResults.every((r) => r.ir.qual.noun.number === "P")).toBe(true);
+    expect(athensResults.map((r) => `${r.ir.qual.noun.cs} ${r.ir.qual.noun.number}`)).toEqual([
+      "GEN S",
+      "DAT S",
+      "LOC S",
+      "NOM P",
+      "VOC P",
+    ]);
   });
 
-  it("Athenam: no singular ACC for Athens", () => {
+  it("Athenam: Athens as ACC S (latin-words.com)", () => {
     const a = engine.parseWord("athenam");
     const athensResults = a.results.filter((r) => r.de.mean.includes("Athens"));
-    expect(athensResults.length).toBe(0);
+    expect(athensResults.map((r) => `${r.ir.qual.noun.cs} ${r.ir.qual.noun.number}`)).toEqual([
+      "ACC S",
+    ]);
   });
 
   it("Athena goddess: singular forms work", () => {
@@ -489,12 +497,19 @@ describe("DICTLINE.SUP: pluralia tantum, place names and peoples", () => {
     expect(cityNom).toBeDefined();
   });
 
-  it("multo: no plural-only noun forms (kind=M with zzz stem)", () => {
+  it("multo: DAT and ABL S of many things and many men (latin-words.com)", () => {
     const a = engine.parseWord("multo");
     const multiResults = a.results.filter(
       (r) => r.ir.qual.pofs === "N" && r.de.mean.includes("(pl.)"),
     );
-    expect(multiResults.length).toBe(0);
+    const reading = (r: (typeof multiResults)[number]) =>
+      `${r.ir.qual.noun.cs} ${r.ir.qual.noun.number} ${r.de.mean.slice(0, 10)}`;
+    expect(multiResults.map(reading)).toEqual([
+      "DAT S many thing",
+      "ABL S many thing",
+      "DAT S many men/p",
+      "ABL S many men/p",
+    ]);
   });
 
   it("place names allow locative", () => {
@@ -539,29 +554,14 @@ describe("DICTLINE.SUP: no regression", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Pluralia tantum with zzz stem1 (Athenae, multi)
+// Pluralia tantum with zzz stem1 (Athenae, multi): no NOM or VOC S
 // ---------------------------------------------------------------------------
 
 describe("BDL: pluralia tantum (zzz stem1)", () => {
-  it("athenae: only plural forms (NOM/VOC P)", () => {
-    const a = engine.parseWord("athenae");
+  it("athena: Athens only as ABL S, as stem 1 is zzz", () => {
+    const a = engine.parseWord("athena");
     const athens = a.results.filter((r) => r.de.mean.includes("Athens"));
-    expect(athens.length).toBeGreaterThan(0);
-    expect(athens.every((r) => r.ir.qual.noun.number === "P")).toBe(true);
-  });
-
-  it("athenam: no singular for Athens", () => {
-    const a = engine.parseWord("athenam");
-    const athens = a.results.filter((r) => r.de.mean.includes("Athens"));
-    expect(athens.length).toBe(0);
-  });
-
-  it("multo: no plural-only noun forms (multi/multae)", () => {
-    const a = engine.parseWord("multo");
-    const plOnly = a.results.filter(
-      (r) => r.ir.qual.pofs === "N" && r.de.mean.includes("(pl.)") && r.de.mean.includes("many"),
-    );
-    expect(plOnly.length).toBe(0);
+    expect(athens.map((r) => `${r.ir.qual.noun.cs} ${r.ir.qual.noun.number}`)).toEqual(["ABL S"]);
   });
 
   it("multis: plural forms of multi work", () => {

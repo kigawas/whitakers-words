@@ -225,6 +225,17 @@ describe("ada-compat: multus", () => {
     expect(lines).not.toContainEqual(expect.stringContaining("zzz"));
   });
 
+  it("multa: the ABL S of -, multae, as Ada has no plural-only filter (expected:129)", () => {
+    const lines = outputLines("multa");
+    const form = lines.indexOf("-, multae  N (1st) F   [XXXDX]    lesser");
+    expect(form).toBeGreaterThan(0);
+    expect(lines.slice(form - 1, form + 2)).toEqual([
+      "mult.a               N      1 1 ABL S F",
+      "-, multae  N (1st) F   [XXXDX]    lesser",
+      "many women (pl.);",
+    ]);
+  });
+
   it("equus: no neuter ACC S for masculine noun", () => {
     const lines = outputLines("equus");
     expect(lines).toContainEqual(expect.stringContaining("NOM S M"));
