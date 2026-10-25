@@ -233,11 +233,35 @@ export function groupAndMerge(results: readonly ParseResult[]): MergedGroup[] {
     if (mean.startsWith("|") && prev?.form === form) {
       prev.meaning += `\n${mean.replace(/^\|+/, "")}`;
     } else {
-      merged.push({ results: groupResults, meaning: mean.replace(/^\|+/, ""), form });
+      const meaning = numeralMeaning(first) ?? mean.replace(/^\|+/, "");
+      merged.push({ results: groupResults, meaning, form });
     }
   }
 
   return merged.map(({ results, meaning }) => ({ results, meaning }));
+}
+
+/**
+ * Ada's Constructed_Meaning: a numeral with a value prints its value and the
+ * sort of its first reading in place of its meaning (unus: " 1 - (CARD
+ * answers 'how many');"), with the leading space of Ada's Integer'Image.
+ */
+function numeralMeaning(r: ParseResult): string | undefined {
+  if (r.de.part.pofs !== "NUM" || r.de.part.num.value <= 0) return undefined;
+  const n = ` ${r.de.part.num.value}`;
+  if (r.ir.qual.pofs !== "NUM") return `Number ${n}`;
+  switch (r.ir.qual.num.sort) {
+    case "CARD":
+      return `${n} - (CARD answers 'how many');`;
+    case "ORD":
+      return `${n}th - (ORD, 'in series'); (a/the)${n}th (part) (fract w/pars?);`;
+    case "DIST":
+      return `${n} each/apiece/times/fold/together/at a time - 'how many each'; by ${n}s;`;
+    case "ADVERB":
+      return `${n} times, on${n} occasions - (ADVERB answers 'how often');`;
+    default:
+      return "";
+  }
 }
 
 /**
