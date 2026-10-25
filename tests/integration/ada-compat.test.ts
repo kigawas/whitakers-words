@@ -393,6 +393,13 @@ describe("word output checks", () => {
     expect(lines).toContainEqual(expect.stringContaining("PERF ACTIVE"));
   });
 
+  it("esse: no syncope, as a form of sum reads it (latin-words.com)", () => {
+    const lines = outputLines("esse");
+    expect(lines).toContainEqual(".esse                V      5 1 PRES ACTIVE  INF 0 X");
+    expect(lines).not.toContainEqual(expect.stringContaining("Syncope"));
+    expect(lines).not.toContainEqual(expect.stringContaining("ev.isse"));
+  });
+
   it("predam: flip_flop slur pre→prae, finds praeda", () => {
     const lines = outputLines("predam");
     expect(lines).toContainEqual(expect.stringContaining("Slur"));

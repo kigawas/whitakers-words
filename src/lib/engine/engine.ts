@@ -169,7 +169,8 @@ export class WordsEngine {
 
     // 4. Slury (prefix assimilation), as Ada's Pass tries it: only for a word
     // nothing above reads ("inpure" as impure, but not "ammoverunt" as
-    // admoverunt). Syncope always.
+    // admoverunt). Then syncope, unless a form of sum reads the word ("esse"
+    // is not evisse).
     const readParsed =
       reading.results.length > 0 ||
       reading.uniques.length > 0 ||
@@ -178,7 +179,11 @@ export class WordsEngine {
     const sluryResult = readParsed
       ? null
       : trySlury(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
-    const syncopeResult = trySyncope(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
+    const isSum = ({ ir: { qual } }: ParseResult) =>
+      qual.pofs === "V" && qual.verb.con.which === 5 && qual.verb.con.var === 1;
+    const syncopeResult = [...reading.results, ...(sluryResult?.results ?? [])].some(isSum)
+      ? null
+      : trySyncope(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
 
     // 5. The enclitics, as Ada's Enclitic tries them after Word: a word that
     // already parses still gets -que, but not -ne, -ve or -est. "atque" is
