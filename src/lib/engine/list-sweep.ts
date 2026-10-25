@@ -167,23 +167,14 @@ export function normalizeDisplay(results: ParseResult[]): ParseResult[] {
 function normalizeDisplayValues(r: ParseResult): ParseResult {
   const q = r.ir.qual;
 
-  // V (3,4) → (4,1) display normalization. Only applies to V and SUPINE.
-  // VPAR keeps (3,4) — Ada displays VPAR with the raw conjugation values.
+  // V (3,4) → (4,1) display normalization, for V only, as in Ada's
+  // List_Sweep: VPAR and SUPINE keep (3,4) (vent.um SUPINE 3 4).
   if (q.pofs === "V" && q.verb.con.which === 3 && q.verb.con.var === 4) {
     return {
       ...r,
       ir: {
         ...r.ir,
         qual: { ...q, verb: { ...q.verb, con: { which: 4, var: 1 } } },
-      },
-    };
-  }
-  if (q.pofs === "SUPINE" && q.supine.con.which === 3 && q.supine.con.var === 4) {
-    return {
-      ...r,
-      ir: {
-        ...r.ir,
-        qual: { ...q, supine: { ...q.supine, con: { which: 4, var: 1 } } },
       },
     };
   }

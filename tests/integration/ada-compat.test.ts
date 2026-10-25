@@ -1795,3 +1795,13 @@ describe("ada-compat: numeral values", () => {
     ]);
   });
 });
+
+describe("ada-compat: supines of V 3 4", () => {
+  it("ventum: the supine keeps 3 4, as Ada fixes only V lines to 4 1 (expected:7578)", () => {
+    expect(outputLines("ventum")).toContainEqual("vent.um              SUPINE 3 4 ACC S N");
+  });
+
+  it("auditum: so does every 4th conjugation supine (latin-words.com)", () => {
+    expect(outputLines("auditum")).toContainEqual("audit.um             SUPINE 3 4 ACC S N");
+  });
+});
