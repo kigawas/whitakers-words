@@ -24,6 +24,7 @@ import {
   type EnglishSearchResult,
   searchEnglish,
 } from "./english-search.js";
+import { fixAdverb } from "./fix-adverb.js";
 import { buildInflectionIndex, type InflectionIndex } from "./inflection-index.js";
 import { listSweep } from "./list-sweep.js";
 import { parseRomanNumeral } from "./roman-numerals.js";
@@ -256,6 +257,11 @@ export class WordsEngine {
           compoundEntryIndices.has(r.entryIndex),
       );
     }
+
+    // 11. Adjectives read as adverbs (Ada's Fix_Adverb), after all else.
+    addonResults.push(
+      ...fixAdverb({ results, trickResults, addonResults, twoWordResult, sluryResult }),
+    );
 
     return {
       word,

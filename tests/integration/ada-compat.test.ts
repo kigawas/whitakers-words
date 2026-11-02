@@ -1435,3 +1435,113 @@ describe("ada-compat: inflection age and frequency tags", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Ada's Fix_Adverb (list_package.adb:687): when no reading is an adverb, an
+// ADJ 1 1 VOC S M POS also reads as the adverb in -e, and an ADJ VOC S M
+// SUPER as the adverb in -me. Ada expected from aeneid-expected.txt unless
+// marked latin-words.com.
+// ---------------------------------------------------------------------------
+
+describe("ada-compat: adjectives converted to adverbs", () => {
+  it("perfide: the VOC S M POS also reads as perfid.e ADV (expected:15562)", () => {
+    expect(outputLines("perfide")).toEqual([
+      "perfid.e             ADJ    1 1 VOC S M POS",
+      "perfidus, perfida, perfidum  ADJ   [XXXBX]",
+      "faithless, treacherous, false, deceitful;",
+      "e                    SUFFIX",
+      "-ly; -ily;  Converting ADJ to ADV",
+      "perfid.e             ADV    POS",
+      "perfidus, perfida, perfidum  ADJ   [XXXBX]",
+      "faithless, treacherous, false, deceitful;",
+    ]);
+  });
+
+  it("die: one adverb, built from the first dius (expected:3998)", () => {
+    // Ada builds both blocks from the first dius entry; the second repeats the first
+    const lines = outputLines("die");
+    expect(lines.slice(lines.indexOf("e                    SUFFIX"))).toEqual([
+      "e                    SUFFIX",
+      "-ly; -ily;  Converting ADJ to ADV",
+      "di.e                 ADV    POS",
+      "dius, dia, dium  ADJ   [XEXDO]    lesser",
+      "divine; w/supernatural radiance; divinely inspired; blessed, saint (Latham);",
+    ]);
+  });
+
+  it("longe: nothing added beside the adverb longe (latin-words.com)", () => {
+    expect(outputLines("longe")).toEqual([
+      "long.e               ADJ    1 1 VOC S M POS",
+      "longus, longa -um, longior -or -us, longissimus -a -um  ADJ   [XXXAO]",
+      "long; tall; tedious, taking long time; boundless; far; of specific length/time;",
+      "longe                ADV    POS",
+      "longe, longius, longissime  ADV   [XXXAO]",
+      "far (off), distant, a long way; by far; for a long while, far (in future/past);",
+    ]);
+  });
+
+  it("sanctissime: the VOC S M SUPER also reads as sanctissi.me ADV (latin-words.com)", () => {
+    expect(outputLines("sanctissime")).toEqual([
+      "sanctissi.me         ADJ    1 1 VOC S M SUPER",
+      "sanctus, sancta -um, sanctior -or -us, sanctissimus -a -um  ADJ   [XXXAX]",
+      "consecrated, sacred, inviolable; venerable, august, divine, holy, pious, just;",
+      "e                    SUFFIX",
+      "-estly; -estily; most -ly, very -ly  Converting ADJ to ADV",
+      "sanctissi.me         ADV    SUPER",
+      "sanctus, sancta -um, sanctior -or -us, sanctissimus -a -um  ADJ   [XXXAX]",
+      "consecrated, sacred, inviolable; venerable, august, divine, holy, pious, just;",
+    ]);
+  });
+
+  it("perphide: so does a reading through a spelling trick (latin-words.com)", () => {
+    expect(outputLines("perphide")).toEqual([
+      "Word mod ph/f",
+      "An internal 'ph' might be rendered by 'f'",
+      "perfid.e             ADJ    1 1 VOC S M POS",
+      "perfidus, perfida, perfidum  ADJ   [XXXBX]",
+      "faithless, treacherous, false, deceitful;",
+      "e                    SUFFIX",
+      "-ly; -ily;  Converting ADJ to ADV",
+      "perfid.e             ADV    POS",
+      "perfidus, perfida, perfidum  ADJ   [XXXBX]",
+      "faithless, treacherous, false, deceitful;",
+    ]);
+  });
+
+  it("magnebone: so do both halves of a two-word split (latin-words.com)", () => {
+    // Ada repeats magn.e ADV, once per ADJ reading before it drops duplicates
+    expect(outputLines("magnebone")).toEqual(
+      expect.arrayContaining([
+        "-ly; -ily;  Converting ADJ to ADV",
+        "magn.e               ADV    POS",
+        "bon.e                ADV    POS",
+      ]),
+    );
+  });
+
+  it("inpure: nothing added, as the slur reads the adverb impure (latin-words.com)", () => {
+    expect(outputLines("inpure")).toContainEqual("impure               ADV    POS");
+    expect(outputLines("inpure")).not.toContainEqual(expect.stringContaining("Converting ADJ"));
+  });
+
+  it("improbe: improb.e ADV, but not the slur's inprob.e (expected:19808)", () => {
+    const lines = outputLines("improbe");
+    expect(lines).toContainEqual("improb.e             ADV    POS");
+    expect(lines).not.toContainEqual("inprob.e             ADV    POS");
+  });
+
+  it("perfideque: so does the base of a tackon (latin-words.com)", () => {
+    expect(outputLines("perfideque")).toEqual([
+      "que                  TACKON",
+      "-que = and (enclitic, translated before attached word); completes plerus/uter;",
+      "perfid.e             ADJ    1 1 VOC S M POS",
+      "perfidus, perfida, perfidum  ADJ   [XXXBX]",
+      "faithless, treacherous, false, deceitful;",
+      "e                    SUFFIX",
+      "-ly; -ily;  Converting ADJ to ADV",
+      "perfid.e             ADV    POS",
+      "perfidus, perfida, perfidum  ADJ   [XXXBX]",
+      "faithless, treacherous, false, deceitful;",
+    ]);
+  });
+});
