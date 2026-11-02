@@ -230,7 +230,7 @@ export class WordsEngine {
     // 8. Two-word splitting — last resort fallback.
     let twoWordResult: TwoWordResult | null = null;
     if (noResults() && !syncopeResult) {
-      twoWordResult = tryTwoWords(lowerWord, this.#inflIndex, this.#dictIndex, sweep);
+      twoWordResult = tryTwoWords(lowerWord, (w) => this.#readWord(w), sweep);
     }
 
     // 9. Roman numeral detection — runs alongside other results (not fallback).

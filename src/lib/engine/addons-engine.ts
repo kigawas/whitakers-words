@@ -177,9 +177,9 @@ function sweep(reading: WordReading): WordReading {
 
 /**
  * Try stripping tackons from the end of a word: "aquamque" → aquam + -que.
- * As in Ada, readWord reads the base as a whole word, so it may be a unique, a
- * packon or a tackon reading itself: "cetteque" → cette + -que, "quocumque" →
- * quo + cum + -que, "huiusmodique" → huius + modi + -que.
+ * As in Ada, readWord reads the base as a whole word, so it may be a packon or
+ * a tackon reading itself, and under an enclitic a unique: "quocumque" → quo +
+ * cum + -que, "huiusmodique" → huius + modi + -que, "cetteque" → cette + -que.
  */
 export function tryTackons(
   word: string,
@@ -204,7 +204,10 @@ export function tryTackons(
     const swept = isEnclitic(tackon) ? reading : sweep(reading);
     const fits = (qual: QualityRecord) => fitsTackonBase(qual, tackon);
     const baseResults = swept.results.filter((r) => fits(r.ir.qual));
-    const baseUniques = swept.uniques.filter((u) => fits(u.qual));
+    // Try_Tackons reads each fitting reading's entry back from its dictionary
+    // file, which never opens for a unique. This accident of Ada's is kept for
+    // parity: "cetteque" (cette + -que), but not "eundempte" (eundem + -pte)
+    const baseUniques = isEnclitic(tackon) ? swept.uniques.filter((u) => fits(u.qual)) : [];
     const baseAddons = swept.addons;
     if (baseResults.length > 0 || baseUniques.length > 0 || baseAddons.length > 0) {
       results.push({

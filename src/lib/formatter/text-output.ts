@@ -144,15 +144,16 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
 
   // Two-word results — show both left and right word analyses
   if (analysis.twoWordResult) {
-    lines.push(padRight(analysis.twoWordResult.label, STEM_DOT_WIDTH));
-    lines.push(analysis.twoWordResult.explanation);
-    if (analysis.twoWordResult.leftResults) {
-      for (const block of mergeByMeaning(groupAndMerge(analysis.twoWordResult.leftResults))) {
-        lines.push(...block);
-      }
-    }
-    for (const block of mergeByMeaning(groupAndMerge(analysis.twoWordResult.rightResults))) {
-      lines.push(...block);
+    const tw = analysis.twoWordResult;
+    lines.push(padRight(tw.label, STEM_DOT_WIDTH));
+    lines.push(tw.explanation);
+    for (const [results, uniques, addons] of [
+      [tw.leftResults, tw.leftUniques, tw.leftAddons],
+      [tw.rightResults, tw.rightUniques, tw.rightAddons],
+    ] as const) {
+      pushUniques(lines, uniques);
+      for (const block of mergeByMeaning(groupAndMerge(results))) lines.push(...block);
+      for (const ar of addons) pushAddon(lines, ar);
     }
   }
 

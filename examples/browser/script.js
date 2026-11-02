@@ -315,6 +315,22 @@ function renderUnique(u) {
     </div>`;
 }
 
+/** Render an addon reading: the addon, then the readings of its base */
+function renderAddon(ar) {
+  const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
+  const parts = [
+    `<div class="addon-note"><span class="addon-type">${esc(ar.type.toUpperCase())}</span> <span class="addon-name">${esc(addonName)}</span> &mdash; ${esc(ar.addon.mean)}</div>`,
+  ];
+  if (ar.type === "tackon") {
+    for (const u of ar.baseUniques ?? []) parts.push(renderUnique(u));
+    for (const inner of ar.baseAddons ?? []) parts.push(renderAddon(inner));
+  }
+  for (const group of groupAndMerge(ar.baseResults)) {
+    parts.push(renderEntryGroup(group, "addon"));
+  }
+  return parts.join("");
+}
+
 /** Render a full word analysis */
 function renderWord(word, analysis) {
   const parts = [];
@@ -372,26 +388,20 @@ function renderWord(word, analysis) {
   if (analysis.twoWordResult) {
     const tw = analysis.twoWordResult;
     parts.push(`<div class="two-word-note"><span class="two-word-label">${esc(tw.label)}</span> &mdash; <span class="two-word-explanation">${esc(tw.explanation)}</span></div>`);
-    if (tw.leftResults?.length > 0) {
-      for (const group of groupAndMerge(tw.leftResults)) {
+    for (const [results, uniques, addons] of [
+      [tw.leftResults, tw.leftUniques, tw.leftAddons],
+      [tw.rightResults, tw.rightUniques, tw.rightAddons],
+    ]) {
+      for (const u of uniques ?? []) parts.push(renderUnique(u));
+      for (const group of groupAndMerge(results)) {
         parts.push(renderEntryGroup(group, "two-word"));
       }
-    }
-    for (const group of groupAndMerge(tw.rightResults)) {
-      parts.push(renderEntryGroup(group, "two-word"));
+      for (const ar of addons ?? []) parts.push(renderAddon(ar));
     }
   }
 
   // Addon results
-  if (analysis.addonResults?.length > 0) {
-    for (const ar of analysis.addonResults) {
-      const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
-      parts.push(`<div class="addon-note"><span class="addon-type">${esc(ar.type.toUpperCase())}</span> <span class="addon-name">${esc(addonName)}</span> &mdash; ${esc(ar.addon.mean)}</div>`);
-      for (const group of groupAndMerge(ar.baseResults)) {
-        parts.push(renderEntryGroup(group, "addon"));
-      }
-    }
-  }
+  for (const ar of analysis.addonResults ?? []) parts.push(renderAddon(ar));
 
   // Roman numeral
   if (analysis.romanNumeralResult) {
