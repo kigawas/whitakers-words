@@ -6,7 +6,7 @@
 // 2. TC_Flip: one-direction prefix replacement
 // 3. TC_Flip_Flop: bidirectional prefix replacement
 //
-// Runs alongside standard results (not a fallback).
+// Ada's Pass tries it only for a word nothing else reads (WordsEngine.parseWord).
 // ---------------------------------------------------------------------------
 
 import type { DictionaryIndex } from "./dictionary-index.js";
