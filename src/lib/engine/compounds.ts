@@ -223,7 +223,7 @@ export function tryCompound(results: readonly ParseResult[], nextWord: string): 
 
     // Determine verb kind for voice display
     const verbKind = r.de.part.pofs === "V" ? r.de.part.v.kind : "";
-    const showVoice = verbKind !== "DEP" && verbKind !== "SEMIDEP";
+    const showVoice = verbKind !== "DEP";
 
     if (sumInfo) {
       // PPL + finite sum → compound finite verb
