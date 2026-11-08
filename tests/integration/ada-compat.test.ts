@@ -406,6 +406,29 @@ describe("ada-compat: a prefix takes only words of its root", () => {
     expect(outputLines("abscn")).toEqual([]);
   });
 
+  it("ambibat: only amb, the first prefix that reads (latin-words.com)", () => {
+    expect(outputLines("ambibat")).toEqual([
+      "amb                  PREFIX",
+      "around, round about; having two;",
+      "i.bat                V      6 1 IMPF ACTIVE  IND 3 S",
+      "eo, ire, ivi(ii), itus  V   [XXXAX]",
+      "go, walk; march, advance; pass; flow; pass (time); ride; sail;",
+    ]);
+  });
+
+  it("peralbo: only per (ADJ), listed before per (V), with albus alone (latin-words.com)", () => {
+    expect(outputLines("peralbo")).toEqual([
+      "per                  PREFIX",
+      "very -, - completely, - thoroughly;",
+      "alb.o                ADJ    1 1 DAT S M POS",
+      "alb.o                ADJ    1 1 DAT S N POS",
+      "alb.o                ADJ    1 1 ABL S M POS",
+      "alb.o                ADJ    1 1 ABL S N POS",
+      "albus, alba -um, albior -or -us, albissimus -a -um  ADJ   [XXXAO]",
+      "white, pale, fair, hoary, gray; bright, clear; favorable, auspicious, fortunate",
+    ]);
+  });
+
   it("siquis: si, a PACK prefix, still takes the qu- pronouns (latin-words.com)", () => {
     const lines = outputLines("siquis");
     expect(lines[0]).toBe("si                   PREFIX");

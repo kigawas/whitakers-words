@@ -226,6 +226,11 @@ export function tryTackons(
  * Try stripping prefixes from the beginning of a word.
  * E.g., "antecedo" → strip "ante" → analyze "cedo"
  * Handles connect characters: "accedo" → prefix "ad" with connect "c" → strip "ac" → analyze "cedo"
+ *
+ * Like Ada's Apply_Prefix (word_package.adb:1199), it accepts only the first
+ * prefix, in ADDONS order, that reads the word: ambibat is amb + ibat, not
+ * also am + bibat. The PACK prefixes (Ada's tickons, which it tries in
+ * another pass) are still tried after it.
  */
 export function tryPrefixes(
   word: string,
@@ -236,6 +241,7 @@ export function tryPrefixes(
 ): AddonResult[] {
   const results: AddonResult[] = [];
   for (const prefix of prefixes) {
+    if (results.length > 0 && prefix.entr.root !== "PACK") continue;
     const fix = prefix.fix.toLowerCase();
     if (word.length <= fix.length) continue;
 
