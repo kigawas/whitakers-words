@@ -226,6 +226,11 @@ export function tryTackons(
  * Try stripping prefixes from the beginning of a word.
  * E.g., "antecedo" → strip "ante" → analyze "cedo"
  * Handles connect characters: "accedo" → prefix "ad" with connect "c" → strip "ac" → analyze "cedo"
+ *
+ * Like Ada's Apply_Prefix (word_package.adb:1199), it accepts only the first
+ * prefix, in ADDONS order, that reads the word: ambibat is amb + ibat, not
+ * also am + bibat. The PACK prefixes (Ada's tickons, which it tries in
+ * another pass) are still tried after it.
  */
 export function tryPrefixes(
   word: string,
@@ -236,6 +241,7 @@ export function tryPrefixes(
 ): AddonResult[] {
   const results: AddonResult[] = [];
   for (const prefix of prefixes) {
+    if (results.length > 0 && prefix.entr.root !== "PACK") continue;
     const fix = prefix.fix.toLowerCase();
     if (word.length <= fix.length) continue;
 
@@ -244,7 +250,9 @@ export function tryPrefixes(
       // Check connect character
       if (prefix.connect && prefix.connect !== " " && prefix.connect.length > 0) {
         if (rest.length > 0 && rest.charAt(0) === prefix.connect.toLowerCase()) {
-          const baseResults = analyzeWord(rest, inflIndex, dictIndex);
+          const baseResults = analyzeWord(rest, inflIndex, dictIndex).filter((r) =>
+            prefixTakes(prefix, r),
+          );
           if (baseResults.length > 0) {
             results.push({
               type: "prefix",
@@ -254,7 +262,9 @@ export function tryPrefixes(
           }
         }
       } else {
-        const baseResults = analyzeWord(rest, inflIndex, dictIndex);
+        const baseResults = analyzeWord(rest, inflIndex, dictIndex).filter((r) =>
+          prefixTakes(prefix, r),
+        );
         if (baseResults.length > 0) {
           results.push({
             type: "prefix",
@@ -266,6 +276,24 @@ export function tryPrefixes(
     }
   }
   return results;
+}
+
+/**
+ * Whether a prefix can attach to a reading, as in Ada's Reduce_Stem_List
+ * (word_package.adb:844-863): never to an abbreviation, INTERJ or CONJ, and
+ * only to an entry of the prefix's root, unless the root is X. So e (V) takes
+ * no noun (echus is not e + chus), and per (ADJ) no verb. A PACK prefix (si,
+ * ec, nescio) is one of Ada's tickons, which it applies to qu- pronouns in
+ * another pass, so it keeps every reading.
+ */
+function prefixTakes(prefix: PrefixItem, r: ParseResult): boolean {
+  const { root } = prefix.entr;
+  if (root === "PACK") return true;
+  const part = r.de.part;
+  if (part.pofs === "INTERJ" || part.pofs === "CONJ") return false;
+  if (part.pofs === "N" && part.n.decl.which === 9 && part.n.decl.var === 8) return false;
+  if (part.pofs === "ADJ" && part.adj.decl.which === 9 && part.adj.decl.var === 8) return false;
+  return root === "X" || part.pofs === root;
 }
 
 /**

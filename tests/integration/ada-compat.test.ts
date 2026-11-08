@@ -358,10 +358,18 @@ describe("ada-compat: two-word splitting", () => {
     expect(lines).toContainEqual(expect.stringContaining("Iarbas"));
   });
 
-  it("annam: prefix an + nam", () => {
-    const lines = outputLines("annam");
-    expect(lines).toContainEqual("an                   PREFIX");
-    expect(lines).toContainEqual(expect.stringContaining("nam"));
+  it("annam: two words an + nam, as a prefix takes no CONJ (latin-words.com)", () => {
+    expect(outputLines("annam")).toEqual([
+      "Two words",
+      "May be 2 words combined (an+nam) If not obvious, probably incorrect",
+      "an                   CONJ",
+      "an  CONJ   [XXXCO]",
+      "can it be that (introduces question expecting negative answer/further question)",
+      "whether; (utrum ... an = whether ... or); or; either;",
+      "nam                  CONJ",
+      "nam  CONJ   [XXXAX]",
+      "for, on the other hand; for instance;",
+    ]);
   });
 
   it("hecate: found as proper name (DICTLINE.SUP)", () => {
@@ -372,6 +380,59 @@ describe("ada-compat: two-word splitting", () => {
   it("does not split words with valid standard results", () => {
     const a = engine.parseWord("regina");
     expect(a.twoWordResult).toBeNull();
+  });
+});
+
+describe("ada-compat: a prefix takes only words of its root", () => {
+  it("echus: no e + chus, as e takes only verbs (latin-words.com: UNKNOWN)", () => {
+    expect(outputLines("echus")).toEqual([]);
+  });
+
+  it("persensit: only the verb's per, not the adjective's (aeneid-expected.txt)", () => {
+    expect(outputLines("persensit")).toEqual([
+      "per                  PREFIX",
+      "- through, thoroughly, completely, very; adds to the force of the verb;",
+      "sens.it              V      4 1 PERF ACTIVE  IND 3 S",
+      "sentio, sentire, sensi, sensus  V (4th)   [XXXAX]",
+      "perceive, feel, experience; think, realize, see, understand;",
+    ]);
+  });
+
+  it("combe: no com + be, as a prefix takes no INTERJ (latin-words.com: UNKNOWN)", () => {
+    expect(outputLines("combe")).toEqual([]);
+  });
+
+  it("abscn: no abs + Cn., as a prefix takes no abbreviation (latin-words.com: UNKNOWN)", () => {
+    expect(outputLines("abscn")).toEqual([]);
+  });
+
+  it("ambibat: only amb, the first prefix that reads (latin-words.com)", () => {
+    expect(outputLines("ambibat")).toEqual([
+      "amb                  PREFIX",
+      "around, round about; having two;",
+      "i.bat                V      6 1 IMPF ACTIVE  IND 3 S",
+      "eo, ire, ivi(ii), itus  V   [XXXAX]",
+      "go, walk; march, advance; pass; flow; pass (time); ride; sail;",
+    ]);
+  });
+
+  it("peralbo: only per (ADJ), listed before per (V), with albus alone (latin-words.com)", () => {
+    expect(outputLines("peralbo")).toEqual([
+      "per                  PREFIX",
+      "very -, - completely, - thoroughly;",
+      "alb.o                ADJ    1 1 DAT S M POS",
+      "alb.o                ADJ    1 1 DAT S N POS",
+      "alb.o                ADJ    1 1 ABL S M POS",
+      "alb.o                ADJ    1 1 ABL S N POS",
+      "albus, alba -um, albior -or -us, albissimus -a -um  ADJ   [XXXAO]",
+      "white, pale, fair, hoary, gray; bright, clear; favorable, auspicious, fortunate",
+    ]);
+  });
+
+  it("siquis: si, a PACK prefix, still takes the qu- pronouns (latin-words.com)", () => {
+    const lines = outputLines("siquis");
+    expect(lines[0]).toBe("si                   PREFIX");
+    expect(lines).toContainEqual("qu.is                PRON   1 0 DAT P X");
   });
 });
 
