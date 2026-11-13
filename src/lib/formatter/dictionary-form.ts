@@ -12,8 +12,9 @@ import { NULL_STEM } from "./field-layout.js";
 /**
  * The citation form of a dictionary entry, as Ada's Dictionary_Form builds it
  * (support_utils-dictionary_form.adb): e.g. "aqua, aquae  N (1st) F". Unlike
- * Ada, a part is never cut short at 24 characters, and the pronouns Ada gives
- * no form get a headword ("qui, quae, quod  PRON").
+ * Ada, a part is never cut short at 24 characters, the pronouns Ada gives no
+ * form get a headword ("qui, quae, quod  PRON"), and an N 2 7 noun doesn't
+ * double its nominative ("chelys, chelyos", where Ada prints "chelysos, chelyi").
  */
 export function dictionaryForm(de: DictionaryEntry): string {
   const part = de.part;
@@ -140,6 +141,7 @@ function nounParts([s1, s2]: DictionaryEntry["stems"], n: NounEntry): Parts | un
       if (which === 2 && variant === 4) {
         return [`${s1}${n.gender === "N" ? "um" : "us"}`, `${s2}(i)`];
       }
+      if (which === 2 && variant === 7) return greekSecondParts(s1, s2);
       const endings = NOUN_ENDINGS[`${which} ${variant}`];
       return endings ? [`${s1}${endings[0]}`, `${s2}${endings[1]}`] : [];
     }
@@ -156,6 +158,24 @@ function nounParts([s1, s2]: DictionaryEntry["stems"], n: NounEntry): Parts | un
   }
 }
 
+/**
+ * An N 2 7 noun's parts. Ada prints stem 1 + os and stem 2 + i
+ * (dictionary_form.adb:118-120), but stem 1 of most of these nouns is already
+ * the nominative. The port prints such a stem 1 as it is, as Ada does for the
+ * 3rd declension Greek nouns, with the genitive its ending takes:
+ * - -ys: stem 1 with its s made os (chelys, chelyos), since stem 2 varies
+ *   (amphibrach, chely, tribrachye);
+ * - -eos: stem 2 + o or i (Androgeos, Androgeo/i);
+ * - -o: stem 2 + us or o (echo, echus/o), a 4th declension Greek noun.
+ * A bare stem 1 keeps Ada's parts (pygargos, pygargi).
+ */
+function greekSecondParts(s1: string, s2: string): Parts {
+  if (s1.endsWith("ys")) return [s1, `${s1.slice(0, -1)}os`];
+  if (s1.endsWith("eos")) return [s1, `${s2}o/i`];
+  if (s1.endsWith("o")) return [s1, `${s2}us/o`];
+  return [`${s1}os`, `${s2}i`];
+}
+
 /** Nominative and genitive endings of declensions 1, 2 and 4, by variant. */
 const NOUN_ENDINGS: Record<string, readonly [string, string]> = {
   "1 1": ["a", "ae"],
@@ -167,7 +187,6 @@ const NOUN_ENDINGS: Record<string, readonly [string, string]> = {
   "2 3": ["", "i"],
   "2 5": ["us", ""],
   "2 6": ["os", "i"],
-  "2 7": ["os", "i"],
   "2 8": ["on", "i"],
   "2 9": ["us", "i"],
   "4 1": ["us", "us"],
