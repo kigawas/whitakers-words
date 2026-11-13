@@ -19607,6 +19607,7 @@ examin             examin             examinav           examinat           V   
 examinat           examinat                                                 ADJ    1 1 POS          X X X E E careful, scrupulous; exact;
 examinator         examinator                                               N      3 1 M P          X X X E E examiner; arbitrator;
 examussim                                                                   ADV    POS              X X X F S according to rule, exactly, quite;
+exancl             exancl             exanclav           exanclat           V      1 1 TRANS        B X X D S draw out, drain (liquid); shed (blood); endure to the end, suffer through;
 exanim             exanim                                                   ADJ    1 1 POS          X X X D X dead; lifeless;
 exanim             exanim                                                   ADJ    3 2 POS          X X X D X dead; lifeless; breathless, terrified, dismayed;
 exanim             exanim             exanimav           exanimat           V      1 1 X            X X X D X kill, deprive of life; scare, alarm greatly; tire, exhaust; be out of breath;
@@ -26058,6 +26059,7 @@ lurcinabund        lurcinabund                                              ADJ 
 lurco              lurcon                                                   N      3 1 M P          X X X E O glutton; gourmand; (also general form of abuse);
 lurid              lurid                                                    ADJ    1 1 POS          X X X D X sallow, wan, ghastly;
 luror              luror                                                    N      3 1 M T          X X X E C ghastliness, paleness;
+lus                lus                                                      N      4 1 M T          X X X C S play, game, sport; amusement; toying, dalliance; jest, fun, mockery;
 lusc               lusc                                                     ADJ    1 1 POS          X X X E C one-eyed;
 luscini            luscini                                                  N      1 1 F T          X X X D X nightingale;
 luscios            luscios                                                  ADJ    1 1 POS          X X X E C purblind, dim-sighted;
@@ -27833,6 +27835,7 @@ nequicquam                                                                  ADV 
 nequior                                                                     ADJ    9 9 POS          X X X C O more wicked/licentious/depraved/vile; worse; more useless/worthless; (nequam);
 nequiquam                                                                   ADV    POS              X X X B X in vain;
 nequis                                                                      ADV    POS              X X X D X lest any one;
+nequissi                                                                    ADJ    0 0 SUPER        X X X C O most wicked/vile/licentious/worthless, good for nothing; (nequam SUPER);
 nequissimus                                                                 ADJ    9 9 POS          X X X C O most wicked/vile/licentious/worthless, good for nothing; (nequam SUPER);
 nequiter                                                                    ADV    POS              X X X D X badly; wickedly;
 nequiti            nequiti                                                  N      1 1 F T          X X X D X wickedness; idleness; negligence; worthlessness; evil ways;
@@ -34538,6 +34541,7 @@ secretari          secretari                                                N   
 secretari          secretari                                                N      2 2 N T          E E X D S |council chamber; conclave, consistory; private chapel; retirement place;
 secretio           secretion                                                N      3 1 F T          X X X F S separation;
 secreto                                                                     ADV    POS              X X X D X separately; secretly, in private;
+sect               sect                                                     N      1 1 F T          X X X C S path, way; method, principles; way of life; party, faction, side; school, sect;
 sect               sect               zzz                sectat             V      1 1 DEP          X X X B X follow continually; pursue; pursue with punishment; hunt out; run after;
 sectari            sectari                                                  ADJ    1 1 POS          X X X D S castrated; gelded;
 sectil             sectil                                                   ADJ    3 2 POS          X X X D X capable of being cut into thin layers;
