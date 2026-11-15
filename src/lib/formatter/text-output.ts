@@ -54,27 +54,9 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
 
   // Group standard results by entryIndex, merge | continuations,
   // then merge groups with identical meanings (variant dictionary entries).
-  // A compound's PPL+ line goes after the participles of the entry it is
-  // under, before that entry's dictionary line, as Ada counts it among them.
-  let compound: CompoundResult | undefined = analysis.compoundResults?.[0];
-  const compoundEntries = new Set(compound ? [compound.entryIndex] : []);
-  for (const block of mergeByMeaning(groupAndMerge(analysis.results), compoundEntries)) {
-    const at = compound
-      ? block.indexOf(`${dictionaryForm(compound.de)}   ${formatFlags(compound.de)}`)
-      : -1;
-    if (compound && at >= 0) {
-      block.splice(at, 0, ...formatCompoundLine(compound));
-      compound = undefined;
-    }
-    lines.push(...block);
-  }
-
-  // A compound whose entry printed no dictionary line of its own
-  if (compound) {
-    lines.push(...formatCompoundLine(compound));
-    lines.push(`${dictionaryForm(compound.de)}   ${formatFlags(compound.de)}`);
-    lines.push(truncateMeaning(compound.de.mean));
-  }
+  const compound = analysis.compoundResults?.[0];
+  const groups = groupAndMerge(analysis.results, compound?.entryIndex);
+  for (const block of mergeByMeaning(groups, compound)) lines.push(...block);
 
   // Roman numeral result
   if (analysis.romanNumeralResult) {
@@ -178,9 +160,14 @@ export interface MergedGroup {
 
 /**
  * Group parse results by entryIndex, then merge DICTLINE continuation
- * entries (meanings starting with "|") into the preceding group.
+ * entries (meanings starting with "|") into the preceding group. The entry a
+ * compound is under (`compoundEntry`) keeps a group of its own: Ada counts the
+ * PPL+ line among that entry's lines, so they differ from the entry's before it.
  */
-export function groupAndMerge(results: readonly ParseResult[]): MergedGroup[] {
+export function groupAndMerge(
+  results: readonly ParseResult[],
+  compoundEntry?: number,
+): MergedGroup[] {
   // Group by entryIndex, preserving order
   const map = new Map<number, ParseResult[]>();
   for (const r of results) {
@@ -203,7 +190,7 @@ export function groupAndMerge(results: readonly ParseResult[]): MergedGroup[] {
     const form = dictionaryForm(first.de);
     const mean = first.de.mean;
     const prev = merged[merged.length - 1];
-    if (mean.startsWith("|") && prev?.form === form) {
+    if (mean.startsWith("|") && prev?.form === form && first.entryIndex !== compoundEntry) {
       prev.meaning += `\n${mean.replace(/^\|+/, "")}`;
     } else {
       const meaning = numeralMeaning(first) ?? mean.replace(/^\|+/, "");
@@ -251,14 +238,25 @@ class DictionaryLines {
   }
 }
 
+/** The PPL+ lines of a compound under the group's entry, if any. */
+function compoundLines(group: MergedGroup, compound: CompoundResult | undefined): string[] {
+  return compound && firstEntry(group) === compound.entryIndex ? formatCompoundLine(compound) : [];
+}
+
 /**
  * Render a group into output lines: inflection lines + dictionary form + meaning.
+ * A compound under the group's entry prints after its inflection lines.
  */
-function renderGroup(group: MergedGroup, dictLines: DictionaryLines): string[] {
+function renderGroup(
+  group: MergedGroup,
+  dictLines: DictionaryLines,
+  compound: CompoundResult | undefined,
+): string[] {
   const out: string[] = [];
   for (const r of group.results) {
     out.push(formatInflectionLine(r));
   }
+  out.push(...compoundLines(group, compound));
   const first = group.results[0];
   if (first) {
     dictLines.push(out, first.de);
@@ -302,21 +300,19 @@ const firstEntry = (g: MergedGroup) => g.results[0]?.entryIndex ?? 0;
  */
 function lineKeys(
   groups: readonly MergedGroup[],
-  compoundEntries: ReadonlySet<number>,
+  compound: CompoundResult | undefined,
 ): Map<MergedGroup, string> {
-  const unblanked = (g: MergedGroup) => g.results.map((r) => inflectionLine(r, "")).join("\n");
+  const lines = (g: MergedGroup, line: (r: ParseResult) => string) =>
+    [...g.results.map(line), ...compoundLines(g, compound)].join("\n");
+  const unblanked = (g: MergedGroup) => lines(g, (r) => inflectionLine(r, ""));
   const onePofs = (g: MergedGroup) => new Set(g.results.map((r) => r.ir.qual.pofs)).size === 1;
   const keys = new Map<MergedGroup, string>();
   let prev: MergedGroup | undefined;
   for (const g of [...groups].sort((a, b) => firstEntry(a) - firstEntry(b))) {
     const prevKey = prev && keys.get(prev);
     const shares =
-      prev !== undefined &&
-      onePofs(prev) &&
-      onePofs(g) &&
-      !compoundEntries.has(firstEntry(g)) &&
-      unblanked(prev) === unblanked(g);
-    keys.set(g, shares && prevKey ? prevKey : g.results.map(formatInflectionLine).join("\n"));
+      prev !== undefined && onePofs(prev) && onePofs(g) && unblanked(prev) === unblanked(g);
+    keys.set(g, shares && prevKey ? prevKey : lines(g, formatInflectionLine));
     prev = g;
   }
   return keys;
@@ -329,16 +325,13 @@ function lineKeys(
  * Ada groups results by inflection pattern, showing each pattern once with all
  * matching dictionary meanings listed below.
  */
-function mergeByMeaning(
-  groups: MergedGroup[],
-  compoundEntries: ReadonlySet<number> = new Set(),
-): string[][] {
+function mergeByMeaning(groups: MergedGroup[], compound?: CompoundResult): string[][] {
   // First pass: merge groups with identical inflection line sets.
   // This collapses the many PRON "qu" entries with the same DAT/ABL/NOM pattern
   // into a single block with inflection lines shown once and meanings listed after.
   const byInflection = new Map<string, MergedGroup[]>();
   const inflOrder: string[] = [];
-  const keys = lineKeys(groups, compoundEntries);
+  const keys = lineKeys(groups, compound);
   for (const g of groups) {
     const key = keys.get(g) ?? "";
     let bucket = byInflection.get(key);
@@ -357,7 +350,7 @@ function mergeByMeaning(
     if (!sameInflection) continue;
 
     if (sameInflection.length === 1 && sameInflection[0]) {
-      blocks.push(renderGroup(sameInflection[0], dictLines));
+      blocks.push(renderGroup(sameInflection[0], dictLines, compound));
     } else {
       // Show inflection lines once, then each dict form + meaning. Ada lists
       // a verb's entries in dictionary order and prints the lines with the

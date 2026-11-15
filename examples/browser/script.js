@@ -349,8 +349,10 @@ function renderWord(word, analysis) {
   }
 
   // Standard results — one card per dictionary entry (entries sharing the
-  // same inflection, e.g. cado/caedo for "cecidit", get separate cards).
-  for (const group of groupAndMerge(analysis.results)) {
+  // same inflection, e.g. cado/caedo for "cecidit", get separate cards). The
+  // entry a compound is under keeps its own card, though it continues another.
+  const compoundEntry = analysis.compoundResults?.[0]?.entryIndex;
+  for (const group of groupAndMerge(analysis.results, compoundEntry)) {
     const cr = compoundMap.get(group.results[0].entryIndex);
     parts.push(renderEntryGroup(group, "", cr));
   }

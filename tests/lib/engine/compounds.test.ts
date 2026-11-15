@@ -251,6 +251,18 @@ describe("compound: as Ada prints it", () => {
     expect(out).not.toContainEqual(expect.stringContaining("PPL+"));
     expect(out).toContainEqual("fu.isse              V      5 1 PERF ACTIVE  INF 0 X");
   });
+
+  it("abalienatus est: under a | continuation, which prints apart from the entry before it (latin-words.com)", () => {
+    expect(lines("abalienatus est")).toEqual([
+      "abalienat.us         VPAR   1 1 NOM S M PERF PASSIVE PPL",
+      "abalieno, abalienare, abalienavi, abalienatus  V (1st) TRANS   [XXXBS]",
+      "make alien; separate, abstract; alienate, estrange, make disaffected;",
+      "abalienat.us         VPAR   1 1 NOM S M PERF PASSIVE PPL",
+      "PPL+est              V      1 1 PERF PASSIVE IND 3 S",
+      "PERF PASSIVE PPL + verb TO_BE => PASSIVE perfect system",
+      "transfer (sale/contract); remove, take away, dispose of; numb/deaden;",
+    ]);
+  });
 });
 
 describe("compound: formatted output", () => {
