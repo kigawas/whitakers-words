@@ -1,13 +1,13 @@
 import type { DictionaryEntry } from "../types/dictionary.js";
-import type { GrammaticalNumber, Mood, Person, Tense } from "../types/enums.js";
+import type { GrammaticalNumber, Mood, Person, Tense, Voice } from "../types/enums.js";
 import type { ParseResult } from "./word-analysis.js";
 
 // ---------------------------------------------------------------------------
-// Compound perfect passive detection (PPL + sum/esse/fuisse).
+// Compound verb detection (PPL + sum/esse/fuisse).
 //
-// When a perfect passive participle (VPAR PERF PASSIVE PPL) is followed by
-// a form of "sum" (est, sunt, erat, fuit, sit, esset, etc.), the pair
-// forms a compound verb: "amatus est" = PERF PASSIVE IND 3 S of "amo".
+// When a participle (VPAR PERF PASSIVE, FUT ACTIVE or FUT PASSIVE PPL) is
+// followed by a form of "sum" (est, sunt, erat, fuit, sit, esset, etc.), the
+// pair forms a compound verb: "amatus est" = PERF PASSIVE IND 3 S of "amo".
 //
 // Ada's Compounds_With_Sum in words_engine-parse.adb implements this.
 // ---------------------------------------------------------------------------
@@ -157,8 +157,43 @@ export function isFuisse(word: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Compound tense derivation — Ada's Get_Compound_Tense
+// Compound glosses and tenses — Ada's Participle_Glosses tables and
+// Get_Compound_Tense
 // ---------------------------------------------------------------------------
+
+/** A participle's tense and voice, as the gloss tables key it. */
+type ParticipleKey = "PERF PASSIVE" | "FUT ACTIVE" | "FUT PASSIVE";
+
+type Glosses = Readonly<Record<ParticipleKey, string>>;
+
+/** Ada's Participle_Glosses: the participles that make a compound with sum. */
+const SUM_GLOSSES: Glosses = {
+  "PERF PASSIVE": "PERF PASSIVE PPL + verb TO_BE => PASSIVE perfect system",
+  "FUT ACTIVE": "FUT ACTIVE PPL + verb TO_BE => ACTIVE Periphrastic - about to, going to",
+  "FUT PASSIVE": "FUT PASSIVE PPL + verb TO_BE => PASSIVE Periphrastic - should/ought/had to",
+};
+
+/** Ada's Participle_Glosses_With_Esse. */
+const ESSE_GLOSSES: Glosses = {
+  "PERF PASSIVE": "PERF PASSIVE PPL + esse => PERF PASSIVE INF",
+  "FUT ACTIVE": "FUT ACTIVE PPL + esse => PRES Periphastic/FUT ACTIVE INF - be about/going to",
+  "FUT PASSIVE": "FUT PASSIVE PPL + esse => PRES PASSIVE INF",
+};
+
+/** Ada's Participle_Glosses_With_Fuisse. */
+const FUISSE_GLOSSES: Glosses = {
+  "PERF PASSIVE": "PERF PASSIVE PPL + esse => PERF PASSIVE INF",
+  "FUT ACTIVE": "FUT ACT PPL+fuisse => PERF ACT INF Periphrastic - to have been about/going to",
+  "FUT PASSIVE": "FUT PASSIVE PPL + fuisse => PERF PASSIVE INF Periphrastic - about to, going to",
+};
+
+/** A reading's key in the gloss tables, if it is a participle they list. */
+function participleKey(r: ParseResult): ParticipleKey | undefined {
+  if (r.ir.qual.pofs !== "VPAR") return undefined;
+  const { tense, voice, mood } = r.ir.qual.vpar.tenseVoiceMood;
+  const key = `${tense} ${voice}`;
+  return mood === "PPL" && key in SUM_GLOSSES ? (key as ParticipleKey) : undefined;
+}
 
 /**
  * For PERF PASSIVE PPL + sum finite form:
@@ -180,82 +215,81 @@ function getCompoundTense(sumTense: Tense): Tense {
   }
 }
 
-const PPL_GLOSS = "PERF PASSIVE PPL + verb TO_BE => PASSIVE perfect system";
+/**
+ * For a participle + esse or fuisse: a future one reads as PERF with fuisse,
+ * and with esse as FUT (active) or PRES (passive); any other keeps its tense.
+ */
+function infinitiveTense(tense: Tense, voice: Voice, esse: boolean): Tense {
+  if (tense !== "FUT") return tense;
+  if (!esse) return "PERF";
+  return voice === "PASSIVE" ? "PRES" : "FUT";
+}
 
 // ---------------------------------------------------------------------------
 // Main compound detection
 // ---------------------------------------------------------------------------
 
+/** A compound and the readings Ada keeps beside it. */
+export interface Compound {
+  readonly compound: CompoundResult;
+  /** The word's participles that stay, in their order */
+  readonly results: readonly ParseResult[];
+}
+
 /**
- * Try to form a compound verb from VPAR results + a following word.
- * Returns compound results if the next word is a form of sum/esse/fuisse.
+ * Ada's Compounds_With_Sum: a participle followed by a form of sum, esse or
+ * fuisse. Before a finite form of sum, a NOM participle of its number that
+ * is PERF PASSIVE, FUT ACTIVE or FUT PASSIVE makes the compound, and only
+ * the NOM participles of that number stay (Do_Clear_Pas_Nom_Ppl). Before
+ * esse or fuisse, a future participle, or a PERF PASSIVE one before esse,
+ * makes it, and every participle stays (Do_Clear_Pas_Ppl). Ada adds one PPL+
+ * line, with the conjugation and gloss of the first participle, where its
+ * backward sweep ends, and under the last, whose kind blanks a DEP verb's
+ * voice.
  */
-export function tryCompound(results: readonly ParseResult[], nextWord: string): CompoundResult[] {
-  if (nextWord.length === 0) return [];
+export function tryCompound(results: readonly ParseResult[], nextWord: string): Compound | null {
+  const next = nextWord.toLowerCase();
+  const sum = isSumForm(next);
+  const esse = isEsse(next);
+  if (!sum && !esse && !isFuisse(next)) return null;
 
-  const lowerNext = nextWord.toLowerCase();
+  const ofSum = (r: ParseResult) =>
+    r.ir.qual.pofs === "VPAR" &&
+    r.ir.qual.vpar.cs === "NOM" &&
+    r.ir.qual.vpar.number === sum?.number;
+  const makes = (r: ParseResult) => {
+    const key = participleKey(r);
+    if (sum) return key !== undefined && ofSum(r);
+    return key === "FUT ACTIVE" || key === "FUT PASSIVE" || (key === "PERF PASSIVE" && esse);
+  };
+  if (!results.some(makes)) return null;
 
-  // Check if next word is a form of sum
-  const sumInfo = isSumForm(lowerNext);
-  const esse = isEsse(lowerNext);
-  const fuisse = isFuisse(lowerNext);
+  const kept = results.filter(sum ? ofSum : (r) => r.ir.qual.pofs === "VPAR");
+  const byEntry = [...kept].sort((a, b) => a.entryIndex - b.entryIndex);
+  const first = byEntry.find((r) => participleKey(r) !== undefined);
+  const firstKey = first && participleKey(first);
+  const last = byEntry[byEntry.length - 1];
+  if (!first || !firstKey || !last || first.ir.qual.pofs !== "VPAR") return null;
 
-  if (!sumInfo && !esse && !fuisse) return [];
-
-  // Find VPAR PERF PASSIVE PPL results
-  const compounds: CompoundResult[] = [];
-  const seen = new Set<number>(); // deduplicate by entryIndex
-
-  for (const r of results) {
-    if (r.ir.qual.pofs !== "VPAR") continue;
-    const vpar = r.ir.qual.vpar;
-    const tvm = vpar.tenseVoiceMood;
-
-    // Only PERF PASSIVE PPL
-    if (tvm.tense !== "PERF" || tvm.voice !== "PASSIVE" || tvm.mood !== "PPL") continue;
-
-    // For finite sum forms, only NOM case participles form compounds
-    if (sumInfo && vpar.cs !== "NOM") continue;
-
-    // Skip duplicate dictionary entries
-    if (seen.has(r.entryIndex)) continue;
-    seen.add(r.entryIndex);
-
-    // Determine verb kind for voice display
-    const verbKind = r.de.part.pofs === "V" ? r.de.part.v.kind : "";
-    const showVoice = verbKind !== "DEP";
-
-    if (sumInfo) {
-      // PPL + finite sum → compound finite verb
-      const compoundTense = getCompoundTense(sumInfo.tense);
-      compounds.push({
-        stem: `PPL+${lowerNext}`,
-        con: r.de.part.pofs === "V" ? r.de.part.v.con : { which: 0, var: 0 },
-        tense: compoundTense,
-        voice: showVoice ? "PASSIVE" : "",
-        mood: sumInfo.mood,
-        person: sumInfo.person,
-        number: sumInfo.number,
-        gloss: PPL_GLOSS,
-        de: r.de,
-        entryIndex: r.entryIndex,
-      });
-    } else if (esse || fuisse) {
-      // PPL + esse/fuisse → compound infinitive
-      compounds.push({
-        stem: `PPL+${lowerNext}`,
-        con: r.de.part.pofs === "V" ? r.de.part.v.con : { which: 0, var: 0 },
-        tense: "PERF",
-        voice: showVoice ? "PASSIVE" : "",
-        mood: "INF",
-        person: 0,
-        number: "X",
-        gloss: PPL_GLOSS,
-        de: r.de,
-        entryIndex: r.entryIndex,
-      });
-    }
-  }
-
-  return compounds;
+  const { con, tenseVoiceMood: tvm } = first.ir.qual.vpar;
+  const dep = last.de.part.pofs === "V" && last.de.part.v.kind === "DEP";
+  const glosses = sum ? SUM_GLOSSES : esse ? ESSE_GLOSSES : FUISSE_GLOSSES;
+  let tense: Tense;
+  if (!sum) tense = infinitiveTense(tvm.tense, tvm.voice, esse);
+  else tense = firstKey === "PERF PASSIVE" ? getCompoundTense(sum.tense) : sum.tense;
+  return {
+    compound: {
+      stem: `PPL+${next}`,
+      con,
+      tense,
+      voice: dep ? "" : sum ? "PASSIVE" : tvm.voice,
+      mood: sum ? sum.mood : "INF",
+      person: sum ? sum.person : 0,
+      number: sum ? sum.number : "X",
+      gloss: glosses[firstKey],
+      de: last.de,
+      entryIndex: last.entryIndex,
+    },
+    results: kept,
+  };
 }
