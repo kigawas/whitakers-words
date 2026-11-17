@@ -130,6 +130,21 @@ describe("dictionaryForm: 2nd declension nouns", () => {
     expect(form).toBe("Hymenaeos, Hymenaei  N M");
   });
 
+  it("var 7 — a stem 1 in -ys is the nominative, with -yos (chelys, chelyos)", () => {
+    const form = dictionaryForm(makeNoun(["chelys", "chely"], 2, 7, "F"));
+    expect(form).toBe("chelys, chelyos  N F");
+  });
+
+  it("var 7 — a stem 1 in -eos is the nominative, with -o/i (Androgeos, Androgeo/i)", () => {
+    const form = dictionaryForm(makeNoun(["Androgeos", "Androge"], 2, 7, "M"));
+    expect(form).toBe("Androgeos, Androgeo/i  N M");
+  });
+
+  it("var 7 — a stem 1 in -o is the nominative, with -us/o (echo, echus/o)", () => {
+    const form = dictionaryForm(makeNoun(["echo", "ech"], 2, 7, "F"));
+    expect(form).toBe("echo, echus/o  N F");
+  });
+
   it("var 8 — Greek -on (aron, ari)", () => {
     const form = dictionaryForm(makeNoun(["ar", "ar"], 2, 8, "N"));
     expect(form).toBe("aron, ari  N N");
@@ -371,5 +386,21 @@ describe("dictionaryForm: integration with real dictionary entries", () => {
   it("titan → Titan, Titanos/is  N M", () => {
     const forms = findNounForm("titan");
     expect(forms.some((f) => f.includes("Titanos/is"))).toBe(true);
+  });
+
+  // Every N 2 7 entry in DICTLINE.GEN. Unlike Ada, none doubles its
+  // nominative (chelysos, Androgeosos, echoos).
+  it.each([
+    ["chelys", "chelys, chelyos  N F"],
+    ["amphibrachys", "amphibrachys, amphibrachyos  N M"],
+    ["botrys", "botrys, botryos  N M"],
+    ["chrysophrys", "chrysophrys, chrysophryos  N F"],
+    ["dibrachys", "dibrachys, dibrachyos  N F"],
+    ["tribrachys", "tribrachys, tribrachyos  N M"],
+    ["androgeos", "Androgeos, Androgeo/i  N M"],
+    ["echo", "echo, echus/o  N F"],
+    ["pygargi", "pygargos, pygargi  N M"],
+  ])("%s → %s", (word, form) => {
+    expect(findNounForm(word)).toContain(form);
   });
 });
