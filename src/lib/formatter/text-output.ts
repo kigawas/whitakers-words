@@ -258,6 +258,7 @@ function renderGroup(
   group: MergedGroup,
   dictLines: DictionaryLines,
   compound: CompoundResult | undefined,
+  withMeaning: boolean,
 ): string[] {
   const out: string[] = [];
   for (const r of group.results) {
@@ -267,7 +268,7 @@ function renderGroup(
   const first = group.results[0];
   if (first) {
     dictLines.push(out, first.de);
-    out.push(truncateMeaning(group.meaning));
+    if (withMeaning) out.push(truncateMeaning(group.meaning));
   }
   return out;
 }
@@ -350,22 +351,24 @@ function mergeByMeaning(groups: MergedGroup[], compound?: CompoundResult): strin
     bucket.push(g);
   }
 
+  // Ada lists a verb's entries in dictionary order and prints the lines with
+  // the first, whose kind decides a DEP verb's voice (comito before comitor).
+  const buckets = inflOrder.map((key) => byInflection.get(key) ?? []);
+  for (const bucket of buckets) {
+    if (bucket.length > 1 && bucket[0]?.results[0]?.de.part.pofs === "V") {
+      bucket.sort((a, b) => firstEntry(a) - firstEntry(b));
+    }
+  }
+  const runs = buckets.map(meaningRuns);
+  const waits = meaningWaits(runs, groups);
+
   const blocks: string[][] = [];
   const dictLines = new DictionaryLines();
-  for (const key of inflOrder) {
-    const sameInflection = byInflection.get(key);
-    if (!sameInflection) continue;
-
+  for (const [i, sameInflection] of buckets.entries()) {
     if (sameInflection.length === 1 && sameInflection[0]) {
-      blocks.push(renderGroup(sameInflection[0], dictLines, compound));
+      blocks.push(renderGroup(sameInflection[0], dictLines, compound, !waits[i]));
     } else {
-      // Show inflection lines once, then each dict form + meaning. Ada lists
-      // a verb's entries in dictionary order and prints the lines with the
-      // first, whose kind decides a DEP verb's voice (comito before comitor).
-      const first = sameInflection[0]?.results[0];
-      if (first?.de.part.pofs === "V") {
-        sameInflection.sort((a, b) => firstEntry(a) - firstEntry(b));
-      }
+      // Show inflection lines once, then each dict form + meaning.
       const out: string[] = [];
       const seenInflections = new Set<string>();
       for (const r of sameInflection[0]?.results ?? []) {
@@ -375,32 +378,62 @@ function mergeByMeaning(groups: MergedGroup[], compound?: CompoundResult): strin
           out.push(line);
         }
       }
-      // Group by meaning: show all unique dict forms, then meaning once.
-      // This matches Ada's behavior for variant spellings (attigo/attingo).
-      const meaningGroups = new Map<string, MergedGroup[]>();
-      const meaningOrder: string[] = [];
-      for (const g of sameInflection) {
-        let bucket = meaningGroups.get(g.meaning);
-        if (!bucket) {
-          bucket = [];
-          meaningGroups.set(g.meaning, bucket);
-          meaningOrder.push(g.meaning);
-        }
-        bucket.push(g);
-      }
-      for (const meaning of meaningOrder) {
-        const mGroups = meaningGroups.get(meaning);
-        if (!mGroups) continue;
-        for (const g of mGroups) {
+      // Show all unique dict forms of a meaning, then the meaning once. This
+      // matches Ada's behavior for variant spellings (attigo/attingo).
+      const bucketRuns = runs[i] ?? [];
+      for (const [j, run] of bucketRuns.entries()) {
+        for (const g of run) {
           const first = g.results[0];
           if (first) dictLines.push(out, first.de);
         }
-        out.push(truncateMeaning(meaning));
+        const meaning = run[0]?.meaning;
+        const last = j === bucketRuns.length - 1;
+        if (meaning !== undefined && !(last && waits[i])) out.push(truncateMeaning(meaning));
       }
       blocks.push(out);
     }
   }
   return blocks;
+}
+
+/** A bucket's groups gathered by meaning, in the order each meaning first appears. */
+function meaningRuns(bucket: readonly MergedGroup[]): MergedGroup[][] {
+  const byMeaning = new Map<string, MergedGroup[]>();
+  for (const g of bucket) {
+    const run = byMeaning.get(g.meaning);
+    if (run) run.push(g);
+    else byMeaning.set(g.meaning, [g]);
+  }
+  return [...byMeaning.values()];
+}
+
+/**
+ * Which buckets leave out their last meaning. Ada's Putting_Meaning
+ * (list_package.adb:669-679) prints no meaning for an entry when the next
+ * entry's is the same, so a run of such entries prints it once, after the
+ * last (merita es: mereo's waits for mereor's). Ada's next entry is the next
+ * in dictionary order, and the port ranks by frequency, so a meaning waits
+ * only for the next bucket's first when their entries are also next to each
+ * other in dictionary order, either way round (mille, millis before mille,
+ * milis). A meaning with continuation lines never waits: Ada compares its
+ * last line, a | line that no entry's meaning equals.
+ */
+function meaningWaits(runs: readonly MergedGroup[][][], groups: readonly MergedGroup[]): boolean[] {
+  const order = [...new Set(groups.map(firstEntry))].sort((a, b) => a - b);
+  const span = (run: readonly MergedGroup[]) => {
+    const at = run.map((g) => order.indexOf(firstEntry(g)));
+    return [Math.min(...at), Math.max(...at)];
+  };
+  return runs.map((bucketRuns, i) => {
+    const last = bucketRuns.at(-1);
+    const next = runs[i + 1]?.[0];
+    const meaning = last?.[0]?.meaning;
+    if (!last || !next || meaning === undefined || meaning.includes("\n")) return false;
+    if (next[0]?.meaning.split("\n")[0] !== meaning) return false;
+    const [a0 = 0, a1 = 0] = span(last);
+    const [b0 = 0, b1 = 0] = span(next);
+    return a1 + 1 === b0 || b1 + 1 === a0;
+  });
 }
 
 /** Format compound PPL+ line and gloss. */

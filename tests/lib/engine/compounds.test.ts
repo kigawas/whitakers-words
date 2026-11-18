@@ -263,6 +263,18 @@ describe("compound: as Ada prints it", () => {
       "transfer (sale/contract); remove, take away, dispose of; numb/deaden;",
     ]);
   });
+
+  it("merita es: mereo prints no meaning, as mereor's under the compound is the same (expected:27923)", () => {
+    expect(lines("merita es")).toEqual([
+      "merit.a              VPAR   2 1 NOM S F PERF PASSIVE PPL",
+      "mereo, merere, merui, meritus  V (2nd)   [XXXAO]",
+      "merit.a              VPAR   2 1 NOM S F PERF         PPL",
+      "PPL+es               V      2 1 PERF         IND 2 S",
+      "PERF PASSIVE PPL + verb TO_BE => PASSIVE perfect system",
+      "mereor, mereri, meritus sum  V (2nd) DEP   [XXXAO]",
+      "earn; deserve/merit/have right; win/gain/incur; earn soldier/whore pay, serve;",
+    ]);
+  });
 });
 
 describe("compound: formatted output", () => {
