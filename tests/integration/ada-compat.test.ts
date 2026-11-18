@@ -1273,6 +1273,66 @@ describe("ada-compat: continuation meanings", () => {
   });
 });
 
+describe("ada-compat: a meaning the next entry repeats prints once", () => {
+  /** How often `line` prints, and whether it follows every line of `after`. */
+  function placed(word: string, line: string, after: string[]) {
+    const lines = outputLines(word);
+    const at = lines.lastIndexOf(line);
+    return {
+      count: lines.filter((l) => l === line).length,
+      last: after.every((a) => {
+        const i = lines.indexOf(a);
+        return i >= 0 && i < at;
+      }),
+    };
+  }
+
+  it("lampade: after lampas, lampadis and lampas, lampados (expected:289-297)", () => {
+    expect(
+      placed(
+        "lampade",
+        "lamp/lantern; light/torch/flame/flambeau/link; firebrand; meteor (like torch);",
+        ["lampas, lampadis  N (3rd) F   [XXXBO]", "lampas, lampados/is  N F   [XXXDO]    lesser"],
+      ),
+    ).toEqual({ count: 1, last: true });
+  });
+
+  it("mille: also when the port prints the later entry first (expected:35957-35967)", () => {
+    expect(
+      placed(
+        "mille",
+        "thousand; thousands (men/things); miles; [~ passuum => thousand paces = 1 mile]",
+        ["mille, milis  N (3rd) N   [XXXDS]    lesser", "mille, millis  N (3rd) N   [XXXBO]"],
+      ),
+    ).toEqual({ count: 1, last: true });
+  });
+
+  it("iovis: and when the later entries print as one block (expected:4671-4679)", () => {
+    expect(
+      placed("iovis", "Jupiter; (Roman chief/sky god); (supreme being); heavens/sky (poetic);", [
+        "Jovis, Jovis  N (3rd) M   [XEICO]",
+        "Jupiter, Jovis  N (3rd) M   [XEIEO]    uncommon",
+        "Juppiter, Jovis  N (3rd) M   [XEIAO]",
+      ]),
+    ).toEqual({ count: 1, last: true });
+  });
+
+  it("miserere: twice, as miseror comes between misereo and misereor in the dictionary (expected:16256-16272)", () => {
+    const pity = "pity, feel pity; show/have mercy/compassion/pity for (w/GEN);";
+    expect(outputLines("miserere").filter((l) => l === pity)).toHaveLength(2);
+  });
+
+  it("sonant: twice, as Ada compares a meaning's continuation line (expected:7479-7486)", () => {
+    const lines = outputLines("sonant");
+    for (const meaning of [
+      "make a noise/sound; speak/utter, emit sound; be spoken of (as); express/denote;",
+      "echo/resound; be heard, sound; be spoken of (as); celebrate in speech;",
+    ]) {
+      expect(lines.filter((l) => l === meaning)).toHaveLength(2);
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Dictionary forms, as Ada's Dictionary_Form builds them. Expected lines are
 // from aeneid-expected.txt unless marked latin-words.com.
