@@ -42,4 +42,27 @@ describe("DICTLINE.GEN: entries Ada's dictionary lacks", () => {
     expect(lines).toContainEqual("nequissimus, nequissima, nequissimum  ADJ   [XXXCO]");
     expect(lines).not.toContainEqual("Two words");
   });
+
+  it("nequiorem: the COMP of nequam, not nequeo + the -or SUFFIX", () => {
+    expect(outputLines("nequiorem")).toEqual([
+      "nequi.orem           ADJ    0 0 ACC S C COMP",
+      "nequior, nequior, nequius  ADJ   [XXXCO]",
+      "more wicked/licentious/depraved/vile; worse; more useless/worthless; (nequam);",
+    ]);
+  });
+
+  it("nequius: the neuter COMP, which Ada doesn't know", () => {
+    expect(outputLines("nequius")).toContainEqual("nequi.us             ADJ    0 0 NOM S N COMP");
+  });
+
+  it("nequior: the COMP beside Ada's undeclined line, with their one meaning once", () => {
+    expect(outputLines("nequior")).toEqual([
+      "nequi.or             ADJ    0 0 NOM S C COMP",
+      "nequi.or             ADJ    0 0 VOC S C COMP",
+      "nequior, nequior, nequius  ADJ   [XXXCO]",
+      "nequior              ADJ    9 9 X   X X POS",
+      "nequior, undeclined  ADJ   [XXXCO]",
+      "more wicked/licentious/depraved/vile; worse; more useless/worthless; (nequam);",
+    ]);
+  });
 });
