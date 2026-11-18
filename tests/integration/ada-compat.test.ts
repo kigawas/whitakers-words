@@ -384,8 +384,8 @@ describe("ada-compat: two-word splitting", () => {
 });
 
 describe("ada-compat: a prefix takes only words of its root", () => {
-  it("echus: no e + chus, as e takes only verbs (latin-words.com: UNKNOWN)", () => {
-    expect(outputLines("echus")).toEqual([]);
+  it("echois: no e + chois, as e takes only verbs (latin-words.com: UNKNOWN)", () => {
+    expect(outputLines("echois")).toEqual([]);
   });
 
   it("persensit: only the verb's per, not the adjective's (aeneid-expected.txt)", () => {

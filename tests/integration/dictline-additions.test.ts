@@ -110,4 +110,12 @@ describe("the Greek genitive in -yos", () => {
     expect(outputLines("chel")).toEqual([]);
     expect(outputLines("amphibrach")).toEqual([]);
   });
+
+  it("echus: echo's genitive, a unique as Ada has chely and chelyn, since no 2 7 ending gives it", () => {
+    expect(outputLines("echus")).toEqual([
+      "echus                N      2 7 GEN S F",
+      "echus  X   [XXXBO]",
+      "echo; (nymph); repeating words/phrases; same phrase at start and end of speech;",
+    ]);
+  });
 });
