@@ -163,8 +163,8 @@ function nounParts([s1, s2]: DictionaryEntry["stems"], n: NounEntry): Parts | un
  * (dictionary_form.adb:118-120), but stem 1 of most of these nouns is already
  * the nominative. The port prints such a stem 1 as it is, as Ada does for the
  * 3rd declension Greek nouns, with the genitive its ending takes:
- * - -ys: stem 1 with its s made os (chelys, chelyos), since stem 2 varies
- *   (amphibrach, chely, tribrachye);
+ * - -ys: stem 1 with its s made os (chelys, chelyos), the form INFLECTS's
+ *   yos ending gives on stem 2 (chel);
  * - -eos: stem 2 + o or i (Androgeos, Androgeo/i);
  * - -o: stem 2 + us or o (echo, echus/o), a 4th declension Greek noun.
  * A bare stem 1 keeps Ada's parts (pygargos, pygargi).
