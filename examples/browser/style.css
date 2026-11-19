@@ -321,6 +321,12 @@ h1 {
   cursor: pointer;
 }
 
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.2rem;
+}
+
 .option input {
   margin: 0;
   accent-color: var(--terracotta);
