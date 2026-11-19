@@ -1973,10 +1973,32 @@ describe("ada-compat: syncope readings", () => {
   });
 });
 
-// Ada's Order_Parse_Array sorts an entry's readings by Quality_Record's "<"
-// (inflections_package.adb:40-214): declension, number, case, gender, in the
-// order of Ada's enumerations, where LOC comes between GEN and DAT.
-describe("ada-compat: an entry's readings in Ada's order", () => {
+// Ada's Order_Parse_Array sorts a word's readings by dictionary line, then an
+// entry's readings by Quality_Record's "<" (inflections_package.adb:40-214):
+// declension, number, case, gender, in the order of Ada's enumerations, where
+// LOC comes between GEN and DAT.
+describe("ada-compat: entries and their readings in Ada's order", () => {
+  it("venis: entries by dictionary line, D_K then MNPC in Ada's Compare (expected:56-71)", () => {
+    expect(outputLines("venis")).toEqual([
+      "ven.is               N      1 1 LOC P F",
+      "ven.is               N      1 1 DAT P F",
+      "ven.is               N      1 1 ABL P F",
+      "vena, venae  N (1st) F   [XXXBX]",
+      "blood-vessel, vein; artery; pulse; fissure, pore, cavity; vein of ore/talent;",
+      "ven.is               N      2 2 LOC P N",
+      "ven.is               N      2 2 DAT P N",
+      "ven.is               N      2 2 ABL P N",
+      "venum, veni  N (2nd) N   [XXXCO]",
+      "sale, purchase; (only sg. ACC/DAT w/dare); [venum dare => put up for sale];",
+      "veni.s               V      6 1 PRES ACTIVE  IND 2 S",
+      "veneo, venire, venivi(ii), venitus  V   [XXXBO]",
+      "go for sale, be sold (as slave), be disposed of for (dishonorable/venal) gain;",
+      "ven.is               V      4 1 PRES ACTIVE  IND 2 S",
+      "venio, venire, veni, ventus  V (4th)   [XXXAX]",
+      "come;",
+    ]);
+  });
+
   it("pectore: LOC before DAT and ABL (expected:200-204)", () => {
     expect(outputLines("pectore")).toEqual([
       "pector.e             N      3 2 LOC S N",

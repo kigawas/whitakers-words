@@ -117,6 +117,7 @@ The main class. Created via `WordsEngine.create(data)` or the convenience `creat
 | `uniqueCount: number`                                                     | Number of unique/irregular entries (expect ~76)                   |
 | `addons: AddonsData`                                                      | The parsed addons (prefixes, suffixes, tackons)                   |
 | `trimOutput: boolean`                                                     | Ada's Trim_Output (default `true`); `false` keeps archaic and uncommon inflections |
+| `entryOrder: "dictionary" \| "frequency"`                                 | The order of a word's entries: `"dictionary"`, Ada's (default), or `"frequency"`, the most common first |
 
 ### `WordAnalysis`
 
@@ -215,7 +216,7 @@ The analysis pipeline mirrors Whitaker's original Ada implementation:
 2. **Look up** each ending in the inflection index (keyed by ending length and last character)
 3. **Look up** each stem in the dictionary index (keyed by first 2 characters, with u/v and i/j normalization)
 4. **Verify** part-of-speech compatibility, declension/conjugation match, and stem key match
-5. **Deduplicate** and rank by dictionary frequency
+5. **Deduplicate** and order the entries by dictionary line, as Ada does (or by frequency, with `entryOrder`)
 6. If no matches, try **spelling tricks** (ae/e interchange, ph/f, medieval Latin variants, etc.)
 7. If still no matches, try **addon stripping** (enclitics like *-que*, *-ne*, *-ve*; prefixes; suffixes). A word that does match is still tried with *-que*, as in Ada: *atque* is also *at* + *-que*. What is left before an enclitic is read as a whole word, so it can carry a tackon of its own: *huiusmodique* is *huius* + *-modi* + *-que*
 

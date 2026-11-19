@@ -3,6 +3,7 @@ export type { CompoundResult } from "./engine/compounds.js";
 export type { RomanNumeralResult, WordAnalysis, WordsEngineData } from "./engine/engine.js";
 export { WordsEngine } from "./engine/engine.js";
 export type { EnglishSearchResult } from "./engine/english-search.js";
+export type { EntryOrder } from "./engine/list-sweep.js";
 export type { SyncopeResult } from "./engine/syncope.js";
 export type { TwoWordResult } from "./engine/two-words.js";
 export type { ParseResult, StemEndingPair } from "./engine/word-analysis.js";

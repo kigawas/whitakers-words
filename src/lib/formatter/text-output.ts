@@ -412,11 +412,11 @@ function meaningRuns(bucket: readonly MergedGroup[]): MergedGroup[][] {
  * (list_package.adb:669-679) prints no meaning for an entry when the next
  * entry's is the same, so a run of such entries prints it once, after the
  * last (merita es: mereo's waits for mereor's). Ada's next entry is the next
- * in dictionary order, and the port ranks by frequency, so a meaning waits
- * only for the next bucket's first when their entries are also next to each
- * other in dictionary order, either way round (mille, millis before mille,
- * milis). A meaning with continuation lines never waits: Ada compares its
- * last line, a | line that no entry's meaning equals.
+ * in dictionary order, and the port can rank by frequency (entryOrder), so a
+ * meaning waits only for the next bucket's first when their entries are also
+ * next to each other in dictionary order, either way round (mille, millis
+ * before mille, milis). A meaning with continuation lines never waits: Ada
+ * compares its last line, a | line that no entry's meaning equals.
  */
 function meaningWaits(runs: readonly MergedGroup[][][], groups: readonly MergedGroup[]): boolean[] {
   const order = [...new Set(groups.map(firstEntry))].sort((a, b) => a - b);

@@ -21,9 +21,17 @@ import type { ParseResult } from "./word-analysis.js";
 // The main `listSweep` function composes them in the correct order.
 // ---------------------------------------------------------------------------
 
+/**
+ * The order of a word's entries: "dictionary" is Ada's, by dictionary line;
+ * "frequency" puts the most common entry first.
+ */
+export type EntryOrder = "dictionary" | "frequency";
+
 export interface SweepOptions {
   /** Ada's Trim_Output: trim archaic and uncommon inflections (default true). */
   readonly trim?: boolean;
+  /** The order of a word's entries (default "dictionary"). */
+  readonly order?: EntryOrder;
 }
 
 /**
@@ -34,10 +42,10 @@ export interface SweepOptions {
  */
 export function listSweep(
   results: ParseResult[],
-  { trim = true }: SweepOptions = {},
+  { trim = true, order = "dictionary" }: SweepOptions = {},
 ): ParseResult[] {
   const filtered = filterByPOS(results);
-  return rank(normalizeDisplay(deduplicate(trim ? trimRare(filtered) : filtered)));
+  return rank(normalizeDisplay(deduplicate(trim ? trimRare(filtered) : filtered)), order);
 }
 
 // ---------------------------------------------------------------------------
@@ -209,21 +217,26 @@ function normalizeDisplayValues(r: ParseResult): ParseResult {
 // Step 5: Ranking
 // ---------------------------------------------------------------------------
 
-/** Sort results by dictionary frequency (most common first) then POS priority,
- *  then within the same entry in Ada's order (qualityKey). */
-export function rank(results: ParseResult[]): ParseResult[] {
-  return results
-    .map((r) => ({ r, key: qualityKey(r.ir.qual) }))
-    .sort((a, b) => {
-      const freqDiff = (FREQ_RANK[a.r.de.tran.freq] ?? 10) - (FREQ_RANK[b.r.de.tran.freq] ?? 10);
-      if (freqDiff !== 0) return freqDiff;
-      const pofsDiff = (POFS_RANK[a.r.ir.qual.pofs] ?? 12) - (POFS_RANK[b.r.ir.qual.pofs] ?? 12);
-      if (pofsDiff !== 0) return pofsDiff;
-      // Within same POS, sort by entry index to keep groups together
-      if (a.r.entryIndex !== b.r.entryIndex) return a.r.entryIndex - b.r.entryIndex;
-      return compareKeys(a.key, b.key);
-    })
+/**
+ * Order results as Ada's Order_Parse_Array does (list_sweep.adb:283-315): by
+ * dictionary line, then an entry's readings by qualityKey. Ada sorts by
+ * dictionary kind first, but every result here comes from the one dictionary.
+ * "frequency" then puts the most common entry first, and among entries of one
+ * frequency, nouns before verbs before adjectives (POFS_RANK). The sort is
+ * stable, so ties keep dictionary order.
+ */
+export function rank(results: ParseResult[], order: EntryOrder = "dictionary"): ParseResult[] {
+  const sorted = results
+    .map((r) => ({ r, key: [r.entryIndex, ...qualityKey(r.ir.qual)] }))
+    .sort((a, b) => compareKeys(a.key, b.key))
     .map(({ r }) => r);
+  return order === "frequency" ? sorted.sort(byFrequency) : sorted;
+}
+
+/** The more common entry first, then by part of speech. */
+function byFrequency(a: ParseResult, b: ParseResult): number {
+  const freqDiff = (FREQ_RANK[a.de.tran.freq] ?? 10) - (FREQ_RANK[b.de.tran.freq] ?? 10);
+  return freqDiff || (POFS_RANK[a.ir.qual.pofs] ?? 12) - (POFS_RANK[b.ir.qual.pofs] ?? 12);
 }
 
 /**
