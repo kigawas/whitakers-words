@@ -66,3 +66,56 @@ describe("DICTLINE.GEN: entries Ada's dictionary lacks", () => {
     ]);
   });
 });
+
+// INFLECTS.LAT gives the N 2 7 genitive ending yos a length of 2, so no word
+// read with it, in Ada or the port, and four -ys nouns kept a stem 2 in -y,
+// against the stem its comment gives ("chelys chel").
+describe("the Greek genitive in -yos", () => {
+  it.each([
+    ["chelyos", "chel.yos             N      2 7 GEN S F                   infreq"],
+    ["amphibrachyos", "amphibrach.yos       N      2 7 GEN S M                   infreq"],
+    ["botryos", "botr.yos             N      2 7 GEN S M                   infreq"],
+    ["chrysophryos", "chrysophr.yos        N      2 7 GEN S F                   infreq"],
+    ["dibrachyos", "dibrach.yos          N      2 7 GEN S F                   infreq"],
+    ["tribrachyos", "tribrach.yos         N      2 7 GEN S M                   infreq"],
+  ])("%s reads as the genitive", (word, line) => {
+    expect(outputLines(word)).toContainEqual(line);
+  });
+
+  it("chelyos: only the genitive, no longer an ACC P of stem chely", () => {
+    expect(outputLines("chelyos")).toEqual([
+      "chel.yos             N      2 7 GEN S F                   infreq",
+      "chelys, chelyos  N F   [XAXCO]",
+      "tortoise; lyre/harp (made originally from a tortoise shell); constellation Lyra",
+    ]);
+  });
+
+  it("chelyn: the accusative in -yn too, beside Ada's unique", () => {
+    const lines = outputLines("chelyn");
+    expect(lines).toContainEqual(
+      "chel.yn              N      2 7 ACC S F                   infreq",
+    );
+    expect(lines).toContainEqual("chelyn               N      9 9 ACC S F");
+  });
+
+  it.each([
+    ["chely", "chel.y               N      2 7 VOC S F                   infreq"],
+    ["botry", "botr.y               N      2 7 VOC S M                   infreq"],
+    ["amphibrachy", "amphibrach.y         N      2 7 VOC S M                   infreq"],
+  ])("%s: the vocative is stem 2 + y, as the row's 'chelys L+S' gives it", (word, line) => {
+    expect(outputLines(word)).toContainEqual(line);
+  });
+
+  it("chel, amphibrach: a bare stem 2 is no vocative", () => {
+    expect(outputLines("chel")).toEqual([]);
+    expect(outputLines("amphibrach")).toEqual([]);
+  });
+
+  it("echus: echo's genitive, a unique as Ada has chely and chelyn, since no 2 7 ending gives it", () => {
+    expect(outputLines("echus")).toEqual([
+      "echus                N      2 7 GEN S F",
+      "echus  X   [XXXBO]",
+      "echo; (nymph); repeating words/phrases; same phrase at start and end of speech;",
+    ]);
+  });
+});

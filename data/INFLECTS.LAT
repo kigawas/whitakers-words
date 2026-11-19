@@ -236,10 +236,10 @@ N     2 6 ACC P N  2 1 e         B C     --  OLD cetus
 --  Ex:  amphibachys  amphibrachyos  =>  amphibrachys  amphibrach
 N     2 7 NOM S X  1 0           X A
 N     2 7 VOC S X  1 0           X A 
-N     2 7 VOC S X  2 0           X D  -- chelys L+S
+N     2 7 VOC S X  2 1 y         X D  -- chelys L+S
 N     2 7 GEN S X  2 1 o         X A
 N     2 7 GEN S X  2 1 i         X B
-N     2 7 GEN S X  2 2 yos       X D  -- Hack for ys->yos
+N     2 7 GEN S X  2 3 yos       X D  -- Hack for ys->yos
 N     2 7 ACC S X  2 2 on        X A
 N     2 7 ACC S X  2 2 yn        X D  -- Hack for ys->yn (on)
 N     2 7 ACC S X  2 1 o         X B

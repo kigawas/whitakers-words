@@ -6868,7 +6868,7 @@ botryitis          botryitid                                                N   
 botryo             botryon                                                  N      3 1 M T          X A X F O bunch/cluster of grapes;
 botryodes          botryod                                                  ADJ    3 1 POS          D X X F S in form of a cluster of grapes;
 botryon            botryon                                                  N      3 1 M T          X A X F O bunch/cluster of grapes;
-botrys             botry                                                    N      2 7 M T          X A X F O plant similar to wormwood/mugwort; (also called artemisia);
+botrys             botr                                                     N      2 7 M T          X A X F O plant similar to wormwood/mugwort; (also called artemisia);
 botul              botul                                                    N      2 1 M T          X X X D O sausage; black pudding; stomach filled with delicacies (haggis?); rude word;
 botulari           botulari                                                 N      2 4 M P          X X X F O sausage seller/maker;
 botulism           botulism                                                 N      2 1 M T          G B X E K botulism;
@@ -9402,7 +9402,7 @@ cheloni            cheloni                                                  N   
 chelonitis         chelonitid                                               N      3 1 F T          X X X N O precious stone; (like a tortoise L+S);
 chely              chely                                                    N      2 8 N T          X A X N S shell of horned tortoise;
 chelydr            chelydr                                                  N      2 1 M T          X A X D O venomous water-snake;
-chelys             chely                                                    N      2 7 F T          X A X C O tortoise; lyre/harp (made originally from a tortoise shell); constellation Lyra;
+chelys             chel                                                     N      2 7 F T          X A X C O tortoise; lyre/harp (made originally from a tortoise shell); constellation Lyra;
 chem               chem                                                     N      1 1 F T          X A X N O bi-valve shellfish, clam; cockle (L+S);
 chem               chem                                                     N      1 1 F T          D S X F S liquid measure; (one third of a mystrum, one 48th of a sextarius/pint);
 chemi              chemi                                                    N      1 1 F T          G S X E K chemistry;
@@ -9641,7 +9641,7 @@ chrysomall         chrysomall                                               ADJ 
 chrysomel          chrysomel                                                N      2 2 N T          X A X N O variety of quince;
 chrysomelin        chrysomelin                                              ADJ    1 1 POS          X A X N O variety of quince (w/mala);
 chrysopast         chrysopast                                               N      2 1 F T          D X X F S species of topaz;
-chrysophrys        chrysophry                                               N      2 7 F T          X A X E O fish; (gilt-head? Sparus aurata);
+chrysophrys        chrysophr                                                N      2 7 F T          X A X E O fish; (gilt-head? Sparus aurata);
 chrysopis          chrysopid                                                N      3 1 F T          X X X N O unidentified precious stone; precious topaz (L+S);
 chrysopras         chrysopras                                               N      2 1 M T          F X X C E precious stone, chrysoprase; (golden-green beryl and like);
 chrysopras         chrysopras                                               N      2 2 N T          X X X C O precious stone, chrysoprase; (golden-green beryl and like);
@@ -37717,7 +37717,7 @@ trib               trib                                                     N   
 tribas             tribad                                                   N      3 1 F P          X X X E O lesbian, tribade; (woman engaged in sexual activity w/women); masculine lesbian;
 tribol             tribol                                                   N      2 1 M T          X A X D O spiny plant; caltrop (Tribulus terrestris); (Fagonia cretica, Trapa nayans);
 tribrach           tribrach                                                 N      2 1 M T          X P X E O tribrach; metric foot of three short syllables (UUU);
-tribrachys         tribrachye                                               N      2 7 M T          X P X E O tribrach; metric foot of three short syllables (UUU);
+tribrachys         tribrach                                                 N      2 7 M T          X P X E O tribrach; metric foot of three short syllables (UUU);
 tribrevis          tribrev                                                  N      3 3 M T          X P X E S tribrach; metric foot of three short syllables (UUU);
 tribu              tribu              tribu              tribut             V      3 1 X            X X X B X divide, assign; present; grant, allot, bestow, attribute;
 tribual            tribual                                                  ADJ    3 2 POS          G X X E K tribal;
