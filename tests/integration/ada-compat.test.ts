@@ -1945,19 +1945,16 @@ describe("ada-compat: supines of V 3 4", () => {
 
 describe("ada-compat: syncope readings", () => {
   it("amore: a syncope that reads a perfect keeps every reading (latin-words.com)", () => {
-    // in any order: the port ranks the infinitive after the singular lines
-    expect(block("amore", "Syncope", 8)).toEqual(
-      expect.arrayContaining([
-        "Syncope   r => v.r",
-        "Syncopated perfect often drops the 'v' and contracts vowel",
-        "amov.ere             V      2 1 PRES ACTIVE  INF 0 X",
-        "amov.ere             V      2 1 PRES PASSIVE IND 2 S",
-        "amov.ere             V      2 1 PRES PASSIVE IMP 2 S",
-        "amov.ere             V      2 1 PERF ACTIVE  IND 3 P",
-        "amoveo, amovere, amovi, amotus  V (2nd) TRANS   [XXXAO]",
-        "move/take/put away, remove, steal; banish, cause to go away; withdraw, retire;",
-      ]),
-    );
+    expect(block("amore", "Syncope", 8)).toEqual([
+      "Syncope   r => v.r",
+      "Syncopated perfect often drops the 'v' and contracts vowel",
+      "amov.ere             V      2 1 PRES ACTIVE  INF 0 X",
+      "amov.ere             V      2 1 PRES PASSIVE IND 2 S",
+      "amov.ere             V      2 1 PRES PASSIVE IMP 2 S",
+      "amov.ere             V      2 1 PERF ACTIVE  IND 3 P",
+      "amoveo, amovere, amovi, amotus  V (2nd) TRANS   [XXXAO]",
+      "move/take/put away, remove, steal; banish, cause to go away; withdraw, retire;",
+    ]);
   });
 
   it("paris: so does paveris, with paveo's present (latin-words.com)", () => {
@@ -1972,6 +1969,21 @@ describe("ada-compat: syncope readings", () => {
       "dux                  N      3 1 VOC S M",
       "dux, ducis  N (3rd) M   [XXXAX]",
       "leader, guide; commander, general; Duke (medieval, Bee);",
+    ]);
+  });
+});
+
+// Ada's Order_Parse_Array sorts an entry's readings by Quality_Record's "<"
+// (inflections_package.adb:40-214): declension, number, case, gender, in the
+// order of Ada's enumerations, where LOC comes between GEN and DAT.
+describe("ada-compat: an entry's readings in Ada's order", () => {
+  it("pectore: LOC before DAT and ABL (expected:200-204)", () => {
+    expect(outputLines("pectore")).toEqual([
+      "pector.e             N      3 2 LOC S N",
+      "pector.e             N      3 2 DAT S N                   Early",
+      "pector.e             N      3 2 ABL S N",
+      "pectus, pectoris  N (3rd) N   [XBXAX]",
+      "breast, heart; feeling, soul, mind;",
     ]);
   });
 });
