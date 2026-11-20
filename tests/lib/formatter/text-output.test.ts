@@ -237,6 +237,31 @@ describe("formatWordAnalysis", () => {
   });
 });
 
+// Ada's Process_Packons tries every packon on a qu- word ("more than one may
+// apply"), and List_Sweep sorts its dictionary readings with the last one's.
+describe("formatWordAnalysis: a word read with two packons", () => {
+  it("prints each packon with its base, and the dictionary readings after the last", () => {
+    const quamquam = engine.parseWord("quamquam");
+    const [dam] = engine.parseWord("quendam").addonResults;
+    const addonResults = [dam, ...quamquam.addonResults].filter((ar) => ar !== undefined);
+    expect(formatWordAnalysis({ ...quamquam, addonResults }).split("\n")).toEqual([
+      "dam                  TACKON",
+      "PACKON w/qui => certain; a certain (one); a certain thing;",
+      "qu.em                PRON   1 0 ACC S M",
+      "qu  PACK   [XXXBX]",
+      "(w/-dam) certain; as INDEF a certain thing; somebody, one, something;",
+      "quam                 TACKON",
+      "PACKON w/quis =>  any; any man/person, anybody/anyone, any whatever, anything;",
+      "qu.am                PRON   1 0 ACC S F",
+      "qu  PACK   [XXXAX]",
+      "(w/-quam) any, anyone (no pl.) (INDEF) anything; any man, any person;",
+      "quamquam             CONJ",
+      "quamquam  CONJ   [XXXDX]    lesser",
+      "though, although; yet; nevertheless;",
+    ]);
+  });
+});
+
 describe("'cecidit' shows both cado and caedo (regression)", () => {
   // Both cado (fall, INTRANS) and caedo (chop, TRANS) are 3rd-conjugation
   // verbs whose perfect stem is "cecid", so "cecidit" must parse to two

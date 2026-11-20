@@ -136,6 +136,7 @@ interface WordAnalysis {
   twoWordResult: TwoWordResult | null;             // compound word split (e.g., "mecum")
   romanNumeralResult: RomanNumeralResult | null;   // Roman numeral parse
   compoundResults: readonly CompoundResult[];      // compound verb matches (e.g., PPL + esse)
+  entryOrder: "dictionary" | "frequency";          // the engine's entryOrder, which formatWordAnalysis keeps
 }
 ```
 

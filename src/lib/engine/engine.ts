@@ -62,6 +62,8 @@ export interface WordAnalysis {
   readonly twoWordResult: TwoWordResult | null;
   readonly romanNumeralResult: RomanNumeralResult | null;
   readonly compoundResults: readonly CompoundResult[];
+  /** The engine's entryOrder, which the formatter keeps when it sorts readings together. */
+  readonly entryOrder: EntryOrder;
 }
 
 export type { CompoundResult } from "./compounds.js";
@@ -288,6 +290,7 @@ export class WordsEngine {
       twoWordResult,
       romanNumeralResult,
       compoundResults,
+      entryOrder: this.entryOrder,
     };
   }
 

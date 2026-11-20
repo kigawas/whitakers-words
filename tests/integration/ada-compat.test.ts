@@ -2039,3 +2039,21 @@ describe("ada-compat: the dictionary line after an entry's first part of speech"
     ]);
   });
 });
+
+// Ada's Word reads a qu- word's packons (Qu, word_package.adb:1755-1845)
+// before its dictionary readings (1852-1856), and List_Sweep's Sweeping
+// (list_sweep.adb:529-581) sorts the readings between two fix lines as one set.
+describe("ada-compat: readings that Ada sweeps as one set", () => {
+  it("quamquam: the quam packon, then qu.am and quamquam CONJ by dictionary line (expected:20167-20174)", () => {
+    expect(outputLines("quamquam")).toEqual([
+      "quam                 TACKON",
+      "PACKON w/quis =>  any; any man/person, anybody/anyone, any whatever, anything;",
+      "qu.am                PRON   1 0 ACC S F",
+      "qu  PACK   [XXXAX]",
+      "(w/-quam) any, anyone (no pl.) (INDEF) anything; any man, any person;",
+      "quamquam             CONJ",
+      "quamquam  CONJ   [XXXDX]    lesser",
+      "though, although; yet; nevertheless;",
+    ]);
+  });
+});
