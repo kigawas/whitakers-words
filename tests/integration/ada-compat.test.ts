@@ -2056,4 +2056,57 @@ describe("ada-compat: readings that Ada sweeps as one set", () => {
       "though, although; yet; nevertheless;",
     ]);
   });
+
+  // Two_Words (tricks.adb:551-588) puts both halves in one parse array, with
+  // no fix line between them, so they sort as one set.
+  it("lenaeum: lena + eum, eum's is before lena by dictionary line (expected:10540-10549)", () => {
+    expect(outputLines("lenaeum")).toEqual([
+      "Two words",
+      "May be 2 words combined (lena+eum) If not obvious, probably incorrect",
+      "e.um                 PRON   4 1 ACC S M",
+      "is, ea, id  PRON   [XXXAX]",
+      "he/she/it/they (by GENDER/NUMBER); DEMONST: that, he/she/it, they/them;",
+      "len.a                N      1 1 NOM S F",
+      "len.a                N      1 1 VOC S F",
+      "len.a                N      1 1 ABL S F",
+      "lena, lenae  N (1st) F   [XXXDX]    lesser",
+      "procuress; brothel-keeper;",
+    ]);
+  });
+
+  it("hesperidum: hesperi + dum, the CONJ before Hesperus (expected:24688-24698)", () => {
+    expect(outputLines("hesperidum")).toEqual([
+      "Two words",
+      "May be 2 words combined (hesperi+dum) If not obvious, probably incorrect",
+      "dum                  CONJ",
+      "dum  CONJ   [XXXAX]",
+      "while, as long as, until; provided that;",
+      "hesper.i             N      2 1 GEN S M",
+      "hesper.i             N      2 1 LOC S M",
+      "hesper.i             N      2 1 NOM P M",
+      "hesper.i             N      2 1 VOC P M",
+      "Hesperus, Hesperi  N (2nd) M   [XXXDX]    lesser",
+      "evening-star;",
+    ]);
+  });
+
+  it("registecum: tecum starts with the cum tackon, so regis sorts on its own, first (latin-words.com)", () => {
+    // The port prints tu's headword, where Ada prints no dictionary line
+    const lines = outputLines("registecum").filter((l) => l !== "tu  PRON   [XXXAX]");
+    expect(lines).toEqual([
+      "Two words",
+      "May be 2 words combined (regis+tecum) If not obvious, probably incorrect",
+      "reg.is               V      3 1 PRES ACTIVE  IND 2 S",
+      "rego, regere, rexi, rectus  V (3rd)   [XXXAX]",
+      "rule, guide; manage, direct;",
+      "reg.is               N      3 1 GEN S M",
+      "rex, regis  N (3rd) M   [XLXAX]",
+      "king;",
+      "cum                  TACKON",
+      "TACKON with (enclitic with PRON 5 0); [w/ABL  mecum => at my house/with me];",
+      "t.e                  PRON   5 2 ABL S C",
+      "t.e                  PRON   5 2 ACC S C",
+      "you (sing.); thou/thine/thee/thy (PERS); yourself/thyself (REFLEX);",
+    ]);
+  });
 });

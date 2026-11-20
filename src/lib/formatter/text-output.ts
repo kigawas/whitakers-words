@@ -112,19 +112,21 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   // Syncope results
   if (analysis.syncopeResult) pushSyncope(analysis.syncopeResult);
 
-  // Two-word results — show both left and right word analyses
+  // Two words. Ada's Two_Words (tricks.adb:551-588) puts both halves in one
+  // parse array with no fix line between them, so the right half's first set
+  // sorts with the left half's last (lenaeum: eum's is before lena).
   if (analysis.twoWordResult) {
     const tw = analysis.twoWordResult;
     lines.push(padRight(tw.label, STEM_DOT_WIDTH));
     lines.push(tw.explanation);
-    for (const [results, uniques, addons] of [
-      [tw.leftResults, tw.leftUniques, tw.leftAddons],
-      [tw.rightResults, tw.rightUniques, tw.rightAddons],
-    ] as const) {
-      pushUniques(lines, uniques);
-      for (const block of mergeByMeaning(groupAndMerge(results))) lines.push(...block);
-      for (const ar of addons) pushAddon(lines, ar, order);
-    }
+    const left = { uniques: tw.leftUniques, results: tw.leftResults, addons: tw.leftAddons };
+    const [first, rest] = splitFirstSet({
+      uniques: tw.rightUniques,
+      results: tw.rightResults,
+      addons: tw.rightAddons,
+    });
+    pushReading(lines, left, order, first);
+    pushReading(lines, rest, order, NO_SET);
   }
 
   // Addon results
@@ -175,6 +177,18 @@ function pushReading(
   for (const ar of reading.addons.slice(0, -1)) pushAddon(lines, ar, order);
   const rest = join({ uniques: [], results: reading.results }, next, order);
   pushAddon(lines, last, order, rest, compound);
+}
+
+/**
+ * A reading's first set, the readings before its first fix line, and the
+ * rest of it. Without packons or tackons, the whole reading is one set.
+ */
+function splitFirstSet(reading: Reading): [SweepSet, Reading] {
+  if (reading.addons.length === 0) return [reading, { ...NO_SET, addons: [] }];
+  return [
+    { uniques: reading.uniques, results: [] },
+    { ...reading, uniques: [] },
+  ];
 }
 
 /** Two sets as one: the uniques first, as Ada's sort puts D_K Unique first, then the rest ranked. */
