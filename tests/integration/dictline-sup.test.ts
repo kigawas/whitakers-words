@@ -456,13 +456,13 @@ describe("DICTLINE.SUP: Greek -eus declension (N 2 9)", () => {
 
 describe("DICTLINE.SUP: pluralia tantum, place names and peoples", () => {
   // Ada has no plural-only filter: Athens (pl.) reads as any oblique case
-  it("Athenae: Athens as GEN, DAT and LOC S besides NOM and VOC P", () => {
+  it("Athenae: Athens as GEN, LOC and DAT S besides NOM and VOC P, in Ada's order (latin-words.com)", () => {
     const a = engine.parseWord("athenae");
     const athensResults = a.results.filter((r) => r.de.mean.includes("Athens"));
     expect(athensResults.map((r) => `${r.ir.qual.noun.cs} ${r.ir.qual.noun.number}`)).toEqual([
       "GEN S",
-      "DAT S",
       "LOC S",
+      "DAT S",
       "NOM P",
       "VOC P",
     ]);

@@ -1,4 +1,16 @@
-import type { Frequency } from "../types/enums.js";
+import {
+  CASES,
+  COMPARISONS,
+  type Frequency,
+  GENDERS,
+  MOODS,
+  NUMBERS,
+  NUMERAL_SORTS,
+  PARTS_OF_SPEECH,
+  TENSES,
+  VOICES,
+} from "../types/enums.js";
+import type { QualityRecord } from "../types/inflections.js";
 import { extractQuality, qualityDedupeKey } from "../types/quality-extract.js";
 import type { ParseResult } from "./word-analysis.js";
 
@@ -9,9 +21,17 @@ import type { ParseResult } from "./word-analysis.js";
 // The main `listSweep` function composes them in the correct order.
 // ---------------------------------------------------------------------------
 
+/**
+ * The order of a word's entries: "dictionary" is Ada's, by dictionary line;
+ * "frequency" puts the most common entry first.
+ */
+export type EntryOrder = "dictionary" | "frequency";
+
 export interface SweepOptions {
   /** Ada's Trim_Output: trim archaic and uncommon inflections (default true). */
   readonly trim?: boolean;
+  /** The order of a word's entries (default "dictionary"). */
+  readonly order?: EntryOrder;
 }
 
 /**
@@ -22,10 +42,10 @@ export interface SweepOptions {
  */
 export function listSweep(
   results: ParseResult[],
-  { trim = true }: SweepOptions = {},
+  { trim = true, order = "dictionary" }: SweepOptions = {},
 ): ParseResult[] {
   const filtered = filterByPOS(results);
-  return rank(normalizeDisplay(deduplicate(trim ? trimRare(filtered) : filtered)));
+  return rank(normalizeDisplay(deduplicate(trim ? trimRare(filtered) : filtered)), order);
 }
 
 // ---------------------------------------------------------------------------
@@ -197,39 +217,66 @@ function normalizeDisplayValues(r: ParseResult): ParseResult {
 // Step 5: Ranking
 // ---------------------------------------------------------------------------
 
-/** Sort results by dictionary frequency (most common first) then POS priority,
- *  then within the same entry by number (S < P) and case (Ada order). */
-export function rank(results: ParseResult[]): ParseResult[] {
-  const sorted = [...results];
-  sorted.sort((a, b) => {
-    const freqDiff = (FREQ_RANK[a.de.tran.freq] ?? 10) - (FREQ_RANK[b.de.tran.freq] ?? 10);
-    if (freqDiff !== 0) return freqDiff;
-    const pofsDiff = (POFS_RANK[a.ir.qual.pofs] ?? 12) - (POFS_RANK[b.ir.qual.pofs] ?? 12);
-    if (pofsDiff !== 0) return pofsDiff;
-    // Within same POS, sort by entry index to keep groups together
-    if (a.entryIndex !== b.entryIndex) return a.entryIndex - b.entryIndex;
-    // Within same entry, sort by number then case (Ada ordering)
-    const av = extractQuality(a.ir.qual);
-    const bv = extractQuality(b.ir.qual);
-    const numDiff = (NUM_RANK[av.number ?? ""] ?? 2) - (NUM_RANK[bv.number ?? ""] ?? 2);
-    if (numDiff !== 0) return numDiff;
-    return (CASE_RANK[av.cs ?? ""] ?? 9) - (CASE_RANK[bv.cs ?? ""] ?? 9);
-  });
-  return sorted;
+/**
+ * Order results as Ada's Order_Parse_Array does (list_sweep.adb:283-315): by
+ * dictionary line, then an entry's readings by qualityKey. Ada sorts by
+ * dictionary kind first, but every result here comes from the one dictionary.
+ * "frequency" then puts the most common entry first, and among entries of one
+ * frequency, nouns before verbs before adjectives (POFS_RANK). The sort is
+ * stable, so ties keep dictionary order.
+ */
+export function rank(results: ParseResult[], order: EntryOrder = "dictionary"): ParseResult[] {
+  const sorted = results
+    .map((r) => ({ r, key: [r.entryIndex, ...qualityKey(r.ir.qual)] }))
+    .sort((a, b) => compareKeys(a.key, b.key))
+    .map(({ r }) => r);
+  return order === "frequency" ? sorted.sort(byFrequency) : sorted;
 }
 
-/** Ada case ordering: NOM, VOC, GEN, DAT, ABL, ACC. */
-const CASE_RANK: Record<string, number> = {
-  NOM: 0,
-  VOC: 1,
-  GEN: 2,
-  DAT: 3,
-  ABL: 4,
-  ACC: 5,
-  X: 6,
-};
+/** The more common entry first, then by part of speech. */
+function byFrequency(a: ParseResult, b: ParseResult): number {
+  const freqDiff = (FREQ_RANK[a.de.tran.freq] ?? 10) - (FREQ_RANK[b.de.tran.freq] ?? 10);
+  return freqDiff || (POFS_RANK[a.ir.qual.pofs] ?? 12) - (POFS_RANK[b.ir.qual.pofs] ?? 12);
+}
 
-const NUM_RANK: Record<string, number> = { S: 0, P: 1, X: 2 };
+/**
+ * The fields of a reading that Ada's Quality_Record "<" compares
+ * (inflections_package.adb:40-214), in its order, by which Order_Parse_Array
+ * sorts the readings of one entry: part of speech, then declension or
+ * conjugation, number, case, gender, comparison and numeral sort, then tense,
+ * voice, mood and person, each as its place in Ada's enumeration (X first, LOC
+ * between GEN and DAT, so an infinitive's number X comes before S). A part of
+ * speech without a field has none to differ in. Ada's VPAR stops at gender,
+ * so a participle's tense, voice and mood leave two readings in place. Ada's
+ * further ties, by meaning and ending size, compare readings of one quality,
+ * which deduplicate has already merged.
+ */
+function qualityKey(q: QualityRecord): number[] {
+  const v = extractQuality(q);
+  const [which = 0, variant = 0] = v.decl ?? [];
+  const verb = q.pofs === "VPAR" ? { tense: "", voice: "", mood: "", person: "" } : v;
+  return [
+    at(PARTS_OF_SPEECH, v.pofs),
+    which,
+    variant,
+    at(NUMBERS, v.number),
+    at(CASES, v.cs),
+    at(GENDERS, v.gender),
+    at(COMPARISONS, v.comparison),
+    at(NUMERAL_SORTS, v.sort),
+    at(TENSES, verb.tense),
+    at(VOICES, verb.voice),
+    at(MOODS, verb.mood),
+    Number(verb.person),
+  ];
+}
+
+const at = (values: readonly string[], value: string): number => values.indexOf(value);
+
+/** The first difference between two keys, which qualityKey gives one length, or 0. */
+function compareKeys(a: readonly number[], b: readonly number[]): number {
+  return a.reduce((diff, k, i) => diff || k - (b[i] as number), 0);
+}
 
 /** Lower rank = more common. Frequency A is most common. */
 const FREQ_RANK: Record<Frequency | string, number> = {

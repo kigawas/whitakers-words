@@ -26,7 +26,7 @@ import {
 } from "./english-search.js";
 import { fixAdverb } from "./fix-adverb.js";
 import { buildInflectionIndex, type InflectionIndex } from "./inflection-index.js";
-import { listSweep } from "./list-sweep.js";
+import { type EntryOrder, listSweep, type SweepOptions } from "./list-sweep.js";
 import { parseRomanNumeral } from "./roman-numerals.js";
 import { type SluryResult, trySlury } from "./slury.js";
 import { buildSuffixTrie, type SuffixTrieNode } from "./suffix-trie.js";
@@ -88,6 +88,17 @@ export class WordsEngine {
    * of readings also has a common one. On by default, as in Ada.
    */
   trimOutput = true;
+
+  /**
+   * The order of a word's entries: "dictionary", Ada's, by dictionary line
+   * (the default), or "frequency", the most common entry first.
+   */
+  entryOrder: EntryOrder = "dictionary";
+
+  /** The options every list sweep of a word takes. */
+  #sweepOptions(): SweepOptions {
+    return { trim: this.trimOutput, order: this.entryOrder };
+  }
 
   private constructor(
     dictEntries: readonly DictionaryEntry[],
@@ -157,7 +168,7 @@ export class WordsEngine {
     const uniqueResults = reading.uniques;
 
     // 2. Filter, trim, deduplicate and rank.
-    const sweep = { trim: this.trimOutput };
+    const sweep = this.#sweepOptions();
     let results = listSweep([...reading.results], sweep);
 
     // 3. Roman numerals, which Ada reads alongside Word.
@@ -362,7 +373,7 @@ export class WordsEngine {
   #readWord(word: string): WordReading {
     const uniques = this.#lookupUniques(word);
     const results = analyzeWord(word, this.#inflIndex, this.#dictIndex);
-    const sweep = { trim: this.trimOutput };
+    const sweep = this.#sweepOptions();
     const addons = quPackons(
       word,
       results,

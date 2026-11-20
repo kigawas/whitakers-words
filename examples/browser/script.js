@@ -9,6 +9,7 @@ const btn = document.getElementById("parse-btn");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const rareToggle = document.getElementById("rare-toggle");
+const orderToggle = document.getElementById("order-toggle");
 
 // ---------------------------------------------------------------------------
 // Engine loading
@@ -53,6 +54,7 @@ async function init() {
 
   engine = WordsEngine.create({ dictline, inflects, addons, uniques });
   engine.trimOutput = !rareToggle.checked;
+  engine.entryOrder = orderToggle.checked ? "frequency" : "dictionary";
   const elapsed = (performance.now() - t0).toFixed(0);
 
   statusEl.classList.remove("loading");
@@ -461,6 +463,16 @@ rareToggle.addEventListener("change", () => {
   localStorage.setItem("showRare", String(rareToggle.checked));
   if (!engine) return;
   engine.trimOutput = !rareToggle.checked;
+  parseInput();
+});
+
+// A word's entries list in Ada's dictionary order; the checkbox puts the most
+// common first.
+orderToggle.checked = localStorage.getItem("commonFirst") === "true";
+orderToggle.addEventListener("change", () => {
+  localStorage.setItem("commonFirst", String(orderToggle.checked));
+  if (!engine) return;
+  engine.entryOrder = orderToggle.checked ? "frequency" : "dictionary";
   parseInput();
 });
 

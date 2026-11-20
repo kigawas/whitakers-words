@@ -327,3 +327,34 @@ describe("trimOutput", () => {
     expect(conjunx("retroconiugis")).toEqual(CONJUNX);
   });
 });
+
+// ---------------------------------------------------------------------------
+// entryOrder: the order of a word's entries. "dictionary", the default, is
+// Ada's, by dictionary line; "frequency" puts the most common entry first.
+// ---------------------------------------------------------------------------
+describe("entryOrder", () => {
+  const byFrequency = createEngine();
+  byFrequency.entryOrder = "frequency";
+  const forms = (word: string, e = engine) =>
+    e
+      .formatWord(word)
+      .split("\n")
+      .filter((l) => /\[[A-Z]{5}\]/.test(l))
+      .map((l) => l.slice(0, l.indexOf(",")));
+
+  it("is dictionary by default", () => {
+    expect(engine.entryOrder).toBe("dictionary");
+  });
+
+  it("dictionary: venis lists its entries by dictionary line, as Ada does", () => {
+    expect(forms("venis")).toEqual(["vena", "venum", "veneo", "venio"]);
+  });
+
+  it("frequency: venis lists venio (A) first, then vena and veneo (B), then venum (C)", () => {
+    expect(forms("venis", byFrequency)).toEqual(["venio", "vena", "veneo", "venum"]);
+  });
+
+  it("frequency: so does a tackon's base", () => {
+    expect(forms("venisque", byFrequency)).toEqual(["venio", "vena", "veneo", "venum"]);
+  });
+});
