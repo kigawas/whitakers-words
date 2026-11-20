@@ -2009,3 +2009,33 @@ describe("ada-compat: entries and their readings in Ada's order", () => {
     ]);
   });
 });
+
+// Ada's Cycle_Over_Pa (list_package.adb:322-453) starts a new group of
+// readings where the part of speech changes, even within one entry, and
+// Put_Parse_Details (list_package.adb:658-680) prints an entry's dictionary
+// line after its first group and its meaning after its last.
+describe("ada-compat: the dictionary line after an entry's first part of speech", () => {
+  it("infixi: the V reading, the dictionary line, then the VPAR readings (expected:192-198)", () => {
+    expect(outputLines("infixi")).toEqual([
+      "infix.i              V      3 1 PERF ACTIVE  IND 1 S",
+      "infigo, infigere, infixi, infixus  V (3rd)   [XXXDX]    lesser",
+      "infix.i              VPAR   3 1 GEN S M PERF PASSIVE PPL",
+      "infix.i              VPAR   3 1 GEN S N PERF PASSIVE PPL",
+      "infix.i              VPAR   3 1 NOM P M PERF PASSIVE PPL",
+      "infix.i              VPAR   3 1 VOC P M PERF PASSIVE PPL",
+      "fasten (on), fix, implant, affix; impose; drive/thrust in;",
+    ]);
+  });
+
+  it("fixum: the VPAR readings, the dictionary line, then the SUPINE (expected:811-817)", () => {
+    expect(block("fixum", "fix.um", 7)).toEqual([
+      "fix.um               VPAR   3 1 NOM S N PERF PASSIVE PPL",
+      "fix.um               VPAR   3 1 VOC S N PERF PASSIVE PPL",
+      "fix.um               VPAR   3 1 ACC S M PERF PASSIVE PPL",
+      "fix.um               VPAR   3 1 ACC S N PERF PASSIVE PPL",
+      "figo, figere, fixi, fixus  V (3rd)   [XXXBX]",
+      "fix.um               SUPINE 3 1 ACC S N",
+      "fasten, fix; pierce, transfix; establish;",
+    ]);
+  });
+});

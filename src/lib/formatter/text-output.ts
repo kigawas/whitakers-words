@@ -252,7 +252,11 @@ function compoundLines(group: MergedGroup, compound: CompoundResult | undefined)
 
 /**
  * Render a group into output lines: inflection lines + dictionary form + meaning.
- * A compound under the group's entry prints after its inflection lines.
+ * Ada's Cycle_Over_Pa (list_package.adb:369) ends a run of readings where the
+ * part of speech changes, and Put_Parse_Details prints the dictionary line
+ * after an entry's first run: infix.i's V reading, infigo's line, then its
+ * VPAR readings. A compound under the group's entry prints after its
+ * inflection lines, all participles, as the compound keeps only those.
  */
 function renderGroup(
   group: MergedGroup,
@@ -260,16 +264,14 @@ function renderGroup(
   compound: CompoundResult | undefined,
   withMeaning: boolean,
 ): string[] {
-  const out: string[] = [];
-  for (const r of group.results) {
-    out.push(formatInflectionLine(r));
-  }
-  out.push(...compoundLines(group, compound));
-  const first = group.results[0];
-  if (first) {
-    dictLines.push(out, first.de);
-    if (withMeaning) out.push(truncateMeaning(group.meaning));
-  }
+  const first = group.results[0] as ParseResult; // groupAndMerge makes no empty group
+  const lines = group.results.map(formatInflectionLine);
+  const nextRun = group.results.findIndex((r) => r.ir.qual.pofs !== first.ir.qual.pofs);
+  const firstRun = nextRun < 0 ? lines.length : nextRun;
+  const out = [...lines.slice(0, firstRun), ...compoundLines(group, compound)];
+  dictLines.push(out, first.de);
+  out.push(...lines.slice(firstRun));
+  if (withMeaning) out.push(truncateMeaning(group.meaning));
   return out;
 }
 
