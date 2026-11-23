@@ -1540,8 +1540,10 @@ describe("pronoun headwords where Ada prints no form", () => {
 // ---------------------------------------------------------------------------
 
 describe("ada-compat: List_Sweep trims archaic and uncommon inflections", () => {
-  it("coniugis, genitoris: only GEN S of the 3rd declension", () => {
+  it("coniugis, genitoris: only GEN S of the 3rd declension (expected:1080, 1087)", () => {
+    // Once under conjunx, and again under conjux, after the ADJ conjunx
     expect(outputLines("coniugis").filter((l) => l.includes("N      3 1"))).toEqual([
+      "coniug.is            N      3 1 GEN S C",
       "coniug.is            N      3 1 GEN S C",
     ]);
     expect(outputLines("genitoris").filter((l) => l.startsWith("genitor.is"))).toEqual([
@@ -2107,6 +2109,45 @@ describe("ada-compat: readings that Ada sweeps as one set", () => {
       "t.e                  PRON   5 2 ABL S C",
       "t.e                  PRON   5 2 ACC S C",
       "you (sing.); thou/thine/thee/thy (PERS); yourself/thyself (REFLEX);",
+    ]);
+  });
+});
+
+// Ada's Put_Parse_Details (list_package.adb:617-685) skips an entry's readings
+// only when they equal the readings it printed last, so two entries with the
+// same readings share them only when nothing comes between them.
+describe("ada-compat: entries with the same readings, apart in the dictionary", () => {
+  it("labores: labor, then laboro, then labos with its own readings (expected:4048-4062)", () => {
+    expect(outputLines("labores")).toEqual([
+      "labor.es             N      3 1 NOM P M",
+      "labor.es             N      3 1 VOC P M",
+      "labor.es             N      3 1 ACC P M",
+      "labor, laboris  N (3rd) M   [XXXAO]",
+      "labor/toil/exertion/effort/work; task/undertaking; production; childbirth;",
+      "preoccupation/concern; struggle/suffering/distress/hardship/stress; wear+tear;",
+      "labor.es             V      1 1 PRES ACTIVE  SUB 2 S",
+      "laboro, laborare, laboravi, laboratus  V (1st)   [XXXAX]",
+      "work, labor; produce, take pains; be troubled/sick/oppressed, be in distress;",
+      "labor.es             N      3 1 NOM P M",
+      "labor.es             N      3 1 VOC P M",
+      "labor.es             N      3 1 ACC P M",
+      "labos, laboris  N (3rd) M   [BXXAO]    Early",
+      "labor/toil/exertion/effort/work; task/undertaking; production; childbirth;",
+      "preoccupation/concern; struggle/suffering/distress/hardship/stress; wear+tear;",
+    ]);
+  });
+
+  it("canebat: the two cano entries, with caneo between them (expected:776-784)", () => {
+    expect(outputLines("canebat")).toEqual([
+      "can.ebat             V      3 1 IMPF ACTIVE  IND 3 S",
+      "cano, canere, cani, canitus  V (3rd)   [EXXFS]    Later  veryrare",
+      "sing, celebrate, chant; crow; recite; play (music)/sound (horn); foretell;",
+      "can.ebat             V      2 1 IMPF ACTIVE  IND 3 S",
+      "caneo, canere, canui, -  V (2nd)   [XXXCO]",
+      "be/become covered in white; be hoary, be white/gray (with age);",
+      "can.ebat             V      3 1 IMPF ACTIVE  IND 3 S",
+      "cano, canere, cecini, cantus  V (3rd)   [XXXAO]",
+      "sing, celebrate, chant; crow; recite; play (music)/sound (horn); foretell;",
     ]);
   });
 });

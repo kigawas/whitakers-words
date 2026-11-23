@@ -280,8 +280,13 @@ describe("trimOutput", () => {
   const untrimmed = createEngine();
   untrimmed.trimOutput = false;
   const lines = (word: string) => untrimmed.formatWord(word).split("\n");
-  // conjunx N 3 1 under coniugis, before the trim
-  const conjunx = (word: string) => lines(word).filter((l) => l.includes("N      3 1"));
+  // conjunx N 3 1 under coniugis, before the trim (conjux repeats them later)
+  const conjunx = (word: string) => {
+    const all = lines(word);
+    const form = all.findIndex((l) => l.startsWith("conjunx, conjugis  N"));
+    expect(form).toBeGreaterThan(0);
+    return all.slice(0, form).filter((l) => l.includes("N      3 1"));
+  };
   const CONJUNX = [
     "coniug.is            N      3 1 GEN S C",
     "coniug.is            N      3 1 NOM P C                   Archaic",
@@ -356,5 +361,17 @@ describe("entryOrder", () => {
 
   it("frequency: so does a tackon's base", () => {
     expect(forms("venisque", byFrequency)).toEqual(["venio", "vena", "veneo", "venum"]);
+  });
+
+  it("frequency: labor and labos share their readings, though laboro is between them in the dictionary", () => {
+    const readings = byFrequency
+      .formatWord("labores")
+      .split("\n")
+      .filter((l) => l.startsWith("labor.es             N"));
+    expect(readings).toEqual([
+      "labor.es             N      3 1 NOM P M",
+      "labor.es             N      3 1 VOC P M",
+      "labor.es             N      3 1 ACC P M",
+    ]);
   });
 });
