@@ -496,15 +496,25 @@ function mergeByMeaning(
   return blocks;
 }
 
-/** A bucket's groups gathered by meaning, in the order each meaning first appears. */
+/**
+ * A bucket's groups gathered by meaning, in the order each meaning first
+ * appears. A meaning on several DICTLINE lines prints under each entry
+ * (fingo, fingo): Ada's Putting_Meaning compares its last line, a | line,
+ * with the next entry's first, and they never match.
+ */
 function meaningRuns(bucket: readonly MergedGroup[]): MergedGroup[][] {
   const byMeaning = new Map<string, MergedGroup[]>();
+  const runs: MergedGroup[][] = [];
   for (const g of bucket) {
-    const run = byMeaning.get(g.meaning);
+    const run = g.meaning.includes("\n") ? undefined : byMeaning.get(g.meaning);
     if (run) run.push(g);
-    else byMeaning.set(g.meaning, [g]);
+    else {
+      const fresh = [g];
+      runs.push(fresh);
+      byMeaning.set(g.meaning, fresh);
+    }
   }
-  return [...byMeaning.values()];
+  return runs;
 }
 
 /**

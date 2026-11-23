@@ -2151,3 +2151,41 @@ describe("ada-compat: entries with the same readings, apart in the dictionary", 
     ]);
   });
 });
+
+// Ada's Putting_Meaning (list_package.adb:669-679) holds back an entry's
+// meaning when the next entry's is the same. It compares one DICTLINE line
+// with the next, and a meaning's second and later lines start with "|", which
+// no entry's first line does, so a meaning on several lines never waits.
+describe("ada-compat: a meaning on several dictionary lines", () => {
+  it("fingens: each fingo prints its three-line meaning (expected:7423-7433)", () => {
+    expect(outputLines("fingens")).toEqual([
+      "fing.ens             VPAR   3 1 NOM S X PRES ACTIVE  PPL",
+      "fing.ens             VPAR   3 1 VOC S X PRES ACTIVE  PPL",
+      "fing.ens             VPAR   3 1 ACC S N PRES ACTIVE  PPL",
+      "fingo, fingere, finxi, fictus  V (3rd) TRANS   [XXXAO]",
+      "mold, form, shape; create, invent; produce; imagine; compose; devise, contrive;",
+      "adapt, transform into; modify (appearance/character/behavior); groom;",
+      "make up (story/excuse); pretend, pose; forge, counterfeit; act insincerely;",
+      "fingo, fingere, fixi, finctus  V (3rd) TRANS   [XXXEO]    uncommon",
+      "mold, form, shape; create, invent; produce; imagine; compose; devise, contrive;",
+      "adapt, transform into; modify (appearance/character/behavior); groom;",
+      "make up (story/excuse); pretend, pose; forge, counterfeit; act insincerely;",
+    ]);
+  });
+
+  it("refert: each refero prints its three-line meaning (expected:1573-1583)", () => {
+    expect(outputLines("refert")).toEqual([
+      "refer.t              V      3 2 PRES ACTIVE  IND 3 S",
+      "refero, referre, rettuli, relatus  V   [XXXAO]",
+      "bring/carry back/again/home; move/draw/force back, withdraw; go back, return;",
+      "report (on), bring back news; record/enter; propose/open debate; assign/count;",
+      "give/pay back, render, tender; restore; redirect; revive, repeat; recall;",
+      "refero, referre, retuli, relatus  V   [XXXEO]    uncommon",
+      "bring/carry back/again/home; move/draw/force back, withdraw; go back, return;",
+      "report (on), bring back news; record/enter; propose/open debate; assign/count;",
+      "give/pay back, render, tender; restore; redirect; revive, repeat; recall;",
+      "refert, referre, retulit, relatus est  V IMPERS   [XXXBO]",
+      "it matters/makes a difference/is of importance; matter/be of importance (PERS);",
+    ]);
+  });
+});
