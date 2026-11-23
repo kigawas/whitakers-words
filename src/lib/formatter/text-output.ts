@@ -346,6 +346,10 @@ function compoundLines(group: MergedGroup, compound: CompoundResult | undefined)
  * after an entry's first run: infix.i's V reading, infigo's line, then its
  * VPAR readings. A compound under the group's entry prints after its
  * inflection lines, all participles, as the compound keeps only those.
+ * Each line of a meaning is an entry of its own to Ada, and it skips an
+ * entry's readings only when they equal the last run it printed. So the
+ * readings of an entry with more than one run print again before each
+ * further line (cresco's VPAR and SUPINE); one run, it skips.
  */
 function renderGroup(
   group: MergedGroup,
@@ -360,7 +364,12 @@ function renderGroup(
   const out = [...lines.slice(0, firstRun), ...compoundLines(group, compound)];
   dictLines.push(out, first.de);
   out.push(...lines.slice(firstRun));
-  if (withMeaning) out.push(truncateMeaning(group.meaning));
+  if (!withMeaning) return out;
+  const repeat = nextRun < 0 ? [] : lines;
+  for (const [i, line] of truncateMeaning(group.meaning).split("\n").entries()) {
+    if (i > 0) out.push(...repeat);
+    out.push(line);
+  }
   return out;
 }
 

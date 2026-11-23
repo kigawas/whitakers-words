@@ -2173,6 +2173,39 @@ describe("ada-compat: a meaning on several dictionary lines", () => {
     ]);
   });
 
+  // Ada's Osra holds the last group it printed, cresco's SUPINE, so its VPAR
+  // and SUPINE readings print again before the second line
+  it("cretum: cresco's readings again before its meaning's second line (expected:9690-9715)", () => {
+    expect(outputLines("cretum")).toEqual([
+      "cret.um              VPAR   3 1 NOM S N PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 VOC S N PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 ACC S M PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 ACC S N PERF PASSIVE PPL",
+      "cerno, cernere, crevi, cretus  V (3rd) TRANS   [XXXAO]",
+      "cret.um              SUPINE 3 1 ACC S N",
+      "sift, separate, distinguish, discern, resolve, determine; see; examine; decide;",
+      "cret.um              VPAR   3 1 NOM S N PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 VOC S N PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 ACC S M PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 ACC S N PERF PASSIVE PPL",
+      "cresco, crescere, crevi, cretus  V (3rd) INTRANS   [XXXAO]",
+      "cret.um              SUPINE 3 1 ACC S N",
+      "come forth/to be; arise/spring (from); be born; become visible/great; grow (up)",
+      "cret.um              VPAR   3 1 NOM S N PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 VOC S N PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 ACC S M PERF PASSIVE PPL",
+      "cret.um              VPAR   3 1 ACC S N PERF PASSIVE PPL",
+      "cret.um              SUPINE 3 1 ACC S N",
+      "thrive, increase (size/number/honor), multiply; ascend; attain, be promoted;",
+      "cret.um              ADJ    1 1 NOM S N POS",
+      "cret.um              ADJ    1 1 VOC S N POS",
+      "cret.um              ADJ    1 1 ACC S M POS",
+      "cret.um              ADJ    1 1 ACC S N POS",
+      "cretus, creta, cretum  ADJ   [XXXCS]",
+      "born of; arisen/sprung/descended from;",
+    ]);
+  });
+
   it("refert: each refero prints its three-line meaning (expected:1573-1583)", () => {
     expect(outputLines("refert")).toEqual([
       "refer.t              V      3 2 PRES ACTIVE  IND 3 S",
