@@ -2009,3 +2009,104 @@ describe("ada-compat: entries and their readings in Ada's order", () => {
     ]);
   });
 });
+
+// Ada's Cycle_Over_Pa (list_package.adb:322-453) starts a new group of
+// readings where the part of speech changes, even within one entry, and
+// Put_Parse_Details (list_package.adb:658-680) prints an entry's dictionary
+// line after its first group and its meaning after its last.
+describe("ada-compat: the dictionary line after an entry's first part of speech", () => {
+  it("infixi: the V reading, the dictionary line, then the VPAR readings (expected:192-198)", () => {
+    expect(outputLines("infixi")).toEqual([
+      "infix.i              V      3 1 PERF ACTIVE  IND 1 S",
+      "infigo, infigere, infixi, infixus  V (3rd)   [XXXDX]    lesser",
+      "infix.i              VPAR   3 1 GEN S M PERF PASSIVE PPL",
+      "infix.i              VPAR   3 1 GEN S N PERF PASSIVE PPL",
+      "infix.i              VPAR   3 1 NOM P M PERF PASSIVE PPL",
+      "infix.i              VPAR   3 1 VOC P M PERF PASSIVE PPL",
+      "fasten (on), fix, implant, affix; impose; drive/thrust in;",
+    ]);
+  });
+
+  it("fixum: the VPAR readings, the dictionary line, then the SUPINE (expected:811-817)", () => {
+    expect(block("fixum", "fix.um", 7)).toEqual([
+      "fix.um               VPAR   3 1 NOM S N PERF PASSIVE PPL",
+      "fix.um               VPAR   3 1 VOC S N PERF PASSIVE PPL",
+      "fix.um               VPAR   3 1 ACC S M PERF PASSIVE PPL",
+      "fix.um               VPAR   3 1 ACC S N PERF PASSIVE PPL",
+      "figo, figere, fixi, fixus  V (3rd)   [XXXBX]",
+      "fix.um               SUPINE 3 1 ACC S N",
+      "fasten, fix; pierce, transfix; establish;",
+    ]);
+  });
+});
+
+// Ada's Word reads a qu- word's packons (Qu, word_package.adb:1755-1845)
+// before its dictionary readings (1852-1856), and List_Sweep's Sweeping
+// (list_sweep.adb:529-581) sorts the readings between two fix lines as one set.
+describe("ada-compat: readings that Ada sweeps as one set", () => {
+  it("quamquam: the quam packon, then qu.am and quamquam CONJ by dictionary line (expected:20167-20174)", () => {
+    expect(outputLines("quamquam")).toEqual([
+      "quam                 TACKON",
+      "PACKON w/quis =>  any; any man/person, anybody/anyone, any whatever, anything;",
+      "qu.am                PRON   1 0 ACC S F",
+      "qu  PACK   [XXXAX]",
+      "(w/-quam) any, anyone (no pl.) (INDEF) anything; any man, any person;",
+      "quamquam             CONJ",
+      "quamquam  CONJ   [XXXDX]    lesser",
+      "though, although; yet; nevertheless;",
+    ]);
+  });
+
+  // Two_Words (tricks.adb:551-588) puts both halves in one parse array, with
+  // no fix line between them, so they sort as one set.
+  it("lenaeum: lena + eum, eum's is before lena by dictionary line (expected:10540-10549)", () => {
+    expect(outputLines("lenaeum")).toEqual([
+      "Two words",
+      "May be 2 words combined (lena+eum) If not obvious, probably incorrect",
+      "e.um                 PRON   4 1 ACC S M",
+      "is, ea, id  PRON   [XXXAX]",
+      "he/she/it/they (by GENDER/NUMBER); DEMONST: that, he/she/it, they/them;",
+      "len.a                N      1 1 NOM S F",
+      "len.a                N      1 1 VOC S F",
+      "len.a                N      1 1 ABL S F",
+      "lena, lenae  N (1st) F   [XXXDX]    lesser",
+      "procuress; brothel-keeper;",
+    ]);
+  });
+
+  it("hesperidum: hesperi + dum, the CONJ before Hesperus (expected:24688-24698)", () => {
+    expect(outputLines("hesperidum")).toEqual([
+      "Two words",
+      "May be 2 words combined (hesperi+dum) If not obvious, probably incorrect",
+      "dum                  CONJ",
+      "dum  CONJ   [XXXAX]",
+      "while, as long as, until; provided that;",
+      "hesper.i             N      2 1 GEN S M",
+      "hesper.i             N      2 1 LOC S M",
+      "hesper.i             N      2 1 NOM P M",
+      "hesper.i             N      2 1 VOC P M",
+      "Hesperus, Hesperi  N (2nd) M   [XXXDX]    lesser",
+      "evening-star;",
+    ]);
+  });
+
+  it("registecum: tecum starts with the cum tackon, so regis sorts on its own, first (latin-words.com)", () => {
+    // The port prints tu's headword, where Ada prints no dictionary line
+    const lines = outputLines("registecum").filter((l) => l !== "tu  PRON   [XXXAX]");
+    expect(lines).toEqual([
+      "Two words",
+      "May be 2 words combined (regis+tecum) If not obvious, probably incorrect",
+      "reg.is               V      3 1 PRES ACTIVE  IND 2 S",
+      "rego, regere, rexi, rectus  V (3rd)   [XXXAX]",
+      "rule, guide; manage, direct;",
+      "reg.is               N      3 1 GEN S M",
+      "rex, regis  N (3rd) M   [XLXAX]",
+      "king;",
+      "cum                  TACKON",
+      "TACKON with (enclitic with PRON 5 0); [w/ABL  mecum => at my house/with me];",
+      "t.e                  PRON   5 2 ABL S C",
+      "t.e                  PRON   5 2 ACC S C",
+      "you (sing.); thou/thine/thee/thy (PERS); yourself/thyself (REFLEX);",
+    ]);
+  });
+});

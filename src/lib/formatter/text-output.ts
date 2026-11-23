@@ -1,6 +1,7 @@
-import type { AddonResult } from "../engine/addons-engine.js";
+import type { AddonResult, TackonResult } from "../engine/addons-engine.js";
 import type { CompoundResult } from "../engine/compounds.js";
 import type { RomanNumeralResult } from "../engine/engine.js";
+import { type EntryOrder, rank } from "../engine/list-sweep.js";
 import type { SluryResult } from "../engine/slury.js";
 import type { SyncopeResult } from "../engine/syncope.js";
 import type { TwoWordResult } from "../engine/two-words.js";
@@ -41,6 +42,8 @@ export interface WordAnalysisOutput {
   twoWordResult?: TwoWordResult | null;
   romanNumeralResult?: RomanNumeralResult | null;
   compoundResults?: readonly CompoundResult[];
+  /** The order the results are in (default "dictionary"), kept where readings sort together. */
+  entryOrder?: EntryOrder;
 }
 
 /**
@@ -50,13 +53,18 @@ export interface WordAnalysisOutput {
  */
 export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   const lines: string[] = [];
-  pushUniques(lines, analysis.uniqueResults);
+  const order = analysis.entryOrder ?? "dictionary";
 
-  // Group standard results by entryIndex, merge | continuations,
-  // then merge groups with identical meanings (variant dictionary entries).
+  // The word as Ada's Word reads it: uniques, packons, then the dictionary
+  // readings, grouped by entry, merging | continuations and variant entries.
   const compound = analysis.compoundResults?.[0];
-  const groups = groupAndMerge(analysis.results, compound?.entryIndex);
-  for (const block of mergeByMeaning(groups, compound)) lines.push(...block);
+  const addons = analysis.addonResults ?? [];
+  const reading = {
+    uniques: analysis.uniqueResults,
+    results: analysis.results,
+    addons: addons.filter(isPackon),
+  };
+  pushReading(lines, reading, order, NO_SET, compound);
 
   // Roman numeral result
   if (analysis.romanNumeralResult) {
@@ -104,28 +112,100 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
   // Syncope results
   if (analysis.syncopeResult) pushSyncope(analysis.syncopeResult);
 
-  // Two-word results — show both left and right word analyses
+  // Two words. Ada's Two_Words (tricks.adb:551-588) puts both halves in one
+  // parse array with no fix line between them, so the right half's first set
+  // sorts with the left half's last (lenaeum: eum's is before lena).
   if (analysis.twoWordResult) {
     const tw = analysis.twoWordResult;
     lines.push(padRight(tw.label, STEM_DOT_WIDTH));
     lines.push(tw.explanation);
-    for (const [results, uniques, addons] of [
-      [tw.leftResults, tw.leftUniques, tw.leftAddons],
-      [tw.rightResults, tw.rightUniques, tw.rightAddons],
-    ] as const) {
-      pushUniques(lines, uniques);
-      for (const block of mergeByMeaning(groupAndMerge(results))) lines.push(...block);
-      for (const ar of addons) pushAddon(lines, ar);
-    }
+    const left = { uniques: tw.leftUniques, results: tw.leftResults, addons: tw.leftAddons };
+    const [first, rest] = splitFirstSet({
+      uniques: tw.rightUniques,
+      results: tw.rightResults,
+      addons: tw.rightAddons,
+    });
+    pushReading(lines, left, order, first);
+    pushReading(lines, rest, order, NO_SET);
   }
 
   // Addon results
-  for (const ar of analysis.addonResults ?? []) pushAddon(lines, ar);
+  for (const ar of addons.filter((a) => !isPackon(a))) pushAddon(lines, ar, order);
 
   return lines.join("\n");
 }
 
-/** An addon line and its meaning, then the base's packons and readings. */
+/** Readings that Ada's List_Sweep sorts as one set: those between two fix lines. */
+interface SweepSet {
+  readonly uniques: readonly UniqueEntry[];
+  readonly results: readonly ParseResult[];
+}
+
+/** A word as Ada's Word reads it: uniques, packons or tackons, dictionary readings. */
+interface Reading extends SweepSet {
+  readonly addons: readonly TackonResult[];
+}
+
+const NO_SET: SweepSet = { uniques: [], results: [] };
+
+/** A packon, which Ada's Word reads before a qu- word's dictionary readings. */
+const isPackon = (ar: AddonResult): ar is TackonResult =>
+  ar.type === "tackon" && ar.addon.base.pofs === "PACK";
+
+/**
+ * A reading in Ada's order. Ada's Word reads a word's uniques, then its
+ * packons (Qu, word_package.adb:1755) or tackons, then its dictionary
+ * readings, and List_Sweep's Sweeping (list_sweep.adb:529-581) sorts the
+ * readings between two fix lines as one set. So the dictionary readings sort
+ * with the last addon's base (quamquam: the quam packon, then qu.am and
+ * quamquam CONJ by dictionary line), and so do `next`, the readings that
+ * follow the reading before another fix line.
+ */
+function pushReading(
+  lines: string[],
+  reading: Reading,
+  order: EntryOrder,
+  next: SweepSet,
+  compound?: CompoundResult,
+): void {
+  const last = reading.addons.at(-1);
+  if (!last) {
+    pushSet(lines, join(reading, next, order), compound);
+    return;
+  }
+  pushUniques(lines, reading.uniques);
+  for (const ar of reading.addons.slice(0, -1)) pushAddon(lines, ar, order);
+  const rest = join({ uniques: [], results: reading.results }, next, order);
+  pushAddon(lines, last, order, rest, compound);
+}
+
+/**
+ * A reading's first set, the readings before its first fix line, and the
+ * rest of it. Without packons or tackons, the whole reading is one set.
+ */
+function splitFirstSet(reading: Reading): [SweepSet, Reading] {
+  if (reading.addons.length === 0) return [reading, { ...NO_SET, addons: [] }];
+  return [
+    { uniques: reading.uniques, results: [] },
+    { ...reading, uniques: [] },
+  ];
+}
+
+/** Two sets as one: the uniques first, as Ada's sort puts D_K Unique first, then the rest ranked. */
+function join(a: SweepSet, b: SweepSet, order: EntryOrder): SweepSet {
+  return {
+    uniques: [...a.uniques, ...b.uniques],
+    results: rank([...a.results, ...b.results], order),
+  };
+}
+
+/** A set's uniques, then its readings grouped by entry. */
+function pushSet(lines: string[], set: SweepSet, compound?: CompoundResult): void {
+  pushUniques(lines, set.uniques);
+  const groups = groupAndMerge(set.results, compound?.entryIndex);
+  for (const block of mergeByMeaning(groups, compound)) lines.push(...block);
+}
+
 /**
  * Unique readings. Ada's Load_Uniques switches on the blank part it is filling
  * (line_stuff.adb:527), so every unique entry has part X and its dictionary
@@ -144,20 +224,24 @@ function pushUniques(lines: string[], uniques: readonly UniqueEntry[]): void {
 }
 
 /**
- * An addon, then its base's readings in Ada's Word order: uniques, packons
- * and tackons, the rest.
+ * An addon, then its base read as a word, with `next` sorted into the base's
+ * last set.
  */
-function pushAddon(lines: string[], ar: AddonResult): void {
+function pushAddon(
+  lines: string[],
+  ar: AddonResult,
+  order: EntryOrder,
+  next = NO_SET,
+  compound?: CompoundResult,
+): void {
   const addonName = ar.type === "tackon" ? ar.addon.word : ar.addon.fix;
   lines.push(`${addonName.padEnd(STEM_DOT_WIDTH)}${ar.type.toUpperCase()}`);
   lines.push(truncateMeaning(ar.addon.mean));
-  if (ar.type === "tackon") {
-    pushUniques(lines, ar.baseUniques ?? []);
-    for (const inner of ar.baseAddons ?? []) pushAddon(lines, inner);
-  }
-  for (const block of mergeByMeaning(groupAndMerge(ar.baseResults))) {
-    lines.push(...block);
-  }
+  const base =
+    ar.type === "tackon"
+      ? { uniques: ar.baseUniques ?? [], results: ar.baseResults, addons: ar.baseAddons ?? [] }
+      : { uniques: [], results: ar.baseResults, addons: [] };
+  pushReading(lines, base, order, next, compound);
 }
 
 export interface MergedGroup {
@@ -252,7 +336,11 @@ function compoundLines(group: MergedGroup, compound: CompoundResult | undefined)
 
 /**
  * Render a group into output lines: inflection lines + dictionary form + meaning.
- * A compound under the group's entry prints after its inflection lines.
+ * Ada's Cycle_Over_Pa (list_package.adb:369) ends a run of readings where the
+ * part of speech changes, and Put_Parse_Details prints the dictionary line
+ * after an entry's first run: infix.i's V reading, infigo's line, then its
+ * VPAR readings. A compound under the group's entry prints after its
+ * inflection lines, all participles, as the compound keeps only those.
  */
 function renderGroup(
   group: MergedGroup,
@@ -260,16 +348,14 @@ function renderGroup(
   compound: CompoundResult | undefined,
   withMeaning: boolean,
 ): string[] {
-  const out: string[] = [];
-  for (const r of group.results) {
-    out.push(formatInflectionLine(r));
-  }
-  out.push(...compoundLines(group, compound));
-  const first = group.results[0];
-  if (first) {
-    dictLines.push(out, first.de);
-    if (withMeaning) out.push(truncateMeaning(group.meaning));
-  }
+  const first = group.results[0] as ParseResult; // groupAndMerge makes no empty group
+  const lines = group.results.map(formatInflectionLine);
+  const nextRun = group.results.findIndex((r) => r.ir.qual.pofs !== first.ir.qual.pofs);
+  const firstRun = nextRun < 0 ? lines.length : nextRun;
+  const out = [...lines.slice(0, firstRun), ...compoundLines(group, compound)];
+  dictLines.push(out, first.de);
+  out.push(...lines.slice(firstRun));
+  if (withMeaning) out.push(truncateMeaning(group.meaning));
   return out;
 }
 
