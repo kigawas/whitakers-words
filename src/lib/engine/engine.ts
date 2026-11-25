@@ -218,6 +218,7 @@ export class WordsEngine {
         parsed ? this.#que : this.#enclitics,
         (w) => this.#readWord(w),
         sweep,
+        () => this.#readWord(lowerWord, true),
       ),
     );
 
@@ -372,21 +373,28 @@ export class WordsEngine {
    * packons, then only if none of those parse, Try_Tackons with the tackons
    * other than the enclitics, each base read the same way. A base is always
    * shorter than its word, so the recursion ends.
+   *
+   * With `onlyFixes`, as Ada's Enclitic reads the whole word again
+   * (Do_Only_Fixes): the dictionary search is skipped, so no dictionary
+   * readings, and the tackons are tried when no unique or packon reads it.
    */
-  #readWord(word: string): WordReading {
+  #readWord(word: string, onlyFixes = false): WordReading {
     const uniques = this.#lookupUniques(word);
-    const results = analyzeWord(word, this.#inflIndex, this.#dictIndex);
+    const dictionary = analyzeWord(word, this.#inflIndex, this.#dictIndex);
     const sweep = this.#sweepOptions();
     const addons = quPackons(
       word,
-      results,
+      dictionary,
       this.#allPackons,
       this.#inflIndex,
       this.#dictIndex,
       sweep,
     );
+    const results = onlyFixes ? [] : dictionary;
     if (uniques.length === 0 && results.length === 0 && addons.length === 0) {
-      addons.push(...tryTackons(word, this.#wordTackons, (w) => this.#readWord(w), sweep));
+      addons.push(
+        ...tryTackons(word, this.#wordTackons, (w) => this.#readWord(w, onlyFixes), sweep),
+      );
     }
     return { results, uniques, addons };
   }

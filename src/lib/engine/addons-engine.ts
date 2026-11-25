@@ -29,7 +29,16 @@ export interface TackonResult {
    * "huiusmodique" = huius + modi + -que.
    */
   readonly baseAddons?: readonly TackonResult[];
+  /**
+   * Under an enclitic, the whole word's uniques and packons, which Ada's
+   * Enclitic reads again after the base: "quocumque" prints its cumque packon
+   * again after quo + cum + -que.
+   */
+  readonly reread?: Rereading;
 }
+
+/** A word read with only fixes: its uniques and packons, or its tackon readings. */
+export type Rereading = Pick<WordReading, "uniques" | "addons">;
 
 export type AddonResult =
   | TackonResult
@@ -180,12 +189,18 @@ function sweep(reading: WordReading): WordReading {
  * As in Ada, readWord reads the base as a whole word, so it may be a packon or
  * a tackon reading itself, and under an enclitic a unique: "quocumque" → quo +
  * cum + -que, "huiusmodique" → huius + modi + -que, "cetteque" → cette + -que.
+ *
+ * `reread` is the whole word read again after a base, as Ada's Enclitic does
+ * (words_engine-parse.adb:583). What it reads follows the base, and keeps the
+ * tackon even when the base reads nothing: "unicuique" is a unique, then -que
+ * on "unicui", then the unique again.
  */
 export function tryTackons(
   word: string,
   tackons: readonly TackonItem[],
   readWord: (word: string) => WordReading,
   options: SweepOptions = {},
+  reread?: () => Rereading,
 ): TackonResult[] {
   const results: TackonResult[] = [];
   // Tackons with the same word (-pte, -modi) share a base
@@ -209,13 +224,16 @@ export function tryTackons(
     // parity: "cetteque" (cette + -que), but not "eundempte" (eundem + -pte)
     const baseUniques = isEnclitic(tackon) ? swept.uniques.filter((u) => fits(u.qual)) : [];
     const baseAddons = swept.addons;
-    if (baseResults.length > 0 || baseUniques.length > 0 || baseAddons.length > 0) {
+    const again = reread?.();
+    const hasAgain = again !== undefined && again.uniques.length + again.addons.length > 0;
+    if (baseResults.length > 0 || baseUniques.length > 0 || baseAddons.length > 0 || hasAgain) {
       results.push({
         type: "tackon",
         addon: tackon,
         baseResults: listSweep(baseResults, options),
         baseUniques,
         baseAddons,
+        ...(hasAgain && { reread: again }),
       });
     }
   }

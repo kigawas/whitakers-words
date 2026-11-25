@@ -246,7 +246,16 @@ function pushAddon(
     ar.type === "tackon"
       ? { uniques: ar.baseUniques ?? [], results: ar.baseResults, addons: ar.baseAddons ?? [] }
       : { uniques: [], results: ar.baseResults, addons: [] };
-  pushReading(lines, base, order, next, compound);
+  const reread = ar.type === "tackon" ? ar.reread : undefined;
+  if (!reread) {
+    pushReading(lines, base, order, next, compound);
+    return;
+  }
+  // The word read again follows the base with no fix line between, so its
+  // uniques sort with the base's last set
+  const [first, rest] = splitFirstSet({ ...reread, results: [] });
+  pushReading(lines, base, order, first, compound);
+  pushReading(lines, rest, order, next);
 }
 
 export interface MergedGroup {

@@ -2222,3 +2222,68 @@ describe("ada-compat: a meaning on several dictionary lines", () => {
     ]);
   });
 });
+
+// Ada's Enclitic (parse.adb:524-602) reads the base, then the whole word again
+// with only fixes (Do_Only_Fixes), which skips the dictionary search but not
+// the uniques or the qu- packons. So they print again after the base.
+describe("ada-compat: an enclitic's word read again", () => {
+  it("quocumque: the cumque packon again after -que (expected:32209-32232)", () => {
+    expect(outputLines("quocumque")).toEqual([
+      "cumque               TACKON",
+      "PACKON w/qui => whoever; whatever; everyone who, all that, anything that;",
+      "qu.o                 PRON   1 0 ABL S M",
+      "qu.o                 PRON   1 0 ABL S N",
+      "qu  PACK   [XXXAX]",
+      "(w/-cumque) who/whatever, no matter who/what, in any time/way, however small;",
+      "quocumque            ADV    POS",
+      "quocumque  ADV   [XXXCO]",
+      "wherever, to/in any place/quarter to which/whatever, whithersoever; anywhere;",
+      "que                  TACKON",
+      "-que = and (enclitic, translated before attached word); completes plerus/uter;",
+      "cum                  TACKON",
+      "PACKON w/qui pron with ABL => with what, with whom;",
+      "qu.o                 PRON   1 0 ABL S M",
+      "qu.o                 PRON   1 0 ABL S N",
+      "qu  PACK   [XXXAX]",
+      "(w/-cumque) who/whatever, no matter who/what, in any time/way, however small;",
+      "(w/-cum) only ABL with whom?, with which?;",
+      "cumque               TACKON",
+      "PACKON w/qui => whoever; whatever; everyone who, all that, anything that;",
+      "qu.o                 PRON   1 0 ABL S M",
+      "qu.o                 PRON   1 0 ABL S N",
+      "qu  PACK   [XXXAX]",
+      "(w/-cumque) who/whatever, no matter who/what, in any time/way, however small;",
+    ]);
+  });
+
+  it("unicuique: -que on unicui, which reads nothing, then the unique again (latin-words.com)", () => {
+    expect(outputLines("unicuique")).toEqual([
+      "unicuique            PRON   1 0 DAT S X",
+      "unicuique  X   [XXXDW]    lesser",
+      "each one;",
+      "que                  TACKON",
+      "-que = and (enclitic, translated before attached word); completes plerus/uter;",
+      "unicuique            PRON   1 0 DAT S X",
+      "unicuique  X   [XXXDW]    lesser",
+      "each one;",
+    ]);
+  });
+
+  it("quantumcumque: the uniques again, but not the ADV from DICTLINE (latin-words.com)", () => {
+    const UNIQUES = [
+      "quantumcumque        N      2 2 NOM S N",
+      "quantumcumque  X   [XXXDO]    lesser",
+      "quantumcumque        N      2 2 ACC S N",
+      "however much/little; as much as; whatever;",
+    ];
+    expect(outputLines("quantumcumque")).toEqual([
+      ...UNIQUES,
+      "quantumcumque        ADV    POS",
+      "quantumcumque  ADV   [XXXDO]    lesser",
+      "as far as; to whatever degree;",
+      "que                  TACKON",
+      "-que = and (enclitic, translated before attached word); completes plerus/uter;",
+      ...UNIQUES,
+    ]);
+  });
+});
