@@ -236,6 +236,47 @@ describe("ada-compat: multus", () => {
     ]);
   });
 
+  // DICTLINE.GEN's many things has stem 1 "mult", as in Ada: its "much" is
+  // singular, so multum is also NOM and VOC S
+  it("multa: under multum, multi, as in Ada (expected:107-130)", () => {
+    expect(outputLines("multa")).toEqual([
+      "mult.a               N      1 1 NOM S F",
+      "mult.a               N      1 1 VOC S F",
+      "mult.a               N      1 1 ABL S F",
+      "multa, multae  N (1st) F   [XLXCO]",
+      "fine; penalty; penalty involving property (livestock, later money);",
+      "mult.a               N      2 2 NOM P N",
+      "mult.a               N      2 2 VOC P N",
+      "mult.a               N      2 2 ACC P N",
+      "multum, multi  N (2nd) N   [XXXDX]    lesser",
+      "many things (pl.); much; many;",
+      "mult.a               V      1 1 PRES ACTIVE  IMP 2 S",
+      "multo, multare, multavi, multatus  V (1st) TRANS   [XLXCO]",
+      "punish, fine; extract as forfeit; sentence to pay;",
+      "mult.a               ADJ    1 1 NOM S F POS",
+      "mult.a               ADJ    1 1 VOC S F POS",
+      "mult.a               ADJ    1 1 ABL S F POS",
+      "mult.a               ADJ    1 1 NOM P N POS",
+      "mult.a               ADJ    1 1 VOC P N POS",
+      "mult.a               ADJ    1 1 ACC P N POS",
+      "multus, multa -um, -, plurimus -a -um  ADJ   [XXXAX]",
+      "much, many, great, many a; large, intense, assiduous; tedious;",
+      "mult.a               N      1 1 ABL S F",
+      "-, multae  N (1st) F   [XXXDX]    lesser",
+      "many women (pl.);",
+    ]);
+  });
+
+  it("multum: NOM, VOC and ACC S of multum, multi (latin-words.com)", () => {
+    expect(block("multum", "mult.um              N      2 2", 5)).toEqual([
+      "mult.um              N      2 2 NOM S N",
+      "mult.um              N      2 2 VOC S N",
+      "mult.um              N      2 2 ACC S N",
+      "multum, multi  N (2nd) N   [XXXDX]    lesser",
+      "many things (pl.); much; many;",
+    ]);
+  });
+
   it("equus: no neuter ACC S for masculine noun", () => {
     const lines = outputLines("equus");
     expect(lines).toContainEqual(expect.stringContaining("NOM S M"));
