@@ -80,7 +80,7 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
     lines.push(padRight(syncope.label, STEM_DOT_WIDTH));
     if (!syncopeExplained) lines.push(syncope.explanation);
     syncopeExplained = true;
-    for (const block of mergeByMeaning(groupAndMerge(syncope.results))) {
+    for (const block of mergeByMeaning(groupAndMerge(syncope.results), order)) {
       lines.push(...block);
     }
   };
@@ -90,7 +90,7 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
     lines.push(padRight(analysis.sluryResult.label, STEM_DOT_WIDTH));
     lines.push(analysis.sluryResult.explanation);
     if (analysis.sluryResult.results.length > 0) {
-      for (const block of mergeByMeaning(groupAndMerge(analysis.sluryResult.results))) {
+      for (const block of mergeByMeaning(groupAndMerge(analysis.sluryResult.results), order)) {
         lines.push(...block);
       }
     }
@@ -104,7 +104,7 @@ export function formatWordAnalysis(analysis: WordAnalysisOutput): string {
     }
   }
   if (analysis.trickResults && analysis.trickResults.length > 0) {
-    for (const block of mergeByMeaning(groupAndMerge(analysis.trickResults))) {
+    for (const block of mergeByMeaning(groupAndMerge(analysis.trickResults), order)) {
       lines.push(...block);
     }
   }
@@ -170,7 +170,7 @@ function pushReading(
 ): void {
   const last = reading.addons.at(-1);
   if (!last) {
-    pushSet(lines, join(reading, next, order), compound);
+    pushSet(lines, join(reading, next, order), order, compound);
     return;
   }
   pushUniques(lines, reading.uniques);
@@ -200,10 +200,15 @@ function join(a: SweepSet, b: SweepSet, order: EntryOrder): SweepSet {
 }
 
 /** A set's uniques, then its readings grouped by entry. */
-function pushSet(lines: string[], set: SweepSet, compound?: CompoundResult): void {
+function pushSet(
+  lines: string[],
+  set: SweepSet,
+  order: EntryOrder,
+  compound?: CompoundResult,
+): void {
   pushUniques(lines, set.uniques);
   const groups = groupAndMerge(set.results, compound?.entryIndex);
-  for (const block of mergeByMeaning(groups, compound)) lines.push(...block);
+  for (const block of mergeByMeaning(groups, order, compound)) lines.push(...block);
 }
 
 /**
@@ -341,6 +346,10 @@ function compoundLines(group: MergedGroup, compound: CompoundResult | undefined)
  * after an entry's first run: infix.i's V reading, infigo's line, then its
  * VPAR readings. A compound under the group's entry prints after its
  * inflection lines, all participles, as the compound keeps only those.
+ * Each line of a meaning is an entry of its own to Ada, and it skips an
+ * entry's readings only when they equal the last run it printed. So the
+ * readings of an entry with more than one run print again before each
+ * further line (cresco's VPAR and SUPINE); one run, it skips.
  */
 function renderGroup(
   group: MergedGroup,
@@ -355,7 +364,12 @@ function renderGroup(
   const out = [...lines.slice(0, firstRun), ...compoundLines(group, compound)];
   dictLines.push(out, first.de);
   out.push(...lines.slice(firstRun));
-  if (withMeaning) out.push(truncateMeaning(group.meaning));
+  if (!withMeaning) return out;
+  const repeat = nextRun < 0 ? [] : lines;
+  for (const [i, line] of truncateMeaning(group.meaning).split("\n").entries()) {
+    if (i > 0) out.push(...repeat);
+    out.push(line);
+  }
   return out;
 }
 
@@ -390,10 +404,14 @@ const firstEntry = (g: MergedGroup) => g.results[0]?.entryIndex ?? 0;
  * blanks a DEP verb's voice. So comitor shares comito's comit.abor line, but
  * miseror, after misereo, keeps its own; so does apiscor, whose VPAR lines
  * follow apio's SUPINE line, and a participle under a PPL+ compound, which
- * Ada counts among its lines.
+ * Ada counts among its lines. An entry with another between it and the last
+ * with its lines prints them again: labos, after laboro, repeats labor's.
+ * Ranked by frequency, a word has no Ada order to follow, so entries with
+ * the same lines share them wherever they are, as labor and labos do.
  */
 function lineKeys(
   groups: readonly MergedGroup[],
+  order: EntryOrder,
   compound: CompoundResult | undefined,
 ): Map<MergedGroup, string> {
   const lines = (g: MergedGroup, line: (r: ParseResult) => string) =>
@@ -406,7 +424,8 @@ function lineKeys(
     const prevKey = prev && keys.get(prev);
     const shares =
       prev !== undefined && onePofs(prev) && onePofs(g) && unblanked(prev) === unblanked(g);
-    keys.set(g, shares && prevKey ? prevKey : lines(g, formatInflectionLine));
+    const own = order === "frequency" ? lines(g, formatInflectionLine) : `${firstEntry(g)}`;
+    keys.set(g, shares && prevKey ? prevKey : own);
     prev = g;
   }
   return keys;
@@ -415,17 +434,21 @@ function lineKeys(
 /**
  * Merge groups into rendered blocks, deduplicating in two ways:
  * 1. Groups with identical meanings → show inflection lines once + all dict forms.
- * 2. Groups with identical inflection lines → show inflections once + all meanings.
- * Ada groups results by inflection pattern, showing each pattern once with all
- * matching dictionary meanings listed below.
+ * 2. Groups that share their inflection lines (lineKeys) → show them once + all meanings.
+ * Ada shows a run of entries' shared lines once, with each entry's dictionary
+ * form and meaning listed below.
  */
-function mergeByMeaning(groups: MergedGroup[], compound?: CompoundResult): string[][] {
+function mergeByMeaning(
+  groups: MergedGroup[],
+  order: EntryOrder,
+  compound?: CompoundResult,
+): string[][] {
   // First pass: merge groups with identical inflection line sets.
   // This collapses the many PRON "qu" entries with the same DAT/ABL/NOM pattern
   // into a single block with inflection lines shown once and meanings listed after.
   const byInflection = new Map<string, MergedGroup[]>();
   const inflOrder: string[] = [];
-  const keys = lineKeys(groups, compound);
+  const keys = lineKeys(groups, order, compound);
   for (const g of groups) {
     const key = keys.get(g) ?? "";
     let bucket = byInflection.get(key);
@@ -482,15 +505,25 @@ function mergeByMeaning(groups: MergedGroup[], compound?: CompoundResult): strin
   return blocks;
 }
 
-/** A bucket's groups gathered by meaning, in the order each meaning first appears. */
+/**
+ * A bucket's groups gathered by meaning, in the order each meaning first
+ * appears. A meaning on several DICTLINE lines prints under each entry
+ * (fingo, fingo): Ada's Putting_Meaning compares its last line, a | line,
+ * with the next entry's first, and they never match.
+ */
 function meaningRuns(bucket: readonly MergedGroup[]): MergedGroup[][] {
   const byMeaning = new Map<string, MergedGroup[]>();
+  const runs: MergedGroup[][] = [];
   for (const g of bucket) {
-    const run = byMeaning.get(g.meaning);
+    const run = g.meaning.includes("\n") ? undefined : byMeaning.get(g.meaning);
     if (run) run.push(g);
-    else byMeaning.set(g.meaning, [g]);
+    else {
+      const fresh = [g];
+      runs.push(fresh);
+      byMeaning.set(g.meaning, fresh);
+    }
   }
-  return [...byMeaning.values()];
+  return runs;
 }
 
 /**
